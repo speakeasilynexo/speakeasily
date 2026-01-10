@@ -14,7 +14,68 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      wa_state: {
+        Row: {
+          created_at: string
+          data: Json | null
+          id: string
+          step: string
+          updated_at: string
+          wa_id: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json | null
+          id?: string
+          step?: string
+          updated_at?: string
+          wa_id: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json | null
+          id?: string
+          step?: string
+          updated_at?: string
+          wa_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wa_state_wa_id_fkey"
+            columns: ["wa_id"]
+            isOneToOne: true
+            referencedRelation: "wa_users"
+            referencedColumns: ["wa_id"]
+          },
+        ]
+      }
+      wa_users: {
+        Row: {
+          created_at: string
+          id: string
+          level: Database["public"]["Enums"]["english_level"] | null
+          name: string | null
+          updated_at: string
+          wa_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          level?: Database["public"]["Enums"]["english_level"] | null
+          name?: string | null
+          updated_at?: string
+          wa_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          level?: Database["public"]["Enums"]["english_level"] | null
+          name?: string | null
+          updated_at?: string
+          wa_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +84,13 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      english_level:
+        | "beginner"
+        | "elementary"
+        | "pre_intermediate"
+        | "intermediate"
+        | "upper_intermediate"
+        | "advanced"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +217,15 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      english_level: [
+        "beginner",
+        "elementary",
+        "pre_intermediate",
+        "intermediate",
+        "upper_intermediate",
+        "advanced",
+      ],
+    },
   },
 } as const
