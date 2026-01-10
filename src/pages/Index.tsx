@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 const Index = () => {
-  const whatsappLink = "https://wa.me/SEU_NUMERO?text=Hello";
+  const whatsappLink = "https://wa.me/TU_NUMERO?text=Hello";
 
   return (
     <div className="min-h-screen bg-background">
@@ -18,18 +18,18 @@ const Index = () => {
           </div>
           <nav className="hidden md:flex items-center gap-8">
             <a href="#como-funciona" className="text-muted-foreground hover:text-foreground transition-colors">
-              Como Funciona
+              Cómo Funciona
             </a>
             <a href="#beneficios" className="text-muted-foreground hover:text-foreground transition-colors">
-              Benefícios
+              Beneficios
             </a>
-            <a href="#trial" className="text-muted-foreground hover:text-foreground transition-colors">
-              Trial Grátis
+            <a href="#prueba" className="text-muted-foreground hover:text-foreground transition-colors">
+              Prueba Gratis
             </a>
           </nav>
           <Button className="gradient-hero" asChild>
             <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
-              Começar Agora
+              Empieza Ahora
             </a>
           </Button>
         </div>
@@ -42,32 +42,32 @@ const Index = () => {
             <div className="animate-slide-up">
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-secondary text-secondary-foreground text-sm font-medium mb-6">
                 <Sparkles className="w-4 h-4" />
-                <span>Aprenda inglês sem baixar apps</span>
+                <span>Aprende inglés sin descargar apps</span>
               </div>
               
               <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6 leading-tight">
-                Aprenda inglês{" "}
+                Aprende inglés{" "}
                 <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                  direto no WhatsApp
+                  directamente desde WhatsApp
                 </span>
               </h1>
               
               <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
-                Lições curtas, IA inteligente e progresso real. Tudo no app que você já usa todos os dias.
+                Lecciones cortas, IA inteligente y progreso real. Todo en la app que ya usas todos los días.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button size="lg" className="gradient-hero text-lg px-8 py-6 shadow-elevated" asChild>
                   <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
                     <MessageCircle className="w-5 h-5 mr-2" />
-                    Comece Agora pelo WhatsApp
+                    Empieza Gratis por WhatsApp
                   </a>
                 </Button>
               </div>
 
               <p className="text-sm text-muted-foreground mt-4 flex items-center gap-2">
                 <Gift className="w-4 h-4 text-primary" />
-                7 dias grátis • Sem cartão de crédito
+                7 días gratis • Sin tarjeta de crédito
               </p>
             </div>
 
@@ -79,7 +79,7 @@ const Index = () => {
                   <div className="flex gap-3">
                     <div className="w-8 h-8 rounded-full gradient-hero flex-shrink-0" />
                     <div className="bg-card rounded-2xl rounded-tl-sm p-3 shadow-soft max-w-[85%]">
-                      <p className="text-sm">🎓 Olá! Sou seu coach de inglês. Vamos descobrir seu nível?</p>
+                      <p className="text-sm">🎓 ¡Hola! Soy tu coach de inglés. ¿Vamos a descubrir tu nivel?</p>
                     </div>
                   </div>
                   <div className="flex gap-3 justify-end">
@@ -90,14 +90,14 @@ const Index = () => {
                   <div className="flex gap-3">
                     <div className="w-8 h-8 rounded-full gradient-hero flex-shrink-0" />
                     <div className="bg-card rounded-2xl rounded-tl-sm p-3 shadow-soft max-w-[85%]">
-                      <p className="text-sm">🔥 Excelente! Seu nível: Intermediate 📙</p>
+                      <p className="text-sm">🔥 ¡Excelente! Tu nivel: Intermedio 📙</p>
                     </div>
                   </div>
                   <div className="flex gap-3">
                     <div className="w-8 h-8 rounded-full gradient-hero flex-shrink-0" />
                     <div className="bg-card rounded-2xl rounded-tl-sm p-3 shadow-soft max-w-[85%]">
-                      <p className="text-sm">📖 Lição 1 — Present Perfect</p>
-                      <p className="text-sm mt-1">✏️ Complete: "She ___ (work) here since 2020."</p>
+                      <p className="text-sm">📖 Lección 1 — Present Perfect</p>
+                      <p className="text-sm mt-1">✏️ Completa: "She ___ (work) here since 2020."</p>
                     </div>
                   </div>
                 </div>
@@ -112,10 +112,10 @@ const Index = () => {
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-16">
             <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">
-              Como Funciona
+              Cómo Funciona
             </h2>
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              Comece em menos de 1 minuto. Sem downloads, sem cadastros complicados.
+              Empieza en menos de 1 minuto. Sin descargas, sin registros complicados.
             </p>
           </div>
 
@@ -124,9 +124,9 @@ const Index = () => {
               <div className="w-20 h-20 rounded-2xl gradient-hero flex items-center justify-center mx-auto mb-6 shadow-elevated">
                 <span className="text-3xl font-display font-bold text-primary-foreground">1</span>
               </div>
-              <h3 className="font-display text-xl font-semibold mb-3">Envie "Hello"</h3>
+              <h3 className="font-display text-xl font-semibold mb-3">Envía "Hello"</h3>
               <p className="text-muted-foreground">
-                Abra o WhatsApp e mande uma mensagem simples. Pronto, você já começou!
+                Abre WhatsApp y manda un mensaje simple. ¡Listo, ya empezaste!
               </p>
             </div>
 
@@ -134,9 +134,9 @@ const Index = () => {
               <div className="w-20 h-20 rounded-2xl gradient-hero flex items-center justify-center mx-auto mb-6 shadow-elevated">
                 <span className="text-3xl font-display font-bold text-primary-foreground">2</span>
               </div>
-              <h3 className="font-display text-xl font-semibold mb-3">IA Avalia Seu Nível</h3>
+              <h3 className="font-display text-xl font-semibold mb-3">La IA Evalúa Tu Nivel</h3>
               <p className="text-muted-foreground">
-                3 perguntas rápidas e você descobre seu nível atual de inglês.
+                3 preguntas rápidas y descubres tu nivel actual de inglés.
               </p>
             </div>
 
@@ -144,9 +144,9 @@ const Index = () => {
               <div className="w-20 h-20 rounded-2xl gradient-hero flex items-center justify-center mx-auto mb-6 shadow-elevated">
                 <span className="text-3xl font-display font-bold text-primary-foreground">3</span>
               </div>
-              <h3 className="font-display text-xl font-semibold mb-3">Lições Personalizadas</h3>
+              <h3 className="font-display text-xl font-semibold mb-3">Lecciones Personalizadas</h3>
               <p className="text-muted-foreground">
-                Receba exercícios adaptados ao seu objetivo: trabalho, viagem ou conversação.
+                Recibe ejercicios adaptados a tu objetivo: trabajo, viaje o conversación.
               </p>
             </div>
           </div>
@@ -158,10 +158,10 @@ const Index = () => {
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-16">
             <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">
-              Por Que o SpeakEasily?
+              ¿Por Qué SpeakEasily?
             </h2>
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              Diferente de qualquer app de inglês que você já experimentou.
+              Diferente a cualquier app de inglés que hayas probado.
             </p>
           </div>
 
@@ -171,9 +171,9 @@ const Index = () => {
                 <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
                   <Smartphone className="w-6 h-6 text-primary" />
                 </div>
-                <h3 className="font-display text-lg font-semibold mb-2">Sem Apps Complexos</h3>
+                <h3 className="font-display text-lg font-semibold mb-2">Sin Apps Complejas</h3>
                 <p className="text-muted-foreground text-sm">
-                  Use o WhatsApp que você já tem instalado. Zero configuração.
+                  Usa el WhatsApp que ya tienes instalado. Cero configuración.
                 </p>
               </CardContent>
             </Card>
@@ -183,9 +183,9 @@ const Index = () => {
                 <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
                   <Clock className="w-6 h-6 text-primary" />
                 </div>
-                <h3 className="font-display text-lg font-semibold mb-2">5 Minutos por Dia</h3>
+                <h3 className="font-display text-lg font-semibold mb-2">5 Minutos al Día</h3>
                 <p className="text-muted-foreground text-sm">
-                  Lições curtas que cabem na sua rotina. Aprenda no ônibus, no intervalo, em qualquer lugar.
+                  Lecciones cortas que caben en tu rutina. Aprende en el metro, en el descanso, donde sea.
                 </p>
               </CardContent>
             </Card>
@@ -195,9 +195,9 @@ const Index = () => {
                 <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
                   <Brain className="w-6 h-6 text-primary" />
                 </div>
-                <h3 className="font-display text-lg font-semibold mb-2">Correções Inteligentes</h3>
+                <h3 className="font-display text-lg font-semibold mb-2">Correcciones Inteligentes</h3>
                 <p className="text-muted-foreground text-sm">
-                  IA que entende seus erros e adapta as explicações ao seu ritmo de aprendizado.
+                  IA que entiende tus errores y adapta las explicaciones a tu ritmo de aprendizaje.
                 </p>
               </CardContent>
             </Card>
@@ -207,9 +207,9 @@ const Index = () => {
                 <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
                   <Briefcase className="w-6 h-6 text-primary" />
                 </div>
-                <h3 className="font-display text-lg font-semibold mb-2">Foco no Seu Objetivo</h3>
+                <h3 className="font-display text-lg font-semibold mb-2">Enfocado en Tu Objetivo</h3>
                 <p className="text-muted-foreground text-sm">
-                  Vocabulário e exercícios adaptados para trabalho, viagens ou conversação casual.
+                  Vocabulario y ejercicios adaptados para trabajo, viajes o conversación casual.
                 </p>
               </CardContent>
             </Card>
@@ -218,7 +218,7 @@ const Index = () => {
       </section>
 
       {/* Trial Section */}
-      <section id="trial" className="py-20 px-4 bg-card">
+      <section id="prueba" className="py-20 px-4 bg-card">
         <div className="container mx-auto max-w-4xl">
           <div className="text-center">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/20 text-accent-foreground text-sm font-medium mb-6">
@@ -227,23 +227,23 @@ const Index = () => {
             </div>
 
             <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">
-              Teste Grátis por 7 Dias
+              Prueba Gratis por 7 Días
             </h2>
             
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto mb-8">
-              Experimente 20 lições completas sem pagar nada. Sem cartão de crédito, sem compromisso.
+              Experimenta 20 lecciones completas sin pagar nada. Sin tarjeta de crédito, sin compromiso.
             </p>
 
             <div className="bg-background rounded-2xl p-8 shadow-elevated border border-border max-w-xl mx-auto">
               <div className="flex flex-col md:flex-row items-center justify-center gap-6 mb-8">
                 <div className="text-center">
                   <div className="text-4xl font-display font-bold text-primary">7</div>
-                  <div className="text-sm text-muted-foreground">dias grátis</div>
+                  <div className="text-sm text-muted-foreground">días gratis</div>
                 </div>
                 <div className="hidden md:block w-px h-12 bg-border" />
                 <div className="text-center">
                   <div className="text-4xl font-display font-bold text-primary">20</div>
-                  <div className="text-sm text-muted-foreground">lições incluídas</div>
+                  <div className="text-sm text-muted-foreground">lecciones incluidas</div>
                 </div>
                 <div className="hidden md:block w-px h-12 bg-border" />
                 <div className="text-center">
@@ -255,12 +255,12 @@ const Index = () => {
               <Button size="lg" className="w-full gradient-hero text-lg py-6 shadow-elevated" asChild>
                 <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
                   <MessageCircle className="w-5 h-5 mr-2" />
-                  Começar Meu Trial Grátis
+                  Empezar Mi Prueba Gratis
                 </a>
               </Button>
 
               <p className="text-xs text-muted-foreground mt-4">
-                Ao clicar, você será redirecionado para o WhatsApp
+                Al hacer clic, serás redirigido a WhatsApp
               </p>
             </div>
           </div>
@@ -272,16 +272,16 @@ const Index = () => {
         <div className="container mx-auto max-w-4xl">
           <div className="grid md:grid-cols-3 gap-8 text-center">
             <div>
-              <div className="text-3xl font-display font-bold text-foreground mb-2">5 min/dia</div>
-              <div className="text-muted-foreground">é tudo que você precisa</div>
+              <div className="text-3xl font-display font-bold text-foreground mb-2">5 min/día</div>
+              <div className="text-muted-foreground">es todo lo que necesitas</div>
             </div>
             <div>
               <div className="text-3xl font-display font-bold text-foreground mb-2">IA Adaptativa</div>
-              <div className="text-muted-foreground">aprende com você</div>
+              <div className="text-muted-foreground">aprende contigo</div>
             </div>
             <div>
               <div className="text-3xl font-display font-bold text-foreground mb-2">100% WhatsApp</div>
-              <div className="text-muted-foreground">zero downloads</div>
+              <div className="text-muted-foreground">cero descargas</div>
             </div>
           </div>
         </div>
@@ -291,15 +291,15 @@ const Index = () => {
       <section className="py-20 px-4 gradient-subtle">
         <div className="container mx-auto max-w-3xl text-center">
           <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">
-            Pronto para Falar Inglês?
+            ¿Listo para Hablar Inglés?
           </h2>
           <p className="text-muted-foreground text-lg mb-8">
-            Comece agora e veja seu progresso em poucos dias.
+            Empieza ahora y verás tu progreso en pocos días.
           </p>
           <Button size="lg" className="gradient-hero text-lg px-8 py-6 shadow-elevated" asChild>
             <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
               <MessageCircle className="w-5 h-5 mr-2" />
-              Iniciar Minha Jornada
+              Iniciar Mi Viaje
               <ArrowRight className="w-5 h-5 ml-2" />
             </a>
           </Button>
@@ -317,7 +317,7 @@ const Index = () => {
               <span className="font-display font-semibold">SpeakEasily</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              © 2024 SpeakEasily. Aprenda inglês pelo WhatsApp.
+              © 2024 SpeakEasily. Aprende inglés por WhatsApp.
             </p>
           </div>
         </div>

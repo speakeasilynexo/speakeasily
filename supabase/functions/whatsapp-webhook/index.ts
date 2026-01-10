@@ -110,19 +110,19 @@ const LEVEL_QUESTIONS = [
 ];
 
 const LEVEL_NAMES: Record<EnglishLevel, string> = {
-  beginner: "Beginner 🌱",
-  elementary: "Elementary 📗",
-  pre_intermediate: "Pre-Intermediate 📘",
-  intermediate: "Intermediate 📙",
-  upper_intermediate: "Upper-Intermediate 📕",
-  advanced: "Advanced 🎓",
+  beginner: "Principiante 🌱",
+  elementary: "Elemental 📗",
+  pre_intermediate: "Pre-Intermedio 📘",
+  intermediate: "Intermedio 📙",
+  upper_intermediate: "Intermedio-Alto 📕",
+  advanced: "Avanzado 🎓",
 };
 
 const GOAL_NAMES: Record<LearningGoal, string> = {
-  work: "🏢 Professional English",
-  travel: "✈️ Travel English",
-  conversation: "💬 Casual Conversation",
-  general: "📚 General English",
+  work: "🏢 Inglés Profesional",
+  travel: "✈️ Inglés para Viajes",
+  conversation: "💬 Conversación Casual",
+  general: "📚 Inglés General",
 };
 
 const LESSON_TOPICS: Record<EnglishLevel, string[]> = {
@@ -135,29 +135,29 @@ const LESSON_TOPICS: Record<EnglishLevel, string[]> = {
 };
 
 const GOAL_CONTEXTS: Record<LearningGoal, string> = {
-  work: "professional contexts like meetings, emails, presentations, and business conversations",
-  travel: "travel situations like airports, hotels, restaurants, and asking for directions",
-  conversation: "everyday casual conversations with friends, family, and social situations",
-  general: "various everyday situations",
+  work: "contextos profesionales como reuniones, correos electrónicos, presentaciones y conversaciones de negocios",
+  travel: "situaciones de viaje como aeropuertos, hoteles, restaurantes y pedir direcciones",
+  conversation: "conversaciones casuales cotidianas con amigos, familia y situaciones sociales",
+  general: "varias situaciones cotidianas",
 };
 
 const MICRO_REWARDS = [
-  "🔥 Excelente!",
-  "💪 Você está evoluindo!",
-  "⭐ Mandou bem!",
-  "🎯 Certinho!",
-  "✨ Perfeito!",
-  "🚀 Incrível!",
-  "👏 Ótimo trabalho!",
-  "🌟 Brilhante!",
+  "🔥 ¡Excelente!",
+  "💪 ¡Estás mejorando!",
+  "⭐ ¡Muy bien!",
+  "🎯 ¡Correcto!",
+  "✨ ¡Perfecto!",
+  "🚀 ¡Increíble!",
+  "👏 ¡Buen trabajo!",
+  "🌟 ¡Brillante!",
 ];
 
 const MILESTONE_MESSAGES = [
-  "📊 *5 lições!* Você já está mais preparado que 60% dos iniciantes!",
-  "📊 *10 lições!* Seu inglês está tomando forma. Continue assim!",
-  "📊 *15 lições!* Você está no ritmo certo para fluência!",
-  "📊 *20 lições!* Impressionante dedicação! Poucos chegam aqui.",
-  "📊 *25 lições!* Você é um exemplo de persistência!",
+  "📊 *¡5 lecciones!* ¡Ya estás más preparado que el 60% de los principiantes!",
+  "📊 *¡10 lecciones!* Tu inglés está tomando forma. ¡Sigue así!",
+  "📊 *¡15 lecciones!* ¡Estás en el ritmo correcto hacia la fluidez!",
+  "📊 *¡20 lecciones!* ¡Dedicación impresionante! Pocos llegan aquí.",
+  "📊 *¡25 lecciones!* ¡Eres un ejemplo de persistencia!",
 ];
 
 // ============== TELEMETRY ==============
@@ -279,7 +279,7 @@ async function generateExercise(
     ? "Make it VERY SIMPLE. Use basic vocabulary. Short sentence."
     : "";
 
-  const systemPrompt = `You're an English teacher for a ${LEVEL_NAMES[level]} student via WhatsApp.
+  const systemPrompt = `You're an English teacher for a ${LEVEL_NAMES[level]} Spanish-speaking student via WhatsApp.
 
 CONTEXT: Student's goal is ${GOAL_NAMES[goal]} (${context}).
 TOPIC: ${topic}
@@ -291,9 +291,10 @@ RULES:
 - Simple, clear language
 - Use context related to their goal
 - No long explanations
+- Instructions should be in SPANISH, but the English content stays in English
 
 Return ONLY JSON:
-{"type":"${type}","prompt":"exercise text","expected_answer":"flexible answer","context":"${topic}"}`;
+{"type":"${type}","prompt":"exercise text in Spanish instructions with English content","expected_answer":"flexible answer","context":"${topic}"}`;
 
   const response = await callAI(systemPrompt, `Create ${type} exercise #${lessonNumber}`);
   
@@ -321,8 +322,8 @@ function getDefaultExercise(
     translation: {
       type: "translation",
       prompt: simplified 
-        ? "🔄 Translate: \"Olá, tudo bem?\""
-        : "🔄 Translate: \"Eu gosto de aprender inglês.\"",
+        ? "🔄 Traduce: \"Hola, ¿cómo estás?\""
+        : "🔄 Traduce: \"Me gusta aprender inglés.\"",
       expected_answer: simplified ? "Hello, how are you?" : "I like to learn English.",
       context: topic,
       simplified,
@@ -330,8 +331,8 @@ function getDefaultExercise(
     complete: {
       type: "complete",
       prompt: simplified
-        ? "✏️ Complete: \"She ___ happy.\" (is/are)"
-        : "✏️ Complete: \"She ___ (go) to work every day.\"",
+        ? "✏️ Completa: \"She ___ happy.\" (is/are)"
+        : "✏️ Completa: \"She ___ (go) to work every day.\"",
       expected_answer: simplified ? "is" : "goes",
       context: topic,
       simplified,
@@ -339,8 +340,8 @@ function getDefaultExercise(
     qa: {
       type: "qa",
       prompt: simplified
-        ? "💬 Answer: \"What is your name?\""
-        : "💬 Answer: \"What do you like to do on weekends?\"",
+        ? "💬 Responde: \"What is your name?\""
+        : "💬 Responde: \"What do you like to do on weekends?\"",
       expected_answer: "",
       context: topic,
       simplified,
@@ -358,7 +359,7 @@ async function evaluateAnswer(
 ): Promise<{ correct: boolean; feedback: string; hint?: string }> {
   const needsHint = consecutiveErrors >= 1;
   
-  const systemPrompt = `You're a friendly English teacher on WhatsApp for a ${LEVEL_NAMES[level]} student.
+  const systemPrompt = `You're a friendly English teacher on WhatsApp for a ${LEVEL_NAMES[level]} Spanish-speaking student.
 
 EXERCISE: ${exercise.prompt}
 EXPECTED (flexible): ${exercise.expected_answer || "Accept reasonable answers"}
@@ -367,12 +368,12 @@ ${exercise.simplified ? "This was already a simplified exercise." : ""}
 
 RULES:
 - Be VERY encouraging
-- MAX 2 lines feedback
+- MAX 2 lines feedback in SPANISH
 - Use emojis
-- ${needsHint ? "Include a helpful HINT since student is struggling" : ""}
+- ${needsHint ? "Include a helpful HINT in Spanish since student is struggling" : ""}
 
 Return ONLY JSON:
-{"correct":true/false,"feedback":"short message"${needsHint ? ',"hint":"helpful tip"' : ""}}`;
+{"correct":true/false,"feedback":"short message in Spanish"${needsHint ? ',"hint":"helpful tip in Spanish"' : ""}}`;
 
   const response = await callAI(systemPrompt, `Evaluate: "${userAnswer}"`);
   
@@ -392,7 +393,7 @@ Return ONLY JSON:
 
   return {
     correct: false,
-    feedback: "Good try! 👏 Keep practicing!",
+    feedback: "¡Buen intento! 👏 ¡Sigue practicando!",
   };
 }
 
@@ -569,13 +570,13 @@ function getMilestoneMessage(lessonNumber: number): string | null {
 
 function parseGoal(text: string): LearningGoal | null {
   const lower = text.toLowerCase();
-  if (lower.includes("trabalho") || lower.includes("work") || lower.includes("business") || lower.includes("profissional")) {
+  if (lower.includes("trabajo") || lower.includes("work") || lower.includes("business") || lower.includes("profesional") || lower.includes("oficina")) {
     return "work";
   }
-  if (lower.includes("viagem") || lower.includes("travel") || lower.includes("trip") || lower.includes("vacation")) {
+  if (lower.includes("viaje") || lower.includes("travel") || lower.includes("trip") || lower.includes("vacation") || lower.includes("viajar")) {
     return "travel";
   }
-  if (lower.includes("conversa") || lower.includes("conversation") || lower.includes("chat") || lower.includes("falar")) {
+  if (lower.includes("conversa") || lower.includes("conversation") || lower.includes("chat") || lower.includes("hablar") || lower.includes("charlar")) {
     return "conversation";
   }
   return null;
@@ -583,12 +584,12 @@ function parseGoal(text: string): LearningGoal | null {
 
 function getLevelEncouragement(level: EnglishLevel): string {
   const msgs: Record<EnglishLevel, string> = {
-    beginner: "Todo mundo começa de algum lugar. Você já deu o primeiro passo! 🌱",
-    elementary: "Boa base! Vamos construir juntos. 📗",
-    pre_intermediate: "Você já tem uma base sólida! 📘",
-    intermediate: "Impressionante! Você se comunica bem. 📙",
-    upper_intermediate: "Excelente! Vamos polir os detalhes. 📕",
-    advanced: "Incrível! Vamos dominar as nuances. 🎓",
+    beginner: "Todos empiezan en algún lugar. ¡Ya diste el primer paso! 🌱",
+    elementary: "¡Buena base! Vamos a construir juntos. 📗",
+    pre_intermediate: "¡Ya tienes una base sólida! 📘",
+    intermediate: "¡Impresionante! Te comunicas bien. 📙",
+    upper_intermediate: "¡Excelente! Vamos a pulir los detalles. 📕",
+    advanced: "¡Increíble! Vamos a dominar los matices. 🎓",
   };
   return msgs[level];
 }
@@ -612,11 +613,11 @@ async function sendTrialEndMessage(
   // Message 1: Progress summary
   await send(
     waId,
-    `🎉 *Seu trial gratuito acabou!*\n\n` +
-    `📊 *Seu progresso:*\n` +
-    `• Nível: ${LEVEL_NAMES[level]}\n` +
-    `• Lições: ${progress.trial?.lessons_completed || 0}\n` +
-    `• Acertos: ${progress.correct_answers} (${accuracy}%)`
+    `🎉 *¡Tu prueba gratuita ha terminado!*\n\n` +
+    `📊 *Tu progreso:*\n` +
+    `• Nivel: ${LEVEL_NAMES[level]}\n` +
+    `• Lecciones: ${progress.trial?.lessons_completed || 0}\n` +
+    `• Aciertos: ${progress.correct_answers} (${accuracy}%)`
   );
 
   await new Promise(r => setTimeout(r, 1000));
@@ -624,13 +625,13 @@ async function sendTrialEndMessage(
   // Message 2: Encouragement + what's next
   await send(
     waId,
-    `💪 *Você evoluiu muito!*\n\n` +
-    `A versão completa inclui:\n` +
-    `• Lições ilimitadas\n` +
-    `• Exercícios de áudio\n` +
-    `• Certificado de progresso\n\n` +
-    `🔜 *Em breve* teremos mais novidades!`,
-    `Enquanto isso, use *"progress"* para ver seu histórico ou *"help"* para comandos.`
+    `💪 *¡Has mejorado mucho!*\n\n` +
+    `La versión completa incluye:\n` +
+    `• Lecciones ilimitadas\n` +
+    `• Ejercicios de audio\n` +
+    `• Certificado de progreso\n\n` +
+    `🔜 *¡Pronto* tendremos más novedades!`,
+    `Mientras tanto, usa *"progress"* para ver tu historial o *"help"* para comandos.`
   );
 }
 
@@ -639,19 +640,19 @@ async function sendTrialEndMessage(
 async function sendOnboarding(waId: string, level: EnglishLevel, displayName: string): Promise<void> {
   await send(
     waId,
-    `🎓 *Seu nível: ${LEVEL_NAMES[level]}*\n\n${getLevelEncouragement(level)}`
+    `🎓 *Tu nivel: ${LEVEL_NAMES[level]}*\n\n${getLevelEncouragement(level)}`
   );
 
   await new Promise(r => setTimeout(r, 1200));
 
   await send(
     waId,
-    `📱 *Como funciona:*\n\n` +
-    `• Lições de 5 min pelo WhatsApp\n` +
-    `• Exercícios práticos com feedback IA\n` +
-    `• Progresso salvo automaticamente\n\n` +
-    `Qual seu objetivo? 👇`,
-    `🏢 *trabalho*\n✈️ *viagem*\n💬 *conversação*\n\n_Ou digite "geral" para inglês completo_`
+    `📱 *Cómo funciona:*\n\n` +
+    `• Lecciones de 5 min por WhatsApp\n` +
+    `• Ejercicios prácticos con feedback IA\n` +
+    `• Progreso guardado automáticamente\n\n` +
+    `¿Cuál es tu objetivo? 👇`,
+    `🏢 *trabajo*\n✈️ *viaje*\n💬 *conversación*\n\n_O escribe "general" para inglés completo_`
   );
 }
 
@@ -692,7 +693,7 @@ async function processMessage(
   const trialCheck = checkTrialStatus(progress.trial!);
   const isLessonStep = ["lesson", "feedback_correct", "feedback_wrong", "ready"].includes(state.step);
   
-  if (!trialCheck.active && isLessonStep && lower !== "help" && lower !== "progress" && lower !== "ajuda" && lower !== "progresso") {
+  if (!trialCheck.active && isLessonStep && lower !== "help" && lower !== "progress" && lower !== "ayuda" && lower !== "progreso") {
     // Mark trial as ended
     if (progress.trial!.trial_status !== "ended") {
       progress.trial!.trial_status = "ended";
@@ -701,7 +702,7 @@ async function processMessage(
     } else {
       await send(
         waId,
-        `⏰ Seu trial já acabou.\n\nUse *"progress"* para ver seu histórico ou *"help"* para comandos.`
+        `⏰ Tu prueba ya terminó.\n\nUsa *"progress"* para ver tu historial o *"help"* para comandos.`
       );
     }
     return;
@@ -710,50 +711,50 @@ async function processMessage(
   // ========== GLOBAL COMMANDS ==========
   
   if (lower === "restart" || lower === "reiniciar") {
-    await send(waId, "🔄 Vamos recomeçar!\n\nEnvie qualquer mensagem para iniciar.");
+    await send(waId, "🔄 ¡Vamos a empezar de nuevo!\n\nEnvía cualquier mensaje para iniciar.");
     await updateState(supabase, waId, "welcome", { progress: { ...progress, trial: progress.trial } });
     return;
   }
 
-  if (lower === "help" || lower === "ajuda") {
+  if (lower === "help" || lower === "ayuda") {
     const trialInfo = getTrialProgress(progress.trial!);
     const trialStatus = trialCheck.active 
-      ? `\n\n⏳ Trial: ${trialInfo.lessonsLeft} lições / ${trialInfo.daysLeft} dias restantes`
-      : "\n\n⏰ Trial encerrado";
+      ? `\n\n⏳ Prueba: ${trialInfo.lessonsLeft} lecciones / ${trialInfo.daysLeft} días restantes`
+      : "\n\n⏰ Prueba terminada";
 
     await send(
       waId,
       `📚 *Comandos:*\n\n` +
-      `• *next* — próxima lição\n` +
-      `• *repeat* — repetir exercício\n` +
-      `• *progress* — ver progresso\n` +
-      `• *goal* — mudar objetivo\n` +
-      `• *restart* — recomeçar` +
+      `• *next* — siguiente lección\n` +
+      `• *repeat* — repetir ejercicio\n` +
+      `• *progress* — ver progreso\n` +
+      `• *goal* — cambiar objetivo\n` +
+      `• *restart* — empezar de nuevo` +
       trialStatus
     );
     return;
   }
 
-  if (lower === "progress" || lower === "progresso") {
+  if (lower === "progress" || lower === "progreso") {
     const p = progress;
     if (p && user.level) {
       const acc = p.attempts > 0 ? Math.round((p.correct_answers / p.attempts) * 100) : 0;
       const trialInfo = getTrialProgress(p.trial!);
       const trialStatus = trialCheck.active 
-        ? `⏳ Trial: ${trialInfo.lessonsLeft} lições / ${trialInfo.daysLeft} dias`
-        : "⏰ Trial encerrado";
+        ? `⏳ Prueba: ${trialInfo.lessonsLeft} lecciones / ${trialInfo.daysLeft} días`
+        : "⏰ Prueba terminada";
 
       await send(
         waId,
-        `📊 *Seu progresso:*\n\n` +
-        `🎯 Nível: ${LEVEL_NAMES[user.level]}\n` +
-        `📖 Lições: ${p.trial?.lessons_completed || 0}\n` +
-        `✅ Acertos: ${p.correct_answers} (${acc}%)\n` +
+        `📊 *Tu progreso:*\n\n` +
+        `🎯 Nivel: ${LEVEL_NAMES[user.level]}\n` +
+        `📖 Lecciones: ${p.trial?.lessons_completed || 0}\n` +
+        `✅ Aciertos: ${p.correct_answers} (${acc}%)\n` +
         `🎯 Objetivo: ${GOAL_NAMES[p.goal || "general"]}\n\n` +
         trialStatus
       );
     } else {
-      await send(waId, "Você ainda não começou! Envie qualquer mensagem. 🚀");
+      await send(waId, "¡Aún no has empezado! Envía cualquier mensaje. 🚀");
     }
     return;
   }
@@ -761,8 +762,8 @@ async function processMessage(
   if (lower === "goal" || lower === "objetivo") {
     await send(
       waId,
-      `🎯 *Qual seu objetivo?*\n\n` +
-      `🏢 *trabalho*\n✈️ *viagem*\n💬 *conversação*\n📚 *geral*`
+      `🎯 *¿Cuál es tu objetivo?*\n\n` +
+      `🏢 *trabajo*\n✈️ *viaje*\n💬 *conversación*\n📚 *general*`
     );
     await updateState(supabase, waId, "set_goal", state.data);
     return;
@@ -774,7 +775,7 @@ async function processMessage(
     case "welcome": {
       await send(
         waId,
-        `🎓 *Olá, ${displayName}!*\n\nSou seu coach de inglês. Vamos descobrir seu nível com 3 perguntas rápidas! 🚀`,
+        `🎓 *¡Hola, ${displayName}!*\n\nSoy tu coach de inglés. ¡Vamos a descubrir tu nivel con 3 preguntas rápidas! 🚀`,
         LEVEL_QUESTIONS[0].question
       );
       await updateState(supabase, waId, "question_1", { answers: [], currentQuestion: 0, score: 0, progress });
@@ -790,7 +791,7 @@ async function processMessage(
       let score = state.data.score ?? 0;
 
       if (!["A", "B", "C", "D"].includes(normalized)) {
-        await send(waId, "Responda com *A*, *B* ou *C* 📝");
+        await send(waId, "Responde con *A*, *B* o *C* 📝");
         return;
       }
 
@@ -834,7 +835,7 @@ async function processMessage(
 
       const detectedGoal = parseGoal(messageText);
       
-      if (detectedGoal || lower === "geral" || lower === "general") {
+      if (detectedGoal || lower === "general") {
         currentProgress.goal = detectedGoal || "general";
         currentProgress.onboarding_complete = true;
 
@@ -845,11 +846,11 @@ async function processMessage(
         await send(
           waId,
           `✅ *Objetivo: ${GOAL_NAMES[currentProgress.goal]}*\n\n` +
-          `🎁 *Seu trial:* ${trialInfo.lessonsLeft} lições ou ${trialInfo.daysLeft} dias grátis!\n\n` +
-          `Digite *"next"* para começar. 🚀`
+          `🎁 *Tu prueba:* ${trialInfo.lessonsLeft} lecciones o ${trialInfo.daysLeft} días gratis!\n\n` +
+          `Escribe *"next"* para empezar. 🚀`
         );
         await updateState(supabase, waId, "ready", { ...state.data, progress: currentProgress });
-      } else if (["next", "start", "go", "vamos", "bora", "sim", "yes"].includes(lower)) {
+      } else if (["next", "start", "go", "vamos", "dale", "si", "yes", "sí"].includes(lower)) {
         currentProgress.goal = "general";
         currentProgress.onboarding_complete = true;
         await trackEvent(supabase, waId, "goal_selected", { goal: "general" });
@@ -857,20 +858,20 @@ async function processMessage(
       } else {
         await send(
           waId,
-          `Escolha seu objetivo:\n\n🏢 *trabalho*\n✈️ *viagem*\n💬 *conversação*\n📚 *geral*`
+          `Elige tu objetivo:\n\n🏢 *trabajo*\n✈️ *viaje*\n💬 *conversación*\n📚 *general*`
         );
       }
       break;
     }
 
     case "ready": {
-      if (["next", "start", "go", "vamos", "bora"].includes(lower)) {
+      if (["next", "start", "go", "vamos", "dale"].includes(lower)) {
         await startLesson(supabase, waId, user.level!, state.data);
       } else {
         const trialInfo = getTrialProgress(progress.trial!);
         await send(
           waId, 
-          `Digite *"next"* para iniciar sua próxima lição! 📚\n\n⏳ ${trialInfo.lessonsLeft} lições restantes no trial`
+          `Escribe *"next"* para iniciar tu próxima lección! 📚\n\n⏳ ${trialInfo.lessonsLeft} lecciones restantes en la prueba`
         );
       }
       break;
@@ -885,7 +886,7 @@ async function processMessage(
         return;
       }
 
-      if (lower === "next" || lower === "skip" || lower === "próximo") {
+      if (lower === "next" || lower === "skip" || lower === "siguiente") {
         lessonProgress.lesson_number++;
         lessonProgress.consecutive_errors = 0;
         await startLesson(supabase, waId, user.level!, { ...state.data, progress: lessonProgress });
@@ -923,11 +924,11 @@ async function processMessage(
         const trialInfo = getTrialProgress(lessonProgress.trial!);
 
         if (milestone) {
-          await send(waId, `${reward} ${evaluation.feedback}`, milestone + `\n\nDigite *"next"* para continuar!`);
+          await send(waId, `${reward} ${evaluation.feedback}`, milestone + `\n\nEscribe *"next"* para continuar!`);
         } else {
           await send(
             waId, 
-            `${reward} ${evaluation.feedback}\n\n⏳ ${trialInfo.lessonsLeft} lições restantes\n\nDigite *"next"* para a próxima!`
+            `${reward} ${evaluation.feedback}\n\n⏳ ${trialInfo.lessonsLeft} lecciones restantes\n\nEscribe *"next"* para la siguiente!`
           );
         }
 
@@ -937,12 +938,12 @@ async function processMessage(
         await trackEvent(supabase, waId, "exercise_failed", { lesson: lessonProgress.lesson_number });
 
         if (lessonProgress.consecutive_errors >= 2) {
-          const hint = evaluation.hint || `💡 Dica: A resposta esperada era algo como "${exercise.expected_answer}"`;
+          const hint = evaluation.hint || `💡 Pista: La respuesta esperada era algo como "${exercise.expected_answer}"`;
           
           await send(
             waId,
             `${evaluation.feedback}\n\n${hint}`,
-            `Quer tentar de novo? Digite *"repeat"*\nOu *"next"* para uma versão mais simples! 💪`
+            `¿Quieres intentar de nuevo? Escribe *"repeat"*\nO *"next"* para una versión más simple! 💪`
           );
           
           lessonProgress.current_exercise = { ...exercise, simplified: true };
@@ -950,7 +951,7 @@ async function processMessage(
           await send(
             waId,
             `${evaluation.feedback}`,
-            `Tente novamente! Ou digite *"next"* para pular.`
+            `¡Inténtalo de nuevo! O escribe *"next"* para saltar.`
           );
         }
 
@@ -971,7 +972,7 @@ async function processMessage(
     case "feedback_wrong": {
       const fbProgress = state.data.progress!;
 
-      if (lower === "next" || lower === "próximo" || lower === "continue") {
+      if (lower === "next" || lower === "siguiente" || lower === "continue") {
         fbProgress.lesson_number++;
         
         const shouldSimplify = fbProgress.consecutive_errors >= 2;
@@ -995,14 +996,14 @@ async function processMessage(
     case "trial_ended": {
       await send(
         waId,
-        `⏰ Seu trial já acabou.\n\nUse *"progress"* para ver seu histórico ou *"help"* para comandos.`
+        `⏰ Tu prueba ya terminó.\n\nUsa *"progress"* para ver tu historial o *"help"* para comandos.`
       );
       break;
     }
 
     default: {
       if (user.level) {
-        await send(waId, "Vamos continuar! 🚀", "Digite *\"next\"* para a próxima lição.");
+        await send(waId, "¡Vamos a continuar! 🚀", "Escribe *\"next\"* para la próxima lección.");
         await updateState(supabase, waId, "ready", state.data);
       } else {
         await updateState(supabase, waId, "welcome", { progress });
@@ -1035,7 +1036,7 @@ async function startLesson(
 
   await send(
     waId,
-    `📖 *Lição ${progress.lesson_number}* — ${topic}\n\n⏱️ ~5 min | ⏳ ${trialInfo.lessonsLeft} restantes`
+    `📖 *Lección ${progress.lesson_number}* — ${topic}\n\n⏱️ ~5 min | ⏳ ${trialInfo.lessonsLeft} restantes`
   );
 
   const exercise = await generateExercise(level, progress.lesson_number, progress.goal || "general", simplified);
@@ -1049,7 +1050,7 @@ async function startLesson(
 
 async function sendExercise(waId: string, exercise: ExerciseData): Promise<void> {
   const emoji = { translation: "🔄", complete: "✏️", qa: "💬" };
-  const label = { translation: "Tradução", complete: "Complete", qa: "Responda" };
+  const label = { translation: "Traducción", complete: "Completa", qa: "Responde" };
 
   await send(
     waId,
