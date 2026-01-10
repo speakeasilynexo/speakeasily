@@ -33,6 +33,13 @@ interface WhatsAppWebhookPayload {
 }
 
 type LearningGoal = "work" | "travel" | "conversation" | "general";
+type TrialStatus = "active" | "ended";
+
+interface TrialInfo {
+  trial_started_at: string;
+  lessons_completed: number;
+  trial_status: TrialStatus;
+}
 
 interface LessonProgress {
   lesson_number: number;
@@ -43,6 +50,7 @@ interface LessonProgress {
   lesson_history?: LessonHistoryItem[];
   goal?: LearningGoal;
   onboarding_complete?: boolean;
+  trial?: TrialInfo;
 }
 
 interface LessonHistoryItem {
@@ -68,11 +76,15 @@ interface StateData {
 }
 
 type EnglishLevel = "beginner" | "elementary" | "pre_intermediate" | "intermediate" | "upper_intermediate" | "advanced";
+type EventType = "lesson_completed" | "exercise_failed" | "goal_selected" | "trial_ended" | "level_assessed" | "onboarding_complete" | "user_started";
 
 // deno-lint-ignore no-explicit-any
 type SupabaseClientType = ReturnType<typeof createClient<any>>;
 
 // ============== CONSTANTS ==============
+
+const TRIAL_DAYS = 7;
+const TRIAL_LESSONS = 20;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -129,7 +141,6 @@ const GOAL_CONTEXTS: Record<LearningGoal, string> = {
   general: "various everyday situations",
 };
 
-// Micro-rewards for correct answers
 const MICRO_REWARDS = [
   "🔥 Excelente!",
   "💪 Você está evoluindo!",
@@ -141,7 +152,6 @@ const MICRO_REWARDS = [
   "🌟 Brilhante!",
 ];
 
-// Progress milestones (every 5 lessons)
 const MILESTONE_MESSAGES = [
   "📊 *5 lições!* Você já está mais preparado que 60% dos iniciantes!",
   "📊 *10 lições!* Seu inglês está tomando forma. Continue assim!",
@@ -149,6 +159,68 @@ const MILESTONE_MESSAGES = [
   "📊 *20 lições!* Impressionante dedicação! Poucos chegam aqui.",
   "📊 *25 lições!* Você é um exemplo de persistência!",
 ];
+
+// ============== TELEMETRY ==============
+
+async function trackEvent(
+  supabase: SupabaseClientType,
+  waId: string,
+  eventType: EventType,
+  metadata: Record<string, unknown> = {}
+): Promise<void> {
+  try {
+    await supabase.from("wa_events").insert({
+      wa_id: waId,
+      event_type: eventType,
+      metadata,
+    });
+  } catch (e) {
+    console.error("[Telemetry] Error:", e);
+  }
+}
+
+// ============== TRIAL SYSTEM ==============
+
+function initTrial(): TrialInfo {
+  return {
+    trial_started_at: new Date().toISOString(),
+    lessons_completed: 0,
+    trial_status: "active",
+  };
+}
+
+function checkTrialStatus(trial: TrialInfo): { active: boolean; reason?: string } {
+  if (trial.trial_status === "ended") {
+    return { active: false, reason: "already_ended" };
+  }
+
+  // Check lessons limit
+  if (trial.lessons_completed >= TRIAL_LESSONS) {
+    return { active: false, reason: "lessons_limit" };
+  }
+
+  // Check days limit
+  const startDate = new Date(trial.trial_started_at);
+  const now = new Date();
+  const daysDiff = Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+  
+  if (daysDiff >= TRIAL_DAYS) {
+    return { active: false, reason: "time_limit" };
+  }
+
+  return { active: true };
+}
+
+function getTrialProgress(trial: TrialInfo): { lessonsLeft: number; daysLeft: number } {
+  const startDate = new Date(trial.trial_started_at);
+  const now = new Date();
+  const daysDiff = Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+  
+  return {
+    lessonsLeft: Math.max(0, TRIAL_LESSONS - trial.lessons_completed),
+    daysLeft: Math.max(0, TRIAL_DAYS - daysDiff),
+  };
+}
 
 // ============== AI FUNCTIONS ==============
 
@@ -366,7 +438,6 @@ async function sendWhatsAppText(to: string, body: string): Promise<boolean> {
   }
 }
 
-// Max 2 messages, wait for response
 async function send(to: string, msg1: string, msg2?: string): Promise<void> {
   await sendWhatsAppText(to, msg1);
   if (msg2) {
@@ -381,10 +452,10 @@ async function getOrCreateUser(
   supabase: SupabaseClientType,
   waId: string,
   name: string | null
-): Promise<{ wa_id: string; name: string | null; level: EnglishLevel | null } | null> {
+): Promise<{ wa_id: string; name: string | null; level: EnglishLevel | null; subscription_status: string } | null> {
   const { data: existing } = await supabase
     .from("wa_users")
-    .select("wa_id, name, level")
+    .select("wa_id, name, level, subscription_status")
     .eq("wa_id", waId)
     .maybeSingle();
 
@@ -393,13 +464,14 @@ async function getOrCreateUser(
       wa_id: existing.wa_id as string,
       name: existing.name as string | null,
       level: existing.level as EnglishLevel | null,
+      subscription_status: existing.subscription_status as string,
     };
   }
 
   const { data: newUser, error } = await supabase
     .from("wa_users")
-    .insert({ wa_id: waId, name })
-    .select("wa_id, name, level")
+    .insert({ wa_id: waId, name, subscription_status: "trial" })
+    .select("wa_id, name, level, subscription_status")
     .single();
 
   if (error) {
@@ -411,6 +483,7 @@ async function getOrCreateUser(
     wa_id: newUser.wa_id as string,
     name: newUser.name as string | null,
     level: newUser.level as EnglishLevel | null,
+    subscription_status: newUser.subscription_status as string,
   };
 }
 
@@ -465,6 +538,14 @@ async function updateUserLevel(
   await supabase.from("wa_users").update({ level }).eq("wa_id", waId);
 }
 
+async function updateUserSubscription(
+  supabase: SupabaseClientType,
+  waId: string,
+  status: string
+): Promise<void> {
+  await supabase.from("wa_users").update({ subscription_status: status }).eq("wa_id", waId);
+}
+
 // ============== HELPERS ==============
 
 function calculateLevel(score: number): EnglishLevel {
@@ -512,10 +593,50 @@ function getLevelEncouragement(level: EnglishLevel): string {
   return msgs[level];
 }
 
+// ============== TRIAL END MESSAGING ==============
+
+async function sendTrialEndMessage(
+  supabase: SupabaseClientType,
+  waId: string,
+  progress: LessonProgress,
+  level: EnglishLevel,
+  reason: string
+): Promise<void> {
+  const accuracy = progress.attempts > 0 
+    ? Math.round((progress.correct_answers / progress.attempts) * 100) 
+    : 0;
+
+  await trackEvent(supabase, waId, "trial_ended", { reason, lessons: progress.trial?.lessons_completed });
+  await updateUserSubscription(supabase, waId, "free");
+
+  // Message 1: Progress summary
+  await send(
+    waId,
+    `🎉 *Seu trial gratuito acabou!*\n\n` +
+    `📊 *Seu progresso:*\n` +
+    `• Nível: ${LEVEL_NAMES[level]}\n` +
+    `• Lições: ${progress.trial?.lessons_completed || 0}\n` +
+    `• Acertos: ${progress.correct_answers} (${accuracy}%)`
+  );
+
+  await new Promise(r => setTimeout(r, 1000));
+
+  // Message 2: Encouragement + what's next
+  await send(
+    waId,
+    `💪 *Você evoluiu muito!*\n\n` +
+    `A versão completa inclui:\n` +
+    `• Lições ilimitadas\n` +
+    `• Exercícios de áudio\n` +
+    `• Certificado de progresso\n\n` +
+    `🔜 *Em breve* teremos mais novidades!`,
+    `Enquanto isso, use *"progress"* para ver seu histórico ou *"help"* para comandos.`
+  );
+}
+
 // ============== ONBOARDING ==============
 
 async function sendOnboarding(waId: string, level: EnglishLevel, displayName: string): Promise<void> {
-  // Message 1: Method explanation
   await send(
     waId,
     `🎓 *Seu nível: ${LEVEL_NAMES[level]}*\n\n${getLevelEncouragement(level)}`
@@ -523,7 +644,6 @@ async function sendOnboarding(waId: string, level: EnglishLevel, displayName: st
 
   await new Promise(r => setTimeout(r, 1200));
 
-  // Message 2: What they'll learn + how it works
   await send(
     waId,
     `📱 *Como funciona:*\n\n` +
@@ -553,15 +673,54 @@ async function processMessage(
   const normalized = messageText.trim().toUpperCase();
   const lower = messageText.toLowerCase().trim();
 
+  // Initialize trial on first contact
+  let progress = state.data.progress;
+  if (!progress?.trial) {
+    progress = progress || {
+      lesson_number: 1,
+      correct_answers: 0,
+      attempts: 0,
+      consecutive_errors: 0,
+      goal: "general" as LearningGoal,
+    };
+    progress.trial = initTrial();
+    await updateState(supabase, waId, state.step, { ...state.data, progress });
+    await trackEvent(supabase, waId, "user_started", { name: userName });
+  }
+
+  // Check trial status for lesson-related steps
+  const trialCheck = checkTrialStatus(progress.trial!);
+  const isLessonStep = ["lesson", "feedback_correct", "feedback_wrong", "ready"].includes(state.step);
+  
+  if (!trialCheck.active && isLessonStep && lower !== "help" && lower !== "progress" && lower !== "ajuda" && lower !== "progresso") {
+    // Mark trial as ended
+    if (progress.trial!.trial_status !== "ended") {
+      progress.trial!.trial_status = "ended";
+      await updateState(supabase, waId, "trial_ended", { ...state.data, progress });
+      await sendTrialEndMessage(supabase, waId, progress, user.level!, trialCheck.reason!);
+    } else {
+      await send(
+        waId,
+        `⏰ Seu trial já acabou.\n\nUse *"progress"* para ver seu histórico ou *"help"* para comandos.`
+      );
+    }
+    return;
+  }
+
   // ========== GLOBAL COMMANDS ==========
   
   if (lower === "restart" || lower === "reiniciar") {
     await send(waId, "🔄 Vamos recomeçar!\n\nEnvie qualquer mensagem para iniciar.");
-    await updateState(supabase, waId, "welcome", {});
+    await updateState(supabase, waId, "welcome", { progress: { ...progress, trial: progress.trial } });
     return;
   }
 
   if (lower === "help" || lower === "ajuda") {
+    const trialInfo = getTrialProgress(progress.trial!);
+    const trialStatus = trialCheck.active 
+      ? `\n\n⏳ Trial: ${trialInfo.lessonsLeft} lições / ${trialInfo.daysLeft} dias restantes`
+      : "\n\n⏰ Trial encerrado";
+
     await send(
       waId,
       `📚 *Comandos:*\n\n` +
@@ -569,22 +728,29 @@ async function processMessage(
       `• *repeat* — repetir exercício\n` +
       `• *progress* — ver progresso\n` +
       `• *goal* — mudar objetivo\n` +
-      `• *restart* — recomeçar`
+      `• *restart* — recomeçar` +
+      trialStatus
     );
     return;
   }
 
   if (lower === "progress" || lower === "progresso") {
-    const p = state.data.progress;
+    const p = progress;
     if (p && user.level) {
       const acc = p.attempts > 0 ? Math.round((p.correct_answers / p.attempts) * 100) : 0;
+      const trialInfo = getTrialProgress(p.trial!);
+      const trialStatus = trialCheck.active 
+        ? `⏳ Trial: ${trialInfo.lessonsLeft} lições / ${trialInfo.daysLeft} dias`
+        : "⏰ Trial encerrado";
+
       await send(
         waId,
         `📊 *Seu progresso:*\n\n` +
         `🎯 Nível: ${LEVEL_NAMES[user.level]}\n` +
-        `📖 Lições: ${p.lesson_number - 1}\n` +
+        `📖 Lições: ${p.trial?.lessons_completed || 0}\n` +
         `✅ Acertos: ${p.correct_answers} (${acc}%)\n` +
-        `🎯 Objetivo: ${GOAL_NAMES[p.goal || "general"]}`
+        `🎯 Objetivo: ${GOAL_NAMES[p.goal || "general"]}\n\n` +
+        trialStatus
       );
     } else {
       await send(waId, "Você ainda não começou! Envie qualquer mensagem. 🚀");
@@ -611,7 +777,7 @@ async function processMessage(
         `🎓 *Olá, ${displayName}!*\n\nSou seu coach de inglês. Vamos descobrir seu nível com 3 perguntas rápidas! 🚀`,
         LEVEL_QUESTIONS[0].question
       );
-      await updateState(supabase, waId, "question_1", { answers: [], currentQuestion: 0, score: 0 });
+      await updateState(supabase, waId, "question_1", { answers: [], currentQuestion: 0, score: 0, progress });
       break;
     }
 
@@ -633,21 +799,23 @@ async function processMessage(
 
       if (qi < LEVEL_QUESTIONS.length - 1) {
         await send(waId, LEVEL_QUESTIONS[qi + 1].question);
-        await updateState(supabase, waId, `question_${qi + 2}`, { answers, currentQuestion: qi + 1, score });
+        await updateState(supabase, waId, `question_${qi + 2}`, { ...state.data, answers, currentQuestion: qi + 1, score });
       } else {
         const level = calculateLevel(score);
         await updateUserLevel(supabase, waId, level);
+        await trackEvent(supabase, waId, "level_assessed", { level, score });
 
-        const progress: LessonProgress = {
+        const newProgress: LessonProgress = {
           lesson_number: 1,
           correct_answers: 0,
           attempts: 0,
           consecutive_errors: 0,
           onboarding_complete: false,
           goal: "general",
+          trial: progress?.trial || initTrial(),
         };
 
-        await updateState(supabase, waId, "onboarding", { answers, score, progress });
+        await updateState(supabase, waId, "onboarding", { answers, score, progress: newProgress });
         await sendOnboarding(waId, level, displayName);
       }
       break;
@@ -655,29 +823,37 @@ async function processMessage(
 
     case "onboarding":
     case "set_goal": {
-      const progress = state.data.progress || {
+      const currentProgress = state.data.progress || {
         lesson_number: 1,
         correct_answers: 0,
         attempts: 0,
         consecutive_errors: 0,
         goal: "general" as LearningGoal,
+        trial: progress?.trial || initTrial(),
       };
 
       const detectedGoal = parseGoal(messageText);
       
       if (detectedGoal || lower === "geral" || lower === "general") {
-        progress.goal = detectedGoal || "general";
-        progress.onboarding_complete = true;
+        currentProgress.goal = detectedGoal || "general";
+        currentProgress.onboarding_complete = true;
 
+        await trackEvent(supabase, waId, "goal_selected", { goal: currentProgress.goal });
+        await trackEvent(supabase, waId, "onboarding_complete", {});
+
+        const trialInfo = getTrialProgress(currentProgress.trial!);
         await send(
           waId,
-          `✅ *Objetivo: ${GOAL_NAMES[progress.goal]}*\n\nVou adaptar as lições para você!\n\nDigite *"next"* para começar. 🚀`
+          `✅ *Objetivo: ${GOAL_NAMES[currentProgress.goal]}*\n\n` +
+          `🎁 *Seu trial:* ${trialInfo.lessonsLeft} lições ou ${trialInfo.daysLeft} dias grátis!\n\n` +
+          `Digite *"next"* para começar. 🚀`
         );
-        await updateState(supabase, waId, "ready", { ...state.data, progress });
+        await updateState(supabase, waId, "ready", { ...state.data, progress: currentProgress });
       } else if (["next", "start", "go", "vamos", "bora", "sim", "yes"].includes(lower)) {
-        progress.goal = "general";
-        progress.onboarding_complete = true;
-        await startLesson(supabase, waId, user.level!, { ...state.data, progress });
+        currentProgress.goal = "general";
+        currentProgress.onboarding_complete = true;
+        await trackEvent(supabase, waId, "goal_selected", { goal: "general" });
+        await startLesson(supabase, waId, user.level!, { ...state.data, progress: currentProgress });
       } else {
         await send(
           waId,
@@ -691,14 +867,18 @@ async function processMessage(
       if (["next", "start", "go", "vamos", "bora"].includes(lower)) {
         await startLesson(supabase, waId, user.level!, state.data);
       } else {
-        await send(waId, `Digite *"next"* para iniciar sua primeira lição! 📚`);
+        const trialInfo = getTrialProgress(progress.trial!);
+        await send(
+          waId, 
+          `Digite *"next"* para iniciar sua próxima lição! 📚\n\n⏳ ${trialInfo.lessonsLeft} lições restantes no trial`
+        );
       }
       break;
     }
 
     case "lesson": {
-      const progress = state.data.progress!;
-      const exercise = progress.current_exercise;
+      const lessonProgress = state.data.progress!;
+      const exercise = lessonProgress.current_exercise;
 
       if (!exercise) {
         await startLesson(supabase, waId, user.level!, state.data);
@@ -706,9 +886,9 @@ async function processMessage(
       }
 
       if (lower === "next" || lower === "skip" || lower === "próximo") {
-        progress.lesson_number++;
-        progress.consecutive_errors = 0;
-        await startLesson(supabase, waId, user.level!, { ...state.data, progress });
+        lessonProgress.lesson_number++;
+        lessonProgress.consecutive_errors = 0;
+        await startLesson(supabase, waId, user.level!, { ...state.data, progress: lessonProgress });
         return;
       }
 
@@ -722,31 +902,41 @@ async function processMessage(
         user.level!,
         exercise,
         messageText,
-        progress.goal || "general",
-        progress.consecutive_errors
+        lessonProgress.goal || "general",
+        lessonProgress.consecutive_errors
       );
 
-      progress.attempts++;
+      lessonProgress.attempts++;
 
       if (evaluation.correct) {
-        progress.correct_answers++;
-        progress.consecutive_errors = 0;
+        lessonProgress.correct_answers++;
+        lessonProgress.consecutive_errors = 0;
+        lessonProgress.trial!.lessons_completed++;
+
+        await trackEvent(supabase, waId, "lesson_completed", { 
+          lesson: lessonProgress.lesson_number,
+          correct: true,
+        });
 
         const reward = getRandomReward();
-        const milestone = getMilestoneMessage(progress.lesson_number);
+        const milestone = getMilestoneMessage(lessonProgress.trial!.lessons_completed);
+        const trialInfo = getTrialProgress(lessonProgress.trial!);
 
         if (milestone) {
           await send(waId, `${reward} ${evaluation.feedback}`, milestone + `\n\nDigite *"next"* para continuar!`);
         } else {
-          await send(waId, `${reward} ${evaluation.feedback}\n\nDigite *"next"* para a próxima lição!`);
+          await send(
+            waId, 
+            `${reward} ${evaluation.feedback}\n\n⏳ ${trialInfo.lessonsLeft} lições restantes\n\nDigite *"next"* para a próxima!`
+          );
         }
 
-        await updateState(supabase, waId, "feedback_correct", { ...state.data, progress });
+        await updateState(supabase, waId, "feedback_correct", { ...state.data, progress: lessonProgress });
       } else {
-        progress.consecutive_errors++;
+        lessonProgress.consecutive_errors++;
+        await trackEvent(supabase, waId, "exercise_failed", { lesson: lessonProgress.lesson_number });
 
-        // Frustration detection: 2+ consecutive errors
-        if (progress.consecutive_errors >= 2) {
+        if (lessonProgress.consecutive_errors >= 2) {
           const hint = evaluation.hint || `💡 Dica: A resposta esperada era algo como "${exercise.expected_answer}"`;
           
           await send(
@@ -755,8 +945,7 @@ async function processMessage(
             `Quer tentar de novo? Digite *"repeat"*\nOu *"next"* para uma versão mais simples! 💪`
           );
           
-          // Mark that next lesson should be simplified
-          progress.current_exercise = { ...exercise, simplified: true };
+          lessonProgress.current_exercise = { ...exercise, simplified: true };
         } else {
           await send(
             waId,
@@ -765,13 +954,12 @@ async function processMessage(
           );
         }
 
-        await updateState(supabase, waId, "feedback_wrong", { ...state.data, progress });
+        await updateState(supabase, waId, "feedback_wrong", { ...state.data, progress: lessonProgress });
       }
 
-      // Save history
-      progress.lesson_history = progress.lesson_history || [];
-      progress.lesson_history.push({
-        lesson: progress.lesson_number,
+      lessonProgress.lesson_history = lessonProgress.lesson_history || [];
+      lessonProgress.lesson_history.push({
+        lesson: lessonProgress.lesson_number,
         correct: evaluation.correct,
         answer: messageText,
         expected: exercise.expected_answer,
@@ -781,28 +969,34 @@ async function processMessage(
 
     case "feedback_correct":
     case "feedback_wrong": {
-      const progress = state.data.progress!;
+      const fbProgress = state.data.progress!;
 
       if (lower === "next" || lower === "próximo" || lower === "continue") {
-        progress.lesson_number++;
+        fbProgress.lesson_number++;
         
-        // If coming from frustration, simplify next exercise
-        const shouldSimplify = progress.consecutive_errors >= 2;
-        progress.consecutive_errors = 0;
+        const shouldSimplify = fbProgress.consecutive_errors >= 2;
+        fbProgress.consecutive_errors = 0;
         
-        await startLesson(supabase, waId, user.level!, { ...state.data, progress }, shouldSimplify);
+        await startLesson(supabase, waId, user.level!, { ...state.data, progress: fbProgress }, shouldSimplify);
       } else if (lower === "repeat" || lower === "repetir") {
-        const exercise = progress.current_exercise;
+        const exercise = fbProgress.current_exercise;
         if (exercise) {
-          progress.consecutive_errors = 0; // Reset on repeat
+          fbProgress.consecutive_errors = 0;
           await sendExercise(waId, exercise);
-          await updateState(supabase, waId, "lesson", { ...state.data, progress });
+          await updateState(supabase, waId, "lesson", { ...state.data, progress: fbProgress });
         }
       } else {
-        // Treat as another attempt
         await updateState(supabase, waId, "lesson", state.data);
         await processMessage(supabase, waId, userName, messageText);
       }
+      break;
+    }
+
+    case "trial_ended": {
+      await send(
+        waId,
+        `⏰ Seu trial já acabou.\n\nUse *"progress"* para ver seu histórico ou *"help"* para comandos.`
+      );
       break;
     }
 
@@ -811,7 +1005,7 @@ async function processMessage(
         await send(waId, "Vamos continuar! 🚀", "Digite *\"next\"* para a próxima lição.");
         await updateState(supabase, waId, "ready", state.data);
       } else {
-        await updateState(supabase, waId, "welcome", {});
+        await updateState(supabase, waId, "welcome", { progress });
         await processMessage(supabase, waId, userName, "start");
       }
       break;
@@ -832,14 +1026,16 @@ async function startLesson(
     attempts: 0,
     consecutive_errors: 0,
     goal: "general" as LearningGoal,
+    trial: initTrial(),
   };
 
   const topics = LESSON_TOPICS[level];
   const topic = topics[(progress.lesson_number - 1) % topics.length];
+  const trialInfo = getTrialProgress(progress.trial!);
 
   await send(
     waId,
-    `📖 *Lição ${progress.lesson_number}* — ${topic}\n\n⏱️ ~5 min | Preparando exercício...`
+    `📖 *Lição ${progress.lesson_number}* — ${topic}\n\n⏱️ ~5 min | ⏳ ${trialInfo.lessonsLeft} restantes`
   );
 
   const exercise = await generateExercise(level, progress.lesson_number, progress.goal || "general", simplified);
