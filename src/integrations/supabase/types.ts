@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      wa_events: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          metadata: Json | null
+          wa_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          wa_id: string
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          wa_id?: string
+        }
+        Relationships: []
+      }
       wa_state: {
         Row: {
           created_at: string
@@ -55,6 +79,7 @@ export type Database = {
           id: string
           level: Database["public"]["Enums"]["english_level"] | null
           name: string | null
+          subscription_status: string
           updated_at: string
           wa_id: string
         }
@@ -63,6 +88,7 @@ export type Database = {
           id?: string
           level?: Database["public"]["Enums"]["english_level"] | null
           name?: string | null
+          subscription_status?: string
           updated_at?: string
           wa_id: string
         }
@@ -71,6 +97,7 @@ export type Database = {
           id?: string
           level?: Database["public"]["Enums"]["english_level"] | null
           name?: string | null
+          subscription_status?: string
           updated_at?: string
           wa_id?: string
         }
