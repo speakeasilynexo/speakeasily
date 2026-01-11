@@ -17,13 +17,10 @@ serve(async (req: Request) => {
   const text = url.searchParams.get("text");
 
   if (!to || !text) {
-    return new Response(
-      JSON.stringify({ error: "Missing 'to' or 'text' query parameters" }),
-      {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    return new Response(JSON.stringify({ error: "Missing 'to' or 'text' query parameters" }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   const accessToken = Deno.env.get("WHATSAPP_ACCESS_TOKEN");
@@ -31,13 +28,10 @@ serve(async (req: Request) => {
 
   if (!accessToken || !phoneNumberId) {
     console.error("[WA-Test] Missing WhatsApp credentials");
-    return new Response(
-      JSON.stringify({ error: "WhatsApp credentials not configured" }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    return new Response(JSON.stringify({ error: "WhatsApp credentials not configured" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   const graphUrl = `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`;
@@ -65,43 +59,43 @@ serve(async (req: Request) => {
     if (!response.ok) {
       console.error("[WA-Test] WhatsApp API error:", JSON.stringify(result));
       return new Response(
-        JSON.stringify({ 
-          success: false, 
+        JSON.stringify({
+          success: false,
           error: "WhatsApp API error",
-          details: result 
+          details: result,
         }),
         {
           status: response.status,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        },
       );
     }
-
+    //PROBAR URL
     console.log("[WA-Test] Message sent successfully:", JSON.stringify(result));
-    
+
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         message: "Message sent successfully",
-        messageId: result.messages?.[0]?.id 
+        messageId: result.messages?.[0]?.id,
       }),
       {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      },
     );
   } catch (error) {
     console.error("[WA-Test] Error:", error);
     return new Response(
-      JSON.stringify({ 
-        success: false, 
+      JSON.stringify({
+        success: false,
         error: "Failed to send message",
-        details: error instanceof Error ? error.message : "Unknown error"
+        details: error instanceof Error ? error.message : "Unknown error",
       }),
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      },
     );
   }
 });
