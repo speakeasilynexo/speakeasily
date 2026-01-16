@@ -76,7 +76,14 @@ interface StateData {
 }
 
 type EnglishLevel = "beginner" | "elementary" | "pre_intermediate" | "intermediate" | "upper_intermediate" | "advanced";
-type EventType = "lesson_completed" | "exercise_failed" | "goal_selected" | "trial_ended" | "level_assessed" | "onboarding_complete" | "user_started";
+type EventType =
+  | "lesson_completed"
+  | "exercise_failed"
+  | "goal_selected"
+  | "trial_ended"
+  | "level_assessed"
+  | "onboarding_complete"
+  | "user_started";
 
 // deno-lint-ignore no-explicit-any
 type SupabaseClientType = ReturnType<typeof createClient<any>>;
@@ -93,17 +100,19 @@ const corsHeaders = {
 
 const LEVEL_QUESTIONS = [
   {
-    question: "🇬🇧 *Q1/3* — Complete:\n\n\"I ___ to the supermarket yesterday.\"\n\nA) go  B) went  C) going  D) gone",
+    question: '🇬🇧 *Q1/3* — Complete:\n\n"I ___ to the supermarket yesterday."\n\nA) go  B) went  C) going  D) gone',
     correctAnswer: "B",
     difficulty: 1,
   },
   {
-    question: "🇬🇧 *Q2/3* — Which is correct?\n\nA) If I would have time, I will help.\nB) If I had time, I would help.\nC) If I have time, I would help.",
+    question:
+      "🇬🇧 *Q2/3* — Which is correct?\n\nA) If I would have time, I will help.\nB) If I had time, I would help.\nC) If I have time, I would help.",
     correctAnswer: "B",
     difficulty: 2,
   },
   {
-    question: "🇬🇧 *Q3/3* — Complete:\n\n\"By the time I arrived, she ___.\"\n\nA) has left  B) already left  C) had already left",
+    question:
+      '🇬🇧 *Q3/3* — Complete:\n\n"By the time I arrived, she ___."\n\nA) has left  B) already left  C) had already left',
     correctAnswer: "C",
     difficulty: 3,
   },
@@ -129,7 +138,13 @@ const LESSON_TOPICS: Record<EnglishLevel, string[]> = {
   beginner: ["Present Simple", "Basic greetings", "Numbers & days", "Common verbs", "Simple questions"],
   elementary: ["Past Simple", "There is/are", "Comparatives", "Prepositions", "Countable nouns"],
   pre_intermediate: ["Present Perfect", "Future tenses", "Modal verbs", "First Conditional", "Adverbs"],
-  intermediate: ["Second Conditional", "Present Perfect Continuous", "Passive Voice", "Reported Speech", "Relative clauses"],
+  intermediate: [
+    "Second Conditional",
+    "Present Perfect Continuous",
+    "Passive Voice",
+    "Reported Speech",
+    "Relative clauses",
+  ],
   upper_intermediate: ["Third Conditional", "Mixed Conditionals", "Advanced Passive", "Complex clauses", "Inversion"],
   advanced: ["Subjunctive", "Cleft sentences", "Ellipsis", "Discourse markers", "Idioms"],
 };
@@ -166,7 +181,7 @@ async function trackEvent(
   supabase: SupabaseClientType,
   waId: string,
   eventType: EventType,
-  metadata: Record<string, unknown> = {}
+  metadata: Record<string, unknown> = {},
 ): Promise<void> {
   try {
     await supabase.from("wa_events").insert({
@@ -203,7 +218,7 @@ function checkTrialStatus(trial: TrialInfo): { active: boolean; reason?: string 
   const startDate = new Date(trial.trial_started_at);
   const now = new Date();
   const daysDiff = Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-  
+
   if (daysDiff >= TRIAL_DAYS) {
     return { active: false, reason: "time_limit" };
   }
@@ -215,7 +230,7 @@ function getTrialProgress(trial: TrialInfo): { lessonsLeft: number; daysLeft: nu
   const startDate = new Date(trial.trial_started_at);
   const now = new Date();
   const daysDiff = Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-  
+
   return {
     lessonsLeft: Math.max(0, TRIAL_LESSONS - trial.lessons_completed),
     daysLeft: Math.max(0, TRIAL_DAYS - daysDiff),
@@ -226,7 +241,7 @@ function getTrialProgress(trial: TrialInfo): { lessonsLeft: number; daysLeft: nu
 
 async function callAI(systemPrompt: string, userMessage: string): Promise<string> {
   const apiKey = Deno.env.get("LOVABLE_API_KEY");
-  
+
   if (!apiKey) {
     console.error("[AI] Missing LOVABLE_API_KEY");
     return "";
@@ -264,10 +279,10 @@ async function callAI(systemPrompt: string, userMessage: string): Promise<string
 }
 
 async function generateExercise(
-  level: EnglishLevel, 
-  lessonNumber: number, 
+  level: EnglishLevel,
+  lessonNumber: number,
   goal: LearningGoal,
-  simplified: boolean = false
+  simplified: boolean = false,
 ): Promise<ExerciseData> {
   const topics = LESSON_TOPICS[level];
   const topic = topics[(lessonNumber - 1) % topics.length];
@@ -275,9 +290,7 @@ async function generateExercise(
   const type = types[lessonNumber % 3];
   const context = GOAL_CONTEXTS[goal];
 
-  const difficultyNote = simplified 
-    ? "Make it VERY SIMPLE. Use basic vocabulary. Short sentence."
-    : "";
+  const difficultyNote = simplified ? "Make it VERY SIMPLE. Use basic vocabulary. Short sentence." : "";
 
   const systemPrompt = `You're an English teacher for a ${LEVEL_NAMES[level]} Spanish-speaking student via WhatsApp.
 
@@ -297,7 +310,7 @@ Return ONLY JSON:
 {"type":"${type}","prompt":"exercise text in Spanish instructions with English content","expected_answer":"flexible answer","context":"${topic}"}`;
 
   const response = await callAI(systemPrompt, `Create ${type} exercise #${lessonNumber}`);
-  
+
   try {
     const match = response.match(/\{[\s\S]*\}/);
     if (match) {
@@ -313,35 +326,29 @@ Return ONLY JSON:
 }
 
 function getDefaultExercise(
-  type: ExerciseData["type"], 
-  topic: string, 
+  type: ExerciseData["type"],
+  topic: string,
   goal: LearningGoal,
-  simplified: boolean
+  simplified: boolean,
 ): ExerciseData {
   const defaults: Record<ExerciseData["type"], ExerciseData> = {
     translation: {
       type: "translation",
-      prompt: simplified 
-        ? "🔄 Traduce: \"Hola, ¿cómo estás?\""
-        : "🔄 Traduce: \"Me gusta aprender inglés.\"",
+      prompt: simplified ? '🔄 Traduce: "Hola, ¿cómo estás?"' : '🔄 Traduce: "Me gusta aprender inglés."',
       expected_answer: simplified ? "Hello, how are you?" : "I like to learn English.",
       context: topic,
       simplified,
     },
     complete: {
       type: "complete",
-      prompt: simplified
-        ? "✏️ Completa: \"She ___ happy.\" (is/are)"
-        : "✏️ Completa: \"She ___ (go) to work every day.\"",
+      prompt: simplified ? '✏️ Completa: "She ___ happy." (is/are)' : '✏️ Completa: "She ___ (go) to work every day."',
       expected_answer: simplified ? "is" : "goes",
       context: topic,
       simplified,
     },
     qa: {
       type: "qa",
-      prompt: simplified
-        ? "💬 Responde: \"What is your name?\""
-        : "💬 Responde: \"What do you like to do on weekends?\"",
+      prompt: simplified ? '💬 Responde: "What is your name?"' : '💬 Responde: "What do you like to do on weekends?"',
       expected_answer: "",
       context: topic,
       simplified,
@@ -355,10 +362,10 @@ async function evaluateAnswer(
   exercise: ExerciseData,
   userAnswer: string,
   goal: LearningGoal,
-  consecutiveErrors: number
+  consecutiveErrors: number,
 ): Promise<{ correct: boolean; feedback: string; hint?: string }> {
   const needsHint = consecutiveErrors >= 1;
-  
+
   const systemPrompt = `You're a friendly English teacher on WhatsApp for a ${LEVEL_NAMES[level]} Spanish-speaking student.
 
 EXERCISE: ${exercise.prompt}
@@ -376,7 +383,7 @@ Return ONLY JSON:
 {"correct":true/false,"feedback":"short message in Spanish"${needsHint ? ',"hint":"helpful tip in Spanish"' : ""}}`;
 
   const response = await callAI(systemPrompt, `Evaluate: "${userAnswer}"`);
-  
+
   try {
     const match = response.match(/\{[\s\S]*\}/);
     if (match) {
@@ -409,23 +416,20 @@ async function sendWhatsAppText(to: string, body: string): Promise<boolean> {
   }
 
   try {
-    const response = await fetch(
-      `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          messaging_product: "whatsapp",
-          recipient_type: "individual",
-          to,
-          type: "text",
-          text: { body },
-        }),
-      }
-    );
+    const response = await fetch(`https://graph.facebook.com/v18.0/${phoneNumberId}/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to,
+        type: "text",
+        text: { body },
+      }),
+    });
 
     if (!response.ok) {
       const result = await response.json();
@@ -442,7 +446,7 @@ async function sendWhatsAppText(to: string, body: string): Promise<boolean> {
 async function send(to: string, msg1: string, msg2?: string): Promise<void> {
   await sendWhatsAppText(to, msg1);
   if (msg2) {
-    await new Promise(r => setTimeout(r, 600));
+    await new Promise((r) => setTimeout(r, 600));
     await sendWhatsAppText(to, msg2);
   }
 }
@@ -452,7 +456,7 @@ async function send(to: string, msg1: string, msg2?: string): Promise<void> {
 async function getOrCreateUser(
   supabase: SupabaseClientType,
   waId: string,
-  name: string | null
+  name: string | null,
 ): Promise<{ wa_id: string; name: string | null; level: EnglishLevel | null; subscription_status: string } | null> {
   const { data: existing } = await supabase
     .from("wa_users")
@@ -490,13 +494,9 @@ async function getOrCreateUser(
 
 async function getOrCreateState(
   supabase: SupabaseClientType,
-  waId: string
+  waId: string,
 ): Promise<{ step: string; data: StateData } | null> {
-  const { data: existing } = await supabase
-    .from("wa_state")
-    .select("step, data")
-    .eq("wa_id", waId)
-    .maybeSingle();
+  const { data: existing } = await supabase.from("wa_state").select("step, data").eq("wa_id", waId).maybeSingle();
 
   if (existing) {
     return {
@@ -522,28 +522,15 @@ async function getOrCreateState(
   };
 }
 
-async function updateState(
-  supabase: SupabaseClientType,
-  waId: string,
-  step: string,
-  data: StateData
-): Promise<void> {
+async function updateState(supabase: SupabaseClientType, waId: string, step: string, data: StateData): Promise<void> {
   await supabase.from("wa_state").update({ step, data }).eq("wa_id", waId);
 }
 
-async function updateUserLevel(
-  supabase: SupabaseClientType,
-  waId: string,
-  level: EnglishLevel
-): Promise<void> {
+async function updateUserLevel(supabase: SupabaseClientType, waId: string, level: EnglishLevel): Promise<void> {
   await supabase.from("wa_users").update({ level }).eq("wa_id", waId);
 }
 
-async function updateUserSubscription(
-  supabase: SupabaseClientType,
-  waId: string,
-  status: string
-): Promise<void> {
+async function updateUserSubscription(supabase: SupabaseClientType, waId: string, status: string): Promise<void> {
   await supabase.from("wa_users").update({ subscription_status: status }).eq("wa_id", waId);
 }
 
@@ -570,13 +557,31 @@ function getMilestoneMessage(lessonNumber: number): string | null {
 
 function parseGoal(text: string): LearningGoal | null {
   const lower = text.toLowerCase();
-  if (lower.includes("trabajo") || lower.includes("work") || lower.includes("business") || lower.includes("profesional") || lower.includes("oficina")) {
+  if (
+    lower.includes("trabajo") ||
+    lower.includes("work") ||
+    lower.includes("business") ||
+    lower.includes("profesional") ||
+    lower.includes("oficina")
+  ) {
     return "work";
   }
-  if (lower.includes("viaje") || lower.includes("travel") || lower.includes("trip") || lower.includes("vacation") || lower.includes("viajar")) {
+  if (
+    lower.includes("viaje") ||
+    lower.includes("travel") ||
+    lower.includes("trip") ||
+    lower.includes("vacation") ||
+    lower.includes("viajar")
+  ) {
     return "travel";
   }
-  if (lower.includes("conversa") || lower.includes("conversation") || lower.includes("chat") || lower.includes("hablar") || lower.includes("charlar")) {
+  if (
+    lower.includes("conversa") ||
+    lower.includes("conversation") ||
+    lower.includes("chat") ||
+    lower.includes("hablar") ||
+    lower.includes("charlar")
+  ) {
     return "conversation";
   }
   return null;
@@ -601,11 +606,9 @@ async function sendTrialEndMessage(
   waId: string,
   progress: LessonProgress,
   level: EnglishLevel,
-  reason: string
+  reason: string,
 ): Promise<void> {
-  const accuracy = progress.attempts > 0 
-    ? Math.round((progress.correct_answers / progress.attempts) * 100) 
-    : 0;
+  const accuracy = progress.attempts > 0 ? Math.round((progress.correct_answers / progress.attempts) * 100) : 0;
 
   await trackEvent(supabase, waId, "trial_ended", { reason, lessons: progress.trial?.lessons_completed });
   await updateUserSubscription(supabase, waId, "free");
@@ -614,45 +617,42 @@ async function sendTrialEndMessage(
   await send(
     waId,
     `🎉 *¡Tu prueba gratuita ha terminado!*\n\n` +
-    `📊 *Tu progreso:*\n` +
-    `• Nivel: ${LEVEL_NAMES[level]}\n` +
-    `• Lecciones: ${progress.trial?.lessons_completed || 0}\n` +
-    `• Aciertos: ${progress.correct_answers} (${accuracy}%)`
+      `📊 *Tu progreso:*\n` +
+      `• Nivel: ${LEVEL_NAMES[level]}\n` +
+      `• Lecciones: ${progress.trial?.lessons_completed || 0}\n` +
+      `• Aciertos: ${progress.correct_answers} (${accuracy}%)`,
   );
 
-  await new Promise(r => setTimeout(r, 1000));
+  await new Promise((r) => setTimeout(r, 1000));
 
   // Message 2: Encouragement + what's next
   await send(
     waId,
     `💪 *¡Has mejorado mucho!*\n\n` +
-    `La versión completa incluye:\n` +
-    `• Lecciones ilimitadas\n` +
-    `• Ejercicios de audio\n` +
-    `• Certificado de progreso\n\n` +
-    `🔜 *¡Pronto* tendremos más novedades!`,
-    `Mientras tanto, usa *"progress"* para ver tu historial o *"help"* para comandos.`
+      `La versión completa incluye:\n` +
+      `• Lecciones ilimitadas\n` +
+      `• Ejercicios de audio\n` +
+      `• Certificado de progreso\n\n` +
+      `🔜 *¡Pronto* tendremos más novedades!`,
+    `Mientras tanto, usa *"progress"* para ver tu historial o *"help"* para comandos.`,
   );
 }
 
 // ============== ONBOARDING ==============
 
 async function sendOnboarding(waId: string, level: EnglishLevel, displayName: string): Promise<void> {
-  await send(
-    waId,
-    `🎓 *Tu nivel: ${LEVEL_NAMES[level]}*\n\n${getLevelEncouragement(level)}`
-  );
+  await send(waId, `🎓 *Tu nivel: ${LEVEL_NAMES[level]}*\n\n${getLevelEncouragement(level)}`);
 
-  await new Promise(r => setTimeout(r, 1200));
+  await new Promise((r) => setTimeout(r, 1200));
 
   await send(
     waId,
     `📱 *Cómo funciona:*\n\n` +
-    `• Lecciones de 5 min por WhatsApp\n` +
-    `• Ejercicios prácticos con feedback IA\n` +
-    `• Progreso guardado automáticamente\n\n` +
-    `¿Cuál es tu objetivo? 👇`,
-    `🏢 *trabajo*\n✈️ *viaje*\n💬 *conversación*\n\n_O escribe "general" para inglés completo_`
+      `• Lecciones de 5 min por WhatsApp\n` +
+      `• Ejercicios prácticos con feedback IA\n` +
+      `• Progreso guardado automáticamente\n\n` +
+      `¿Cuál es tu objetivo? 👇`,
+    `🏢 *trabajo*\n✈️ *viaje*\n💬 *conversación*\n\n_O escribe "general" para inglés completo_`,
   );
 }
 
@@ -662,7 +662,7 @@ async function processMessage(
   supabase: SupabaseClientType,
   waId: string,
   userName: string | null,
-  messageText: string
+  messageText: string,
 ): Promise<void> {
   const user = await getOrCreateUser(supabase, waId, userName);
   if (!user) return;
@@ -692,24 +692,28 @@ async function processMessage(
   // Check trial status for lesson-related steps
   const trialCheck = checkTrialStatus(progress.trial!);
   const isLessonStep = ["lesson", "feedback_correct", "feedback_wrong", "ready"].includes(state.step);
-  
-  if (!trialCheck.active && isLessonStep && lower !== "help" && lower !== "progress" && lower !== "ayuda" && lower !== "progreso") {
+
+  if (
+    !trialCheck.active &&
+    isLessonStep &&
+    lower !== "help" &&
+    lower !== "progress" &&
+    lower !== "ayuda" &&
+    lower !== "progreso"
+  ) {
     // Mark trial as ended
     if (progress.trial!.trial_status !== "ended") {
       progress.trial!.trial_status = "ended";
       await updateState(supabase, waId, "trial_ended", { ...state.data, progress });
       await sendTrialEndMessage(supabase, waId, progress, user.level!, trialCheck.reason!);
     } else {
-      await send(
-        waId,
-        `⏰ Tu prueba ya terminó.\n\nUsa *"progress"* para ver tu historial o *"help"* para comandos.`
-      );
+      await send(waId, `⏰ Tu prueba ya terminó.\n\nUsa *"progress"* para ver tu historial o *"help"* para comandos.`);
     }
     return;
   }
 
   // ========== GLOBAL COMMANDS ==========
-  
+
   if (lower === "restart" || lower === "reiniciar") {
     await send(waId, "🔄 ¡Vamos a empezar de nuevo!\n\nEnvía cualquier mensaje para iniciar.");
     await updateState(supabase, waId, "welcome", { progress: { ...progress, trial: progress.trial } });
@@ -718,19 +722,19 @@ async function processMessage(
 
   if (lower === "help" || lower === "ayuda") {
     const trialInfo = getTrialProgress(progress.trial!);
-    const trialStatus = trialCheck.active 
+    const trialStatus = trialCheck.active
       ? `\n\n⏳ Prueba: ${trialInfo.lessonsLeft} lecciones / ${trialInfo.daysLeft} días restantes`
       : "\n\n⏰ Prueba terminada";
 
     await send(
       waId,
       `📚 *Comandos:*\n\n` +
-      `• *next* — siguiente lección\n` +
-      `• *repeat* — repetir ejercicio\n` +
-      `• *progress* — ver progreso\n` +
-      `• *goal* — cambiar objetivo\n` +
-      `• *restart* — empezar de nuevo` +
-      trialStatus
+        `• *next* — siguiente lección\n` +
+        `• *repeat* — repetir ejercicio\n` +
+        `• *progress* — ver progreso\n` +
+        `• *goal* — cambiar objetivo\n` +
+        `• *restart* — empezar de nuevo` +
+        trialStatus,
     );
     return;
   }
@@ -740,18 +744,18 @@ async function processMessage(
     if (p && user.level) {
       const acc = p.attempts > 0 ? Math.round((p.correct_answers / p.attempts) * 100) : 0;
       const trialInfo = getTrialProgress(p.trial!);
-      const trialStatus = trialCheck.active 
+      const trialStatus = trialCheck.active
         ? `⏳ Prueba: ${trialInfo.lessonsLeft} lecciones / ${trialInfo.daysLeft} días`
         : "⏰ Prueba terminada";
 
       await send(
         waId,
         `📊 *Tu progreso:*\n\n` +
-        `🎯 Nivel: ${LEVEL_NAMES[user.level]}\n` +
-        `📖 Lecciones: ${p.trial?.lessons_completed || 0}\n` +
-        `✅ Aciertos: ${p.correct_answers} (${acc}%)\n` +
-        `🎯 Objetivo: ${GOAL_NAMES[p.goal || "general"]}\n\n` +
-        trialStatus
+          `🎯 Nivel: ${LEVEL_NAMES[user.level]}\n` +
+          `📖 Lecciones: ${p.trial?.lessons_completed || 0}\n` +
+          `✅ Aciertos: ${p.correct_answers} (${acc}%)\n` +
+          `🎯 Objetivo: ${GOAL_NAMES[p.goal || "general"]}\n\n` +
+          trialStatus,
       );
     } else {
       await send(waId, "¡Aún no has empezado! Envía cualquier mensaje. 🚀");
@@ -760,11 +764,7 @@ async function processMessage(
   }
 
   if (lower === "goal" || lower === "objetivo") {
-    await send(
-      waId,
-      `🎯 *¿Cuál es tu objetivo?*\n\n` +
-      `🏢 *trabajo*\n✈️ *viaje*\n💬 *conversación*\n📚 *general*`
-    );
+    await send(waId, `🎯 *¿Cuál es tu objetivo?*\n\n` + `🏢 *trabajo*\n✈️ *viaje*\n💬 *conversación*\n📚 *general*`);
     await updateState(supabase, waId, "set_goal", state.data);
     return;
   }
@@ -776,7 +776,7 @@ async function processMessage(
       await send(
         waId,
         `🎓 *¡Hola, ${displayName}!*\n\nSoy tu coach de inglés. ¡Vamos a descubrir tu nivel con 3 preguntas rápidas! 🚀`,
-        LEVEL_QUESTIONS[0].question
+        LEVEL_QUESTIONS[0].question,
       );
       await updateState(supabase, waId, "question_1", { answers: [], currentQuestion: 0, score: 0, progress });
       break;
@@ -800,7 +800,12 @@ async function processMessage(
 
       if (qi < LEVEL_QUESTIONS.length - 1) {
         await send(waId, LEVEL_QUESTIONS[qi + 1].question);
-        await updateState(supabase, waId, `question_${qi + 2}`, { ...state.data, answers, currentQuestion: qi + 1, score });
+        await updateState(supabase, waId, `question_${qi + 2}`, {
+          ...state.data,
+          answers,
+          currentQuestion: qi + 1,
+          score,
+        });
       } else {
         const level = calculateLevel(score);
         await updateUserLevel(supabase, waId, level);
@@ -834,7 +839,7 @@ async function processMessage(
       };
 
       const detectedGoal = parseGoal(messageText);
-      
+
       if (detectedGoal || lower === "general") {
         currentProgress.goal = detectedGoal || "general";
         currentProgress.onboarding_complete = true;
@@ -846,8 +851,8 @@ async function processMessage(
         await send(
           waId,
           `✅ *Objetivo: ${GOAL_NAMES[currentProgress.goal]}*\n\n` +
-          `🎁 *Tu prueba:* ${trialInfo.lessonsLeft} lecciones o ${trialInfo.daysLeft} días gratis!\n\n` +
-          `Escribe *"next"* para empezar. 🚀`
+            `🎁 *Tu prueba:* ${trialInfo.lessonsLeft} lecciones o ${trialInfo.daysLeft} días gratis!\n\n` +
+            `Escribe *"next"* para empezar. 🚀`,
         );
         await updateState(supabase, waId, "ready", { ...state.data, progress: currentProgress });
       } else if (["next", "start", "go", "vamos", "dale", "si", "yes", "sí"].includes(lower)) {
@@ -856,10 +861,7 @@ async function processMessage(
         await trackEvent(supabase, waId, "goal_selected", { goal: "general" });
         await startLesson(supabase, waId, user.level!, { ...state.data, progress: currentProgress });
       } else {
-        await send(
-          waId,
-          `Elige tu objetivo:\n\n🏢 *trabajo*\n✈️ *viaje*\n💬 *conversación*\n📚 *general*`
-        );
+        await send(waId, `Elige tu objetivo:\n\n🏢 *trabajo*\n✈️ *viaje*\n💬 *conversación*\n📚 *general*`);
       }
       break;
     }
@@ -870,8 +872,8 @@ async function processMessage(
       } else {
         const trialInfo = getTrialProgress(progress.trial!);
         await send(
-          waId, 
-          `Escribe *"next"* para iniciar tu próxima lección! 📚\n\n⏳ ${trialInfo.lessonsLeft} lecciones restantes en la prueba`
+          waId,
+          `Escribe *"next"* para iniciar tu próxima lección! 📚\n\n⏳ ${trialInfo.lessonsLeft} lecciones restantes en la prueba`,
         );
       }
       break;
@@ -904,7 +906,7 @@ async function processMessage(
         exercise,
         messageText,
         lessonProgress.goal || "general",
-        lessonProgress.consecutive_errors
+        lessonProgress.consecutive_errors,
       );
 
       lessonProgress.attempts++;
@@ -914,7 +916,7 @@ async function processMessage(
         lessonProgress.consecutive_errors = 0;
         lessonProgress.trial!.lessons_completed++;
 
-        await trackEvent(supabase, waId, "lesson_completed", { 
+        await trackEvent(supabase, waId, "lesson_completed", {
           lesson: lessonProgress.lesson_number,
           correct: true,
         });
@@ -927,8 +929,8 @@ async function processMessage(
           await send(waId, `${reward} ${evaluation.feedback}`, milestone + `\n\nEscribe *"next"* para continuar!`);
         } else {
           await send(
-            waId, 
-            `${reward} ${evaluation.feedback}\n\n⏳ ${trialInfo.lessonsLeft} lecciones restantes\n\nEscribe *"next"* para la siguiente!`
+            waId,
+            `${reward} ${evaluation.feedback}\n\n⏳ ${trialInfo.lessonsLeft} lecciones restantes\n\nEscribe *"next"* para la siguiente!`,
           );
         }
 
@@ -939,20 +941,16 @@ async function processMessage(
 
         if (lessonProgress.consecutive_errors >= 2) {
           const hint = evaluation.hint || `💡 Pista: La respuesta esperada era algo como "${exercise.expected_answer}"`;
-          
+
           await send(
             waId,
             `${evaluation.feedback}\n\n${hint}`,
-            `¿Quieres intentar de nuevo? Escribe *"repeat"*\nO *"next"* para una versión más simple! 💪`
+            `¿Quieres intentar de nuevo? Escribe *"repeat"*\nO *"next"* para una versión más simple! 💪`,
           );
-          
+
           lessonProgress.current_exercise = { ...exercise, simplified: true };
         } else {
-          await send(
-            waId,
-            `${evaluation.feedback}`,
-            `¡Inténtalo de nuevo! O escribe *"next"* para saltar.`
-          );
+          await send(waId, `${evaluation.feedback}`, `¡Inténtalo de nuevo! O escribe *"next"* para saltar.`);
         }
 
         await updateState(supabase, waId, "feedback_wrong", { ...state.data, progress: lessonProgress });
@@ -974,10 +972,10 @@ async function processMessage(
 
       if (lower === "next" || lower === "siguiente" || lower === "continue") {
         fbProgress.lesson_number++;
-        
+
         const shouldSimplify = fbProgress.consecutive_errors >= 2;
         fbProgress.consecutive_errors = 0;
-        
+
         await startLesson(supabase, waId, user.level!, { ...state.data, progress: fbProgress }, shouldSimplify);
       } else if (lower === "repeat" || lower === "repetir") {
         const exercise = fbProgress.current_exercise;
@@ -994,16 +992,13 @@ async function processMessage(
     }
 
     case "trial_ended": {
-      await send(
-        waId,
-        `⏰ Tu prueba ya terminó.\n\nUsa *"progress"* para ver tu historial o *"help"* para comandos.`
-      );
+      await send(waId, `⏰ Tu prueba ya terminó.\n\nUsa *"progress"* para ver tu historial o *"help"* para comandos.`);
       break;
     }
 
     default: {
       if (user.level) {
-        await send(waId, "¡Vamos a continuar! 🚀", "Escribe *\"next\"* para la próxima lección.");
+        await send(waId, "¡Vamos a continuar! 🚀", 'Escribe *"next"* para la próxima lección.');
         await updateState(supabase, waId, "ready", state.data);
       } else {
         await updateState(supabase, waId, "welcome", { progress });
@@ -1019,7 +1014,7 @@ async function startLesson(
   waId: string,
   level: EnglishLevel,
   currentData: StateData,
-  simplified: boolean = false
+  simplified: boolean = false,
 ): Promise<void> {
   const progress = currentData.progress || {
     lesson_number: 1,
@@ -1036,7 +1031,7 @@ async function startLesson(
 
   await send(
     waId,
-    `📖 *Lección ${progress.lesson_number}* — ${topic}\n\n⏱️ ~5 min | ⏳ ${trialInfo.lessonsLeft} restantes`
+    `📖 *Lección ${progress.lesson_number}* — ${topic}\n\n⏱️ ~5 min | ⏳ ${trialInfo.lessonsLeft} restantes`,
   );
 
   const exercise = await generateExercise(level, progress.lesson_number, progress.goal || "general", simplified);
@@ -1044,7 +1039,7 @@ async function startLesson(
 
   await updateState(supabase, waId, "lesson", { ...currentData, progress });
 
-  await new Promise(r => setTimeout(r, 800));
+  await new Promise((r) => setTimeout(r, 800));
   await sendExercise(waId, exercise);
 }
 
@@ -1052,10 +1047,7 @@ async function sendExercise(waId: string, exercise: ExerciseData): Promise<void>
   const emoji = { translation: "🔄", complete: "✏️", qa: "💬" };
   const label = { translation: "Traducción", complete: "Completa", qa: "Responde" };
 
-  await send(
-    waId,
-    `${emoji[exercise.type]} *${label[exercise.type]}*\n\n${exercise.prompt}`
-  );
+  await send(waId, `${emoji[exercise.type]} *${label[exercise.type]}*\n\n${exercise.prompt}`);
 }
 
 // ============== MAIN HANDLER ==============
@@ -1067,75 +1059,74 @@ serve(async (req: Request) => {
 
   const url = new URL(req.url);
 
+  // ====== VERIFY (GET) ======
   if (req.method === "GET") {
     const mode = url.searchParams.get("hub.mode");
     const token = url.searchParams.get("hub.verify_token");
     const challenge = url.searchParams.get("hub.challenge");
 
     if (mode === "subscribe" && token === Deno.env.get("WHATSAPP_VERIFY_TOKEN")) {
-      return new Response(challenge, { status: 200, headers: { ...corsHeaders, "Content-Type": "text/plain" } });
+      return new Response(challenge, {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "text/plain" },
+      });
     }
+
     return new Response("Forbidden", { status: 403, headers: corsHeaders });
   }
 
+  // ====== WEBHOOK (POST) ======
   if (req.method === "POST") {
-  try {
-    const body: WhatsAppWebhookPayload = await req.json();
+    try {
+      // lê o corpo como texto para logar (e depois parseia)
+      const raw = await req.text();
+      console.log("[Webhook] RAW:", raw);
 
-    console.log("[WEBHOOK] object:", body.object);
-    console.log("[WEBHOOK] entries:", body.entry?.length ?? 0);
+      const body: WhatsAppWebhookPayload = JSON.parse(raw);
+      console.log("[Webhook] object:", body?.object);
 
-    if (body.object !== "whatsapp_business_account") {
-      return new Response("OK", { status: 200, headers: corsHeaders });
-    }
+      if (body.object !== "whatsapp_business_account") {
+        return new Response("OK", { status: 200, headers: corsHeaders });
+      }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (!supabaseUrl || !supabaseKey) {
-      console.error("[WEBHOOK] Missing SUPABASE env");
-      return new Response("OK", { status: 200, headers: corsHeaders });
-    }
+      const supabaseUrl = Deno.env.get("SUPABASE_URL");
+      const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    const supabase: SupabaseClientType = createClient(supabaseUrl, supabaseKey);
+      if (!supabaseUrl || !supabaseKey) {
+        console.error("[Webhook] Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+        return new Response("OK", { status: 200, headers: corsHeaders });
+      }
 
-    const tasks: Promise<void>[] = [];
+      const supabase: SupabaseClientType = createClient(supabaseUrl, supabaseKey);
 
-    for (const entry of body.entry) {
-      for (const change of entry.changes) {
-        const value = change.value;
+      for (const entry of body.entry ?? []) {
+        for (const change of entry.changes ?? []) {
+          const value = change.value;
 
-        console.log("[WEBHOOK] field:", change.field);
-        console.log("[WEBHOOK] phone_number_id:", value.metadata?.phone_number_id);
-        console.log("[WEBHOOK] messages:", value.messages?.length ?? 0);
+          const msgs = value.messages ?? [];
+          if (!msgs.length) continue;
 
-        if (!value.messages?.length) continue;
+          for (const message of msgs) {
+            if (message.type !== "text" || !message.text?.body) continue;
 
-        for (const message of value.messages) {
-          if (message.type !== "text" || !message.text) continue;
+            const waId = message.from;
+            const contact = value.contacts?.find((c) => c.wa_id === waId);
+            const name = contact?.profile?.name ?? null;
 
-          const waId = message.from; // ex: "3467..."
-          const text = message.text.body;
-          const contact = value.contacts?.find((c) => c.wa_id === waId);
-          const name = contact?.profile?.name ?? null;
-
-          const p = processMessage(supabase, waId, name, text)
-            .catch((err) => console.error("[WEBHOOK] processMessage error:", err));
-
-          // ✅ melhor prática em Edge Functions
-          const ER = (globalThis as any).EdgeRuntime;
-          if (ER?.waitUntil) ER.waitUntil(p);
-          else tasks.push(p); // fallback
+            // processa async sem bloquear o webhook
+            processMessage(supabase, waId, name, message.text.body).catch((err) =>
+              console.error("[Webhook] processMessage error:", err),
+            );
+          }
         }
       }
+
+      return new Response("OK", { status: 200, headers: corsHeaders });
+    } catch (error) {
+      console.error("[Webhook] Error:", error);
+      return new Response("OK", { status: 200, headers: corsHeaders });
     }
-
-    // fallback: se não tiver EdgeRuntime.waitUntil
-    if (tasks.length) await Promise.allSettled(tasks);
-
-    return new Response("OK", { status: 200, headers: corsHeaders });
-  } catch (error) {
-    console.error("[WEBHOOK] Error:", error);
-    return new Response("OK", { status: 200, headers: corsHeaders });
   }
-}
 
+  return new Response("Method not allowed", { status: 405, headers: corsHeaders });
+});
