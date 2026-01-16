@@ -1090,6 +1090,8 @@ serve(async (req: Request) => {
     try {
       // lê o corpo como texto para logar (e depois parseia)
       const raw = await req.text();
+      console.log("[WEBHOOK] POST received");
+
       console.log("[Webhook] RAW:", raw);
 
       const body: WhatsAppWebhookPayload = JSON.parse(raw);
