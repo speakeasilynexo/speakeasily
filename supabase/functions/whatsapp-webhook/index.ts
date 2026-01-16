@@ -1079,45 +1079,63 @@ serve(async (req: Request) => {
   }
 
   if (req.method === "POST") {
-    try {
-      const body: WhatsAppWebhookPayload = await req.json();
+  try {
+    const body: WhatsAppWebhookPayload = await req.json();
 
-      if (body.object !== "whatsapp_business_account") {
-        return new Response("OK", { status: 200, headers: corsHeaders });
-      }
+    console.log("[WEBHOOK] object:", body.object);
+    console.log("[WEBHOOK] entries:", body.entry?.length ?? 0);
 
-      const supabaseUrl = Deno.env.get("SUPABASE_URL");
-      const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-      if (!supabaseUrl || !supabaseKey) {
-        return new Response("OK", { status: 200, headers: corsHeaders });
-      }
-
-      const supabase: SupabaseClientType = createClient(supabaseUrl, supabaseKey);
-
-      for (const entry of body.entry) {
-        for (const change of entry.changes) {
-          const value = change.value;
-          if (!value.messages?.length) continue;
-
-          for (const message of value.messages) {
-            if (message.type !== "text" || !message.text) continue;
-
-            const waId = message.from;
-            const contact = value.contacts?.find(c => c.wa_id === waId);
-
-            processMessage(supabase, waId, contact?.profile?.name ?? null, message.text.body)
-              .catch(err => console.error("[Webhook] Error:", err));
-          }
-        }
-      }
-
-      return new Response("OK", { status: 200, headers: corsHeaders });
-    } catch (error) {
-      console.error("[Webhook] Error:", error);
+    if (body.object !== "whatsapp_business_account") {
       return new Response("OK", { status: 200, headers: corsHeaders });
     }
-  }
 
-  return new Response("Method not allowed", { status: 405, headers: corsHeaders });
-});
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!supabaseUrl || !supabaseKey) {
+      console.error("[WEBHOOK] Missing SUPABASE env");
+      return new Response("OK", { status: 200, headers: corsHeaders });
+    }
+
+    const supabase: SupabaseClientType = createClient(supabaseUrl, supabaseKey);
+
+    const tasks: Promise<void>[] = [];
+
+    for (const entry of body.entry) {
+      for (const change of entry.changes) {
+        const value = change.value;
+
+        console.log("[WEBHOOK] field:", change.field);
+        console.log("[WEBHOOK] phone_number_id:", value.metadata?.phone_number_id);
+        console.log("[WEBHOOK] messages:", value.messages?.length ?? 0);
+
+        if (!value.messages?.length) continue;
+
+        for (const message of value.messages) {
+          if (message.type !== "text" || !message.text) continue;
+
+          const waId = message.from; // ex: "3467..."
+          const text = message.text.body;
+          const contact = value.contacts?.find((c) => c.wa_id === waId);
+          const name = contact?.profile?.name ?? null;
+
+          const p = processMessage(supabase, waId, name, text)
+            .catch((err) => console.error("[WEBHOOK] processMessage error:", err));
+
+          // ✅ melhor prática em Edge Functions
+          const ER = (globalThis as any).EdgeRuntime;
+          if (ER?.waitUntil) ER.waitUntil(p);
+          else tasks.push(p); // fallback
+        }
+      }
+    }
+
+    // fallback: se não tiver EdgeRuntime.waitUntil
+    if (tasks.length) await Promise.allSettled(tasks);
+
+    return new Response("OK", { status: 200, headers: corsHeaders });
+  } catch (error) {
+    console.error("[WEBHOOK] Error:", error);
+    return new Response("OK", { status: 200, headers: corsHeaders });
+  }
+}
+
