@@ -1126,9 +1126,13 @@ serve(async (req: Request) => {
             const name = contact?.profile?.name ?? null;
 
             // processa async sem bloquear o webhook
-            processMessage(supabase, waId, name, message.text.body).catch((err) =>
-              console.error("[Webhook] processMessage error:", err),
-            );
+            console.log("[Webhook] IN:", waId, message.text.body);
+
+            try {
+              await processMessage(supabase, waId, contact?.profile?.name ?? null, message.text.body);
+            } catch (err) {
+              console.error("[Webhook] Error processing message:", err);
+            }
           }
         }
       }
