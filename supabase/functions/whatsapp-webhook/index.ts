@@ -716,7 +716,17 @@ async function processMessage(
 
   if (lower === "restart" || lower === "reiniciar") {
     await send(waId, "🔄 ¡Vamos a empezar de nuevo!\n\nEnvía cualquier mensaje para iniciar.");
-    await updateState(supabase, waId, "welcome", { progress: { ...progress, trial: progress.trial } });
+
+    const safeProgress = progress ?? {
+      lesson_number: 1,
+      correct_answers: 0,
+      attempts: 0,
+      consecutive_errors: 0,
+      goal: "general" as LearningGoal,
+      trial: initTrial(),
+    };
+
+    await updateState(supabase, waId, "welcome", { progress: safeProgress });
     return;
   }
 
