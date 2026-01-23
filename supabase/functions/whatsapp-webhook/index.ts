@@ -1128,6 +1128,8 @@ serve(async (req: Request) => {
             // processa async sem bloquear o webhook
             console.log("[Webhook] IN:", waId, message.text.body);
 
+            await sendWhatsAppText(waId, "🧪 Teste direto do webhook. Mensagem recebida: " + message.text.body);
+
             try {
               await processMessage(supabase, waId, contact?.profile?.name ?? null, message.text.body);
             } catch (err) {
