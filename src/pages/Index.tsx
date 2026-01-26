@@ -305,19 +305,20 @@ const Index = () => {
       {/* Footer */}
       <footer className="py-12 px-4 border-t border-border bg-card">
         <div className="container mx-auto max-w-6xl">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex flex-col items-center text-center gap-3">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg gradient-hero flex items-center justify-center">
                 <MessageCircle className="w-4 h-4 text-primary-foreground" />
               </div>
-              <span className="font-display font-semibold ">SpeakEasily</span>
+              <span className="font-display font-semibold">SpeakEasily</span>
             </div>
-            <div className="text-sm text-muted-foreground text-center md:text-right leading-relaxed">
+
+            <div className="text-sm text-muted-foreground leading-relaxed">
               <div>© 2026 SpeakEasily · Aprende inglés por WhatsApp</div>
               <div>64.696.664 – ELIAS ISRAEL MENDES · CNPJ: 64.696.664/0001-10</div>
-              <div className="md:text-left text-center mt-1">
+              <div className="mt-1">
                 Contato:{" "}
-                <a href="mailto:contato@nexo-digital.app" className="underline">
+                <a href="mailto:contato@nexo-digital.app" className="underline hover:text-foreground transition">
                   contato@nexo-digital.app
                 </a>
               </div>
