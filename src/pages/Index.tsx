@@ -312,10 +312,16 @@ const Index = () => {
               </div>
               <span className="font-display font-semibold ">SpeakEasily</span>
             </div>
-            <p className="text-sm text-muted-foreground text-center md:text-right">
-              © 2026 SpeakEasily. Aprende inglés por WhatsApp. 64.696.664 ELIAS ISRAEL MENDES CNPJ: 64.696.664/0001-10
-              Contato: contato@nexo-digital.app
-            </p>
+            <div className="text-sm text-muted-foreground text-center md:text-right leading-relaxed">
+              <div>© 2026 SpeakEasily · Aprende inglés por WhatsApp</div>
+              <div>64.696.664 – ELIAS ISRAEL MENDES · CNPJ: 64.696.664/0001-10</div>
+              <div className="md:text-left text-center mt-1">
+                Contato:{" "}
+                <a href="mailto:contato@nexo-digital.app" className="underline">
+                  contato@nexo-digital.app
+                </a>
+              </div>
+            </div>
           </div>
         </div>
       </footer>
