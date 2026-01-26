@@ -316,8 +316,12 @@ const Index = () => {
               </div>
               <span className="font-display font-semibold">SpeakEasily</span>
             </div>
-            <p className="text-sm text-muted-foreground">
-              © 2024 SpeakEasily. Aprende inglés por WhatsApp.
+            <p className="text-sm text-muted-foreground text-center md:text-right">
+              © 2026 Nexo Digital. Aprende inglés por WhatsApp.<br />
+              64.696.664 ELIAS ISRAEL MENDES
+              CNPJ: 64.696.664/0001-10 
+            </p>
+
             </p>
           </div>
         </div>
