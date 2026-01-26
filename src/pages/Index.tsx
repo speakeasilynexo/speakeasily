@@ -1,4 +1,17 @@
-import { MessageCircle, BookOpen, Trophy, CheckCircle, ArrowRight, Smartphone, Clock, Brain, Plane, Briefcase, Gift, Sparkles } from "lucide-react";
+import {
+  MessageCircle,
+  BookOpen,
+  Trophy,
+  CheckCircle,
+  ArrowRight,
+  Smartphone,
+  Clock,
+  Brain,
+  Plane,
+  Briefcase,
+  Gift,
+  Sparkles,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -44,14 +57,14 @@ const Index = () => {
                 <Sparkles className="w-4 h-4" />
                 <span>Aprende inglés sin descargar apps</span>
               </div>
-              
+
               <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6 leading-tight">
                 Aprende inglés{" "}
                 <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
                   directamente desde WhatsApp
                 </span>
               </h1>
-              
+
               <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
                 Lecciones cortas, IA inteligente y progreso real. Todo en la app que ya usas todos los días.
               </p>
@@ -66,8 +79,7 @@ const Index = () => {
               </div>
 
               <p className="text-sm text-muted-foreground mt-4 flex items-center gap-2">
-                <Gift className="w-4 h-4 text-primary" />
-                7 días gratis • Sin tarjeta de crédito
+                <Gift className="w-4 h-4 text-primary" />7 días gratis • Sin tarjeta de crédito
               </p>
             </div>
 
@@ -111,9 +123,7 @@ const Index = () => {
       <section id="como-funciona" className="py-20 px-4 bg-card">
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-16">
-            <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">
-              Cómo Funciona
-            </h2>
+            <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">Cómo Funciona</h2>
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
               Empieza en menos de 1 minuto. Sin descargas, sin registros complicados.
             </p>
@@ -125,9 +135,7 @@ const Index = () => {
                 <span className="text-3xl font-display font-bold text-primary-foreground">1</span>
               </div>
               <h3 className="font-display text-xl font-semibold mb-3">Envía "Hello"</h3>
-              <p className="text-muted-foreground">
-                Abre WhatsApp y manda un mensaje simple. ¡Listo, ya empezaste!
-              </p>
+              <p className="text-muted-foreground">Abre WhatsApp y manda un mensaje simple. ¡Listo, ya empezaste!</p>
             </div>
 
             <div className="text-center">
@@ -135,9 +143,7 @@ const Index = () => {
                 <span className="text-3xl font-display font-bold text-primary-foreground">2</span>
               </div>
               <h3 className="font-display text-xl font-semibold mb-3">La IA Evalúa Tu Nivel</h3>
-              <p className="text-muted-foreground">
-                3 preguntas rápidas y descubres tu nivel actual de inglés.
-              </p>
+              <p className="text-muted-foreground">3 preguntas rápidas y descubres tu nivel actual de inglés.</p>
             </div>
 
             <div className="text-center">
@@ -157,9 +163,7 @@ const Index = () => {
       <section id="beneficios" className="py-20 px-4">
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-16">
-            <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">
-              ¿Por Qué SpeakEasily?
-            </h2>
+            <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">¿Por Qué SpeakEasily?</h2>
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
               Diferente a cualquier app de inglés que hayas probado.
             </p>
@@ -226,10 +230,8 @@ const Index = () => {
               <span>Oferta Especial</span>
             </div>
 
-            <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">
-              Prueba Gratis por 7 Días
-            </h2>
-            
+            <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">Prueba Gratis por 7 Días</h2>
+
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto mb-8">
               Experimenta 20 lecciones completas sin pagar nada. Sin tarjeta de crédito, sin compromiso.
             </p>
@@ -259,9 +261,7 @@ const Index = () => {
                 </a>
               </Button>
 
-              <p className="text-xs text-muted-foreground mt-4">
-                Al hacer clic, serás redirigido a WhatsApp
-              </p>
+              <p className="text-xs text-muted-foreground mt-4">Al hacer clic, serás redirigido a WhatsApp</p>
             </div>
           </div>
         </div>
@@ -290,12 +290,8 @@ const Index = () => {
       {/* Final CTA */}
       <section className="py-20 px-4 gradient-subtle">
         <div className="container mx-auto max-w-3xl text-center">
-          <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">
-            ¿Listo para Hablar Inglés?
-          </h2>
-          <p className="text-muted-foreground text-lg mb-8">
-            Empieza ahora y verás tu progreso en pocos días.
-          </p>
+          <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">¿Listo para Hablar Inglés?</h2>
+          <p className="text-muted-foreground text-lg mb-8">Empieza ahora y verás tu progreso en pocos días.</p>
           <Button size="lg" className="gradient-hero text-lg px-8 py-6 shadow-elevated" asChild>
             <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
               <MessageCircle className="w-5 h-5 mr-2" />
@@ -314,14 +310,11 @@ const Index = () => {
               <div className="w-8 h-8 rounded-lg gradient-hero flex items-center justify-center">
                 <MessageCircle className="w-4 h-4 text-primary-foreground" />
               </div>
-              <span className="font-display font-semibold">SpeakEasily</span>
+              <span className="font-display font-semibold ">SpeakEasily</span>
             </div>
             <p className="text-sm text-muted-foreground text-center md:text-right">
-              © 2026 Nexo Digital. Aprende inglés por WhatsApp.<br />
-              64.696.664 ELIAS ISRAEL MENDES
-              CNPJ: 64.696.664/0001-10 
-            </p>
-
+              © 2026 SpeakEasily. Aprende inglés por WhatsApp. 64.696.664 ELIAS ISRAEL MENDES CNPJ: 64.696.664/0001-10
+              Contato: contato@nexo-digital.app
             </p>
           </div>
         </div>
