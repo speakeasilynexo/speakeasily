@@ -1060,10 +1060,68 @@ async function sendExercise(waId: string, exercise: ExerciseData): Promise<void>
   await send(waId, `${emoji[exercise.type]} *${label[exercise.type]}*\n\n${exercise.prompt}`);
 }
 
+// ============== BACKGROUND PROCESSING ==============
+
+async function processWebhookPayload(
+  body: WhatsAppWebhookPayload,
+  supabase: SupabaseClientType
+): Promise<void> {
+  console.log("[WEBHOOK] Background processing started");
+
+  for (const entry of body.entry ?? []) {
+    for (const change of entry.changes ?? []) {
+      const value = change.value;
+      const msgs = value.messages ?? [];
+      
+      if (!msgs.length) {
+        console.log("[WEBHOOK] No messages in this change");
+        continue;
+      }
+
+      for (const message of msgs) {
+        console.log("[WEBHOOK] Processing message type:", message.type);
+        
+        if (message.type !== "text" || !message.text?.body) {
+          console.log("[WEBHOOK] Skipping non-text message");
+          continue;
+        }
+
+        const waId = message.from;
+        const contact = value.contacts?.find((c) => c.wa_id === waId);
+        const messageText = message.text.body;
+
+        console.log("[WEBHOOK] Message from:", waId, "text:", messageText);
+
+        // Enviar resposta de teste imediata
+        try {
+          const sent = await sendWhatsAppText(waId, "Olá 👋");
+          console.log("[WEBHOOK] Test reply sent:", sent);
+        } catch (sendError) {
+          console.error("[WEBHOOK] Error sending test reply:", sendError);
+        }
+
+        // Processar mensagem completa
+        try {
+          await processMessage(supabase, waId, contact?.profile?.name ?? null, messageText);
+          console.log("[WEBHOOK] processMessage completed for:", waId);
+        } catch (processError) {
+          console.error("[WEBHOOK] Error in processMessage:", processError);
+        }
+      }
+    }
+  }
+
+  console.log("[WEBHOOK] Background processing completed");
+}
+
 // ============== MAIN HANDLER ==============
 
 serve(async (req: Request) => {
+  // Log IMEDIATO no início absoluto
+  console.log(`[WEBHOOK] ${req.method} ${req.url}`);
+
   if (req.method === "OPTIONS") {
+    console.log("[WEBHOOK] OPTIONS request - returning CORS headers");
     return new Response(null, { headers: corsHeaders });
   }
 
@@ -1071,80 +1129,89 @@ serve(async (req: Request) => {
 
   // ====== VERIFY (GET) ======
   if (req.method === "GET") {
+    console.log("[WEBHOOK] GET request - webhook verification");
     const mode = url.searchParams.get("hub.mode");
     const token = url.searchParams.get("hub.verify_token");
     const challenge = url.searchParams.get("hub.challenge");
 
+    console.log("[WEBHOOK] Verify params - mode:", mode, "token:", token ? "***" : "null");
+
     if (mode === "subscribe" && token === Deno.env.get("WHATSAPP_VERIFY_TOKEN")) {
+      console.log("[WEBHOOK] Verification SUCCESS");
       return new Response(challenge, {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "text/plain" },
       });
     }
 
+    console.log("[WEBHOOK] Verification FAILED");
     return new Response("Forbidden", { status: 403, headers: corsHeaders });
   }
 
   // ====== WEBHOOK (POST) ======
   if (req.method === "POST") {
+    console.log("[WEBHOOK] POST handler started");
+
+    // 1. Ler o body como texto
+    let raw: string;
     try {
-      // lê o corpo como texto para logar (e depois parseia)
-      const raw = await req.text();
-      console.log("[WEBHOOK] POST received");
-
-      console.log("[Webhook] RAW:", raw);
-
-      const body: WhatsAppWebhookPayload = JSON.parse(raw);
-      console.log("[Webhook] object:", body?.object);
-
-      if (body.object !== "whatsapp_business_account") {
-        return new Response("OK", { status: 200, headers: corsHeaders });
-      }
-
-      const supabaseUrl = Deno.env.get("SUPABASE_URL");
-      const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-      if (!supabaseUrl || !supabaseKey) {
-        console.error("[Webhook] Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
-        return new Response("OK", { status: 200, headers: corsHeaders });
-      }
-
-      const supabase: SupabaseClientType = createClient(supabaseUrl, supabaseKey);
-
-      for (const entry of body.entry ?? []) {
-        for (const change of entry.changes ?? []) {
-          const value = change.value;
-
-          const msgs = value.messages ?? [];
-          if (!msgs.length) continue;
-
-          for (const message of msgs) {
-            if (message.type !== "text" || !message.text?.body) continue;
-
-            const waId = message.from;
-            const contact = value.contacts?.find((c) => c.wa_id === waId);
-            const name = contact?.profile?.name ?? null;
-
-            // processa async sem bloquear o webhook
-            console.log("[Webhook] IN:", waId, message.text.body);
-
-            await sendWhatsAppText(waId, "🧪 Teste direto do webhook. Mensagem recebida: " + message.text.body);
-
-            try {
-              await processMessage(supabase, waId, contact?.profile?.name ?? null, message.text.body);
-            } catch (err) {
-              console.error("[Webhook] Error processing message:", err);
-            }
-          }
-        }
-      }
-
-      return new Response("OK", { status: 200, headers: corsHeaders });
-    } catch (error) {
-      console.error("[Webhook] Error:", error);
+      raw = await req.text();
+      console.log("[WEBHOOK] Body read successfully, length:", raw.length);
+    } catch (readError) {
+      console.error("[WEBHOOK] Failed to read body:", readError);
       return new Response("OK", { status: 200, headers: corsHeaders });
     }
+
+    // 2. Parse JSON
+    let body: WhatsAppWebhookPayload;
+    try {
+      body = JSON.parse(raw);
+      console.log("[WEBHOOK] JSON parsed, object:", body?.object);
+    } catch (parseError) {
+      console.error("[WEBHOOK] JSON parse failed:", parseError);
+      console.error("[WEBHOOK] Raw body was:", raw.substring(0, 200));
+      return new Response("OK", { status: 200, headers: corsHeaders });
+    }
+
+    // 3. Validar payload
+    if (body.object !== "whatsapp_business_account") {
+      console.log("[WEBHOOK] Not a WhatsApp Business payload, ignoring");
+      return new Response("OK", { status: 200, headers: corsHeaders });
+    }
+
+    // 4. Obter credenciais Supabase
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (!supabaseUrl || !supabaseKey) {
+      console.error("[WEBHOOK] Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+      return new Response("OK", { status: 200, headers: corsHeaders });
+    }
+
+    const supabase: SupabaseClientType = createClient(supabaseUrl, supabaseKey);
+    console.log("[WEBHOOK] Supabase client created");
+
+    // 5. Processar em background usando EdgeRuntime.waitUntil
+    // @ts-ignore - EdgeRuntime is available in Supabase Edge Functions
+    if (typeof EdgeRuntime !== "undefined" && EdgeRuntime.waitUntil) {
+      console.log("[WEBHOOK] Using EdgeRuntime.waitUntil for background processing");
+      // @ts-ignore
+      EdgeRuntime.waitUntil(processWebhookPayload(body, supabase));
+    } else {
+      // Fallback: processar inline (menos ideal, mas funciona)
+      console.log("[WEBHOOK] EdgeRuntime not available, processing inline");
+      try {
+        await processWebhookPayload(body, supabase);
+      } catch (processingError) {
+        console.error("[WEBHOOK] Error in inline processing:", processingError);
+      }
+    }
+
+    // 6. Retornar 200 IMEDIATAMENTE
+    console.log("[WEBHOOK] Returning 200 OK to Meta");
+    return new Response("OK", { status: 200, headers: corsHeaders });
   }
 
+  console.log("[WEBHOOK] Unknown method:", req.method);
   return new Response("Method not allowed", { status: 405, headers: corsHeaders });
 });
