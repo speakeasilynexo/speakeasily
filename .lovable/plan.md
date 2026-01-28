@@ -1,104 +1,58 @@
 
-# Correção de 3 Vulnerabilidades de Segurança
+# Atualização do Favicon e Meta Tags - SpeakEasily
 
-## Problemas Identificados
+## Arquivo Recebido
+- **Imagem:** `user-uploads://favicon_512_x_512_px.png`
+- **Dimensões:** 512x512px (ideal para PWA e favicon)
+- **Formato:** PNG com fundo branco
 
-| Severidade | Problema | Descrição |
-|------------|----------|-----------|
-| CRITICAL | `wa-test` sem autenticação | Endpoint de teste permite que qualquer pessoa envie mensagens WhatsApp pela sua conta |
-| ERROR | `wa_users` exposta | Tabela com nomes e telefones acessível publicamente na internet |
-| ERROR | `wa_state` exposta | Tabela com progresso e dados de atividade do usuario exposta publicamente |
+## Alterações Planejadas
 
-## Solucao Proposta
+### 1. Copiar a imagem para o projeto
 
-### 1. Proteger o endpoint `wa-test` com autenticacao
+Copiar o arquivo de logo para a pasta `public/`:
+- `public/favicon.png` - favicon principal
+- `public/apple-touch-icon.png` - ícone para iOS
+- `public/icon-192.png` / `public/icon-512.png` - ícones PWA (usar o mesmo arquivo 512px)
 
-**Arquivo:** `supabase/functions/wa-test/index.ts`
+### 2. Atualizar index.html
 
-Adicionar verificacao de token secreto no header Authorization:
+| Elemento | Antes | Depois |
+|----------|-------|--------|
+| `<title>` | "Lovable App" | "SpeakEasily - Aprende inglés por WhatsApp" |
+| `<meta description>` | "Lovable Generated Project" | "Aprende inglés de forma natural conversando por WhatsApp" |
+| `<link rel="icon">` | (não existe) | `/favicon.png` |
+| `<link rel="apple-touch-icon">` | (não existe) | `/apple-touch-icon.png` |
+| `og:title` | "Lovable App" | "SpeakEasily" |
+| `og:description` | genérico | descrição do app |
+| `og:image` | lovable.dev | `/og-image.png` (logo) |
 
-```typescript
-const authHeader = req.headers.get('Authorization');
-const expectedToken = Deno.env.get('TEST_ENDPOINT_TOKEN');
+### 3. Criar manifest.json para PWA (opcional mas recomendado)
 
-if (!authHeader || authHeader !== `Bearer ${expectedToken}`) {
-  return new Response(
-    JSON.stringify({ error: 'Unauthorized' }), 
-    { status: 401, headers: corsHeaders }
-  );
+```json
+{
+  "name": "SpeakEasily",
+  "short_name": "SpeakEasily",
+  "icons": [
+    { "src": "/favicon.png", "sizes": "512x512", "type": "image/png" }
+  ],
+  "theme_color": "#22C55E",
+  "background_color": "#ffffff",
+  "display": "standalone"
 }
 ```
 
-Sera necessario adicionar um novo secret `TEST_ENDPOINT_TOKEN` para autenticar as chamadas de teste.
+## Sequência de Implementação
 
-### 2. Corrigir politicas RLS das tabelas
-
-As tabelas `wa_users`, `wa_state` e `wa_events` atualmente tem politicas que permitem acesso total via service role, mas nao bloqueiam acesso anonimo adequadamente.
-
-**Migracao SQL necessaria:**
-
-```sql
--- Remover politicas existentes que usam USING (true)
-DROP POLICY IF EXISTS "Service role can manage wa_users" ON public.wa_users;
-DROP POLICY IF EXISTS "Service role can manage wa_state" ON public.wa_state;
-DROP POLICY IF EXISTS "Service role can manage wa_events" ON public.wa_events;
-
--- Criar politicas que bloqueiam acesso anonimo (anon key)
--- Somente service_role pode acessar estas tabelas
-
-CREATE POLICY "Only service role can select wa_users"
-  ON public.wa_users FOR SELECT
-  TO authenticated, anon
-  USING (false);
-
-CREATE POLICY "Only service role can insert wa_users"
-  ON public.wa_users FOR INSERT
-  TO authenticated, anon
-  WITH CHECK (false);
-
-CREATE POLICY "Only service role can update wa_users"
-  ON public.wa_users FOR UPDATE
-  TO authenticated, anon
-  USING (false)
-  WITH CHECK (false);
-
-CREATE POLICY "Only service role can delete wa_users"
-  ON public.wa_users FOR DELETE
-  TO authenticated, anon
-  USING (false);
-
--- Repetir para wa_state e wa_events...
-```
-
-**Nota:** O service_role automaticamente ignora RLS, entao as edge functions continuarao funcionando normalmente.
-
-### 3. Limpar codigo de debug do webhook
-
-**Arquivo:** `supabase/functions/whatsapp-webhook/index.ts`
-
-- Remover logs que expoem dados sensiveis (telefones, mensagens)
-- Mascarar wa_id nos logs (ex: `3467****3062`)
-- Remover mensagem de teste `"Teste direto do webhook..."`
-
-## Arquivos a Modificar
-
-| Arquivo | Mudanca |
-|---------|---------|
-| `supabase/functions/wa-test/index.ts` | Adicionar autenticacao por token |
-| `supabase/functions/whatsapp-webhook/index.ts` | Sanitizar logs sensiveis |
-| Migracao SQL | Corrigir politicas RLS |
-
-## Sequencia de Implementacao
-
-1. Solicitar criacao do secret `TEST_ENDPOINT_TOKEN`
-2. Atualizar `wa-test` com autenticacao
-3. Sanitizar logs no `whatsapp-webhook`
-4. Aplicar migracao SQL para corrigir RLS
+1. Copiar `user-uploads://favicon_512_x_512_px.png` para `public/favicon.png`
+2. Copiar mesmo arquivo para `public/apple-touch-icon.png`
+3. Atualizar `index.html` com novos metadados e links de favicon
+4. Criar `public/manifest.json` para suporte PWA
+5. Remover `public/favicon.ico` antigo (opcional)
 
 ## Resultado Esperado
 
-Apos as correcoes:
-- Endpoint `wa-test` so aceita chamadas com token valido
-- Tabelas nao podem ser lidas com a anon key (protegidas)
-- Edge functions continuam funcionando (usam service_role)
-- Logs nao expoem mais dados sensiveis
+- Favicon do SpeakEasily visível na aba do navegador
+- Ícone correto ao salvar como atalho no celular
+- Meta tags de compartilhamento atualizadas com branding SpeakEasily
+- Preparado para instalação como PWA
