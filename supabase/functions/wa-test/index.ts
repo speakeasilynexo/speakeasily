@@ -12,6 +12,26 @@ serve(async (req: Request) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Authentication check - require TEST_ENDPOINT_TOKEN
+  const authHeader = req.headers.get("Authorization");
+  const expectedToken = Deno.env.get("TEST_ENDPOINT_TOKEN");
+
+  if (!expectedToken) {
+    console.error("[WA-Test] TEST_ENDPOINT_TOKEN not configured");
+    return new Response(
+      JSON.stringify({ error: "Server configuration error" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  if (!authHeader || authHeader !== `Bearer ${expectedToken}`) {
+    console.warn("[WA-Test] Unauthorized access attempt");
+    return new Response(
+      JSON.stringify({ error: "Unauthorized" }),
+      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
   const url = new URL(req.url);
   const to = url.searchParams.get("to");
   const text = url.searchParams.get("text");
