@@ -1,0 +1,23 @@
+{
+  "name": "SpeakEasily - Aprende inglés por WhatsApp",
+  "short_name": "SpeakEasily",
+  "description": "Aprende inglés de forma natural conversando por WhatsApp",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#22C55E",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
