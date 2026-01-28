@@ -1060,6 +1060,13 @@ async function sendExercise(waId: string, exercise: ExerciseData): Promise<void>
   await send(waId, `${emoji[exercise.type]} *${label[exercise.type]}*\n\n${exercise.prompt}`);
 }
 
+// ============== UTILITIES ==============
+
+function maskWaId(waId: string): string {
+  if (waId.length <= 4) return "****";
+  return waId.slice(0, 4) + "****" + waId.slice(-4);
+}
+
 // ============== BACKGROUND PROCESSING ==============
 
 async function processWebhookPayload(
@@ -1090,22 +1097,14 @@ async function processWebhookPayload(
         const contact = value.contacts?.find((c) => c.wa_id === waId);
         const messageText = message.text.body;
 
-        console.log("[WEBHOOK] Message from:", waId, "text:", messageText);
-
-        // Enviar resposta de teste imediata
-        try {
-          const sent = await sendWhatsAppText(waId, "Olá 👋");
-          console.log("[WEBHOOK] Test reply sent:", sent);
-        } catch (sendError) {
-          console.error("[WEBHOOK] Error sending test reply:", sendError);
-        }
+        console.log("[WEBHOOK] Message from:", maskWaId(waId));
 
         // Processar mensagem completa
         try {
           await processMessage(supabase, waId, contact?.profile?.name ?? null, messageText);
-          console.log("[WEBHOOK] processMessage completed for:", waId);
+          console.log("[WEBHOOK] processMessage completed for:", maskWaId(waId));
         } catch (processError) {
-          console.error("[WEBHOOK] Error in processMessage:", processError);
+          console.error("[WEBHOOK] Error in processMessage for:", maskWaId(waId), processError);
         }
       }
     }
@@ -1169,7 +1168,6 @@ serve(async (req: Request) => {
       console.log("[WEBHOOK] JSON parsed, object:", body?.object);
     } catch (parseError) {
       console.error("[WEBHOOK] JSON parse failed:", parseError);
-      console.error("[WEBHOOK] Raw body was:", raw.substring(0, 200));
       return new Response("OK", { status: 200, headers: corsHeaders });
     }
 
