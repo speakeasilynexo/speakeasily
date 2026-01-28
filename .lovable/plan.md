@@ -1,104 +1,104 @@
 
-## Auditoria e Correção do Webhook WhatsApp
+# Correção de 3 Vulnerabilidades de Segurança
 
-### Diagnóstico Encontrado
+## Problemas Identificados
 
-Após análise detalhada, identifiquei o seguinte cenário:
+| Severidade | Problema | Descrição |
+|------------|----------|-----------|
+| CRITICAL | `wa-test` sem autenticação | Endpoint de teste permite que qualquer pessoa envie mensagens WhatsApp pela sua conta |
+| ERROR | `wa_users` exposta | Tabela com nomes e telefones acessível publicamente na internet |
+| ERROR | `wa_state` exposta | Tabela com progresso e dados de atividade do usuario exposta publicamente |
 
-1. **A Edge Function ESTÁ recebendo os POSTs** - o teste com JSON inválido gerou erro que aparece nos logs
-2. **Quando o JSON é válido, os logs NÃO aparecem** - isso indica um problema específico no fluxo de sucesso
-3. **O stack trace mostra linha 875**, mas o código fonte tem 1150 linhas - isso sugere que o código é compilado/bundled antes do deploy
+## Solucao Proposta
 
-### Causa Raiz Provável
+### 1. Proteger o endpoint `wa-test` com autenticacao
 
-Analisando o código atual (linhas 1089-1146), há um problema de **race condition** e **logging assíncrono**:
+**Arquivo:** `supabase/functions/wa-test/index.ts`
+
+Adicionar verificacao de token secreto no header Authorization:
 
 ```typescript
-// Linha 1092-1093 - Log antes do parse
-const raw = await req.text();
-console.log("[WEBHOOK] POST received");  // Este log deveria aparecer SEMPRE
-```
+const authHeader = req.headers.get('Authorization');
+const expectedToken = Deno.env.get('TEST_ENDPOINT_TOKEN');
 
-O fato de este log não aparecer quando o JSON é válido, mas o erro do catch aparecer quando é inválido, indica que:
-
-1. Os logs podem estar sendo buffered e não flushed corretamente
-2. O processamento está crashando silenciosamente após o parse
-3. Há um problema com as operações assíncronas subsequentes (Supabase, WhatsApp API)
-
-### Correções Necessárias
-
-**1. Adicionar log SÍNCRONO no início absoluto do handler**
-```typescript
-serve(async (req: Request) => {
-  console.log(`[WEBHOOK] ${req.method} ${req.url}`);  // Log imediato
-```
-
-**2. Envolver TODO o código em try-catch robusto com logs granulares**
-```typescript
-if (req.method === "POST") {
-  console.log("[WEBHOOK] POST handler started");
-  
-  let raw: string;
-  try {
-    raw = await req.text();
-    console.log("[WEBHOOK] Body read, length:", raw.length);
-  } catch (e) {
-    console.error("[WEBHOOK] Failed to read body:", e);
-    return new Response("OK", { status: 200 });
-  }
-  
-  let body: WhatsAppWebhookPayload;
-  try {
-    body = JSON.parse(raw);
-    console.log("[WEBHOOK] JSON parsed, object:", body?.object);
-  } catch (e) {
-    console.error("[WEBHOOK] JSON parse failed:", e);
-    return new Response("OK", { status: 200 });
-  }
-  // ... resto do código
+if (!authHeader || authHeader !== `Bearer ${expectedToken}`) {
+  return new Response(
+    JSON.stringify({ error: 'Unauthorized' }), 
+    { status: 401, headers: corsHeaders }
+  );
 }
 ```
 
-**3. Responder 200 IMEDIATAMENTE e processar em background**
-```typescript
-// Retornar 200 para a Meta imediatamente
-const responsePromise = new Response("OK", { status: 200, headers: corsHeaders });
+Sera necessario adicionar um novo secret `TEST_ENDPOINT_TOKEN` para autenticar as chamadas de teste.
 
-// Processar mensagem em background (sem bloquear)
-EdgeRuntime.waitUntil(processWebhookAsync(body, supabase));
+### 2. Corrigir politicas RLS das tabelas
 
-return responsePromise;
+As tabelas `wa_users`, `wa_state` e `wa_events` atualmente tem politicas que permitem acesso total via service role, mas nao bloqueiam acesso anonimo adequadamente.
+
+**Migracao SQL necessaria:**
+
+```sql
+-- Remover politicas existentes que usam USING (true)
+DROP POLICY IF EXISTS "Service role can manage wa_users" ON public.wa_users;
+DROP POLICY IF EXISTS "Service role can manage wa_state" ON public.wa_state;
+DROP POLICY IF EXISTS "Service role can manage wa_events" ON public.wa_events;
+
+-- Criar politicas que bloqueiam acesso anonimo (anon key)
+-- Somente service_role pode acessar estas tabelas
+
+CREATE POLICY "Only service role can select wa_users"
+  ON public.wa_users FOR SELECT
+  TO authenticated, anon
+  USING (false);
+
+CREATE POLICY "Only service role can insert wa_users"
+  ON public.wa_users FOR INSERT
+  TO authenticated, anon
+  WITH CHECK (false);
+
+CREATE POLICY "Only service role can update wa_users"
+  ON public.wa_users FOR UPDATE
+  TO authenticated, anon
+  USING (false)
+  WITH CHECK (false);
+
+CREATE POLICY "Only service role can delete wa_users"
+  ON public.wa_users FOR DELETE
+  TO authenticated, anon
+  USING (false);
+
+-- Repetir para wa_state e wa_events...
 ```
 
-**4. Adicionar função auxiliar para teste de "Olá 👋"**
-Garantir que a resposta simples funcione antes de processar a lógica completa.
+**Nota:** O service_role automaticamente ignora RLS, entao as edge functions continuarao funcionando normalmente.
 
-### Arquivos a Modificar
+### 3. Limpar codigo de debug do webhook
 
-| Arquivo | Mudança |
+**Arquivo:** `supabase/functions/whatsapp-webhook/index.ts`
+
+- Remover logs que expoem dados sensiveis (telefones, mensagens)
+- Mascarar wa_id nos logs (ex: `3467****3062`)
+- Remover mensagem de teste `"Teste direto do webhook..."`
+
+## Arquivos a Modificar
+
+| Arquivo | Mudanca |
 |---------|---------|
-| `supabase/functions/whatsapp-webhook/index.ts` | Correção do handler POST com logs granulares |
+| `supabase/functions/wa-test/index.ts` | Adicionar autenticacao por token |
+| `supabase/functions/whatsapp-webhook/index.ts` | Sanitizar logs sensiveis |
+| Migracao SQL | Corrigir politicas RLS |
 
-### O que NÃO será alterado (conforme solicitado)
+## Sequencia de Implementacao
 
-- Arquitetura geral do projeto
-- Lógica de processamento de mensagens (processMessage)
-- Sistema de trial/onboarding
-- Configurações de CORS
-- Verificação GET (webhook verification)
+1. Solicitar criacao do secret `TEST_ENDPOINT_TOKEN`
+2. Atualizar `wa-test` com autenticacao
+3. Sanitizar logs no `whatsapp-webhook`
+4. Aplicar migracao SQL para corrigir RLS
 
-### Resultado Esperado
+## Resultado Esperado
 
-Após a correção:
-1. Você verá logs detalhados para CADA requisição POST
-2. A Meta receberá 200 rapidamente (evitando retries)
-3. Se uma mensagem de texto chegar, você receberá "Olá 👋" como resposta
-4. Qualquer erro será logado com contexto suficiente para debug
-
-### Validação
-
-Após implementar, farei:
-1. Deploy automático da edge function
-2. Teste POST com payload válido
-3. Verificação dos logs
-4. Teste de envio de mensagem WhatsApp (se as credenciais permitirem)
+Apos as correcoes:
+- Endpoint `wa-test` so aceita chamadas com token valido
+- Tabelas nao podem ser lidas com a anon key (protegidas)
+- Edge functions continuam funcionando (usam service_role)
+- Logs nao expoem mais dados sensiveis
