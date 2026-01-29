@@ -315,11 +315,11 @@ const Index = () => {
 
             <div className="text-sm text-muted-foreground leading-relaxed">
               <div>© 2026 SpeakEasily · Aprende inglés por WhatsApp</div>
-              <div>64.696.664 – ELIAS ISRAEL MENDES · CNPJ: 64.696.664/0001-10</div>
+              <div>CNPJ: 64.696.664/0001-10</div>
               <div className="mt-1">
                 Contato:{" "}
                 <a href="mailto:contato@nexo-digital.app" className="underline hover:text-foreground transition">
-                  contato@nexo-digital.app
+                  contacto@nexo-digital.app
                 </a>
               </div>
             </div>
