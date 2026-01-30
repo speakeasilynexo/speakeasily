@@ -1,109 +1,114 @@
 
-# Diagnóstico: Webhook WhatsApp não processa mensagens
 
-## Problema Identificado
+# Diagnóstico: Webhook Processa Mensagens mas Bot Não Responde
 
-Após testar a edge function diretamente, os logs mostram claramente o problema:
-
-```
-ERROR [WhatsApp] Error: {"error":{"message":"(#10) Application does not have permission for this action"
-```
-
-**Tradução:** O Access Token do WhatsApp Cloud API não tem permissões suficientes para enviar mensagens.
-
-## Estado Atual
+## Situação Atual
 
 | Componente | Status |
 |------------|--------|
-| Edge Function `whatsapp-webhook` | ✅ Funcionando |
-| Webhook URL configurada no Meta | ⚠️ Possivelmente incorreta |
-| Recebimento do payload | ✅ OK (testei manualmente) |
-| Processamento da mensagem | ✅ OK |
-| Envio de resposta ao usuário | ❌ Falha - Permissões do token |
+| Webhook recebendo POSTs | ✅ Funcionando |
+| Processamento da lógica | ✅ Funcionando |
+| Atualização do banco de dados | ✅ Funcionando |
+| Envio de resposta via WhatsApp API | ⚠️ Sem logs de sucesso/erro |
+| Usuário recebe resposta | ❌ Não está funcionando |
 
-## Análise do Fluxo
+## Evidências do Diagnóstico
 
-```text
-[Meta/WhatsApp] ────POST────> [Edge Function] ────> [Processa] ────> [Tenta Responder] ────X [ERRO: Token sem permissão]
+1. **Estado do usuário foi atualizado corretamente:**
+   - Antes: `step: question_1`
+   - Depois do teste com "B": `step: question_2`, `answers: [B]`, `score: 1`
+   - Isso prova que a lógica está funcionando
+
+2. **Nenhum log de erro de envio:**
+   - Não há logs `[WhatsApp] Error:` nos registros
+   - Isso indica que a chamada à API do WhatsApp não está gerando erros capturáveis
+
+3. **O código envia mensagem mas não loga o resultado:**
+   - A função `sendWhatsAppText` só loga em caso de erro
+   - Não há log de sucesso para confirmar que a mensagem foi enviada
+
+## Possíveis Causas
+
+1. **WHATSAPP_PHONE_NUMBER_ID incorreto**
+   - O token pode estar correto, mas o Phone Number ID pode estar errado
+   - Sintoma: chamada retorna 200 mas não envia de fato
+
+2. **Número do destinatário não autorizado**
+   - O número 34672953062 precisa estar na lista de "test recipients" do Facebook
+   - Modo de desenvolvimento só permite enviar para números verificados
+
+3. **Token com permissões incompletas**
+   - O token pode ter `whatsapp_business_management` mas faltar `whatsapp_business_messaging`
+
+4. **Formato do número incorreto**
+   - O número pode precisar de formatação diferente (com ou sem código do país)
+
+## Plano de Correção
+
+### Etapa 1: Adicionar Logs Detalhados ao Envio de Mensagens
+
+Modificar a função `sendWhatsAppText` para logar:
+- O número de destino
+- A resposta completa da API (sucesso ou erro)
+- O status code exato
+
+```
+Arquivo: supabase/functions/whatsapp-webhook/index.ts
+Linhas: 409-444 (função sendWhatsAppText)
 ```
 
-## Causa Raiz
+Adicionar logs antes do fetch e após a resposta, incluindo log de sucesso.
 
-O `WHATSAPP_ACCESS_TOKEN` configurado nos secrets tem um dos seguintes problemas:
+### Etapa 2: Verificar Configurações no Facebook Developer Console
 
-1. **Token temporário expirado** - Os tokens de teste do Facebook expiram em 24 horas
-2. **Permissões faltando** - O token não tem a permissão `whatsapp_business_messaging`
-3. **Token de tipo incorreto** - Pode ser um token de usuário em vez de um token de sistema
+O usuário deve verificar:
 
-## Por que os webhooks do Meta não apareciam nos logs?
+1. **Phone Number ID**: Confirmar que o valor em `WHATSAPP_PHONE_NUMBER_ID` corresponde ao ID mostrado em "WhatsApp > API Setup"
 
-Se o Meta estava enviando webhooks e nada aparecia nos logs, isso indica que:
-- O webhook pode estar apontando para uma URL incorreta
-- Ou a verificação do webhook falhou (o verify token não coincide)
+2. **Test Recipients**: Verificar que o número +34672953062 está na lista de destinatários de teste em "WhatsApp > API Setup > To"
 
----
+3. **App Mode**: Se o app está em modo "Development", só pode enviar para números verificados
 
-## Plano de Correção (3 etapas)
+### Etapa 3: Testar com Logs Aprimorados
 
-### Etapa 1: Verificar/Atualizar o Access Token
+Após adicionar os logs, enviar uma nova mensagem de teste e verificar os logs para identificar o problema exato.
 
-**No Facebook Developer Console:**
+## Detalhes Técnicos da Modificação
 
-1. Acesse **WhatsApp > API Setup**
-2. Gere um novo **Temporary Access Token** (válido por 24h para testes)
-3. Para produção, crie um **System User Access Token**:
-   - Vá em Business Settings > System Users
-   - Crie um System User com papel Admin
-   - Gere um token com permissão `whatsapp_business_messaging`
-4. Atualize o secret `WHATSAPP_ACCESS_TOKEN` no Lovable Cloud
+A função `sendWhatsAppText` será modificada para:
 
-### Etapa 2: Verificar Configuração do Webhook no Meta
+```javascript
+async function sendWhatsAppText(to: string, body: string): Promise<boolean> {
+  const accessToken = Deno.env.get("WHATSAPP_ACCESS_TOKEN");
+  const phoneNumberId = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID");
 
-**URL correta do webhook:**
+  console.log("[WhatsApp] Attempting to send message to:", to.slice(0,4) + "****");
+  console.log("[WhatsApp] Using phone_number_id:", phoneNumberId?.slice(0,4) + "****");
+
+  // ... restante do código com logs adicionais ...
+
+  if (response.ok) {
+    console.log("[WhatsApp] Message sent successfully, response:", JSON.stringify(result));
+    return true;
+  } else {
+    console.error("[WhatsApp] Error:", JSON.stringify(result));
+    return false;
+  }
+}
 ```
-https://njaylytxqksoibyiijms.supabase.co/functions/v1/whatsapp-webhook
-```
 
-**No Facebook Developer Console:**
+## Verificações Requeridas pelo Usuário
 
-1. Vá em **WhatsApp > Configuration > Webhook**
-2. Clique em **Edit**
-3. Confirme que a URL está exatamente como acima
-4. O Verify Token deve ser igual ao secret `WHATSAPP_VERIFY_TOKEN`
-5. Clique em **Verify and Save**
+Antes de implementar as mudanças, confirme no Facebook Developer Console:
 
-### Etapa 3: Testar Fluxo Completo
+- [ ] O Phone Number ID em `WHATSAPP_PHONE_NUMBER_ID` está correto
+- [ ] O número +34672953062 está listado como "Test Recipient" 
+- [ ] O aplicativo tem permissão `whatsapp_business_messaging`
 
-Após atualizar o token:
+## Próximos Passos
 
-1. Envie uma mensagem do WhatsApp para o número de teste
-2. Verifique os logs da edge function
-3. Confirme que a resposta foi enviada
+1. Aprovar este plano para implementar os logs detalhados
+2. Testar novamente enviando uma mensagem do WhatsApp
+3. Analisar os logs para identificar o problema exato
+4. Ajustar as configurações conforme necessário
 
----
-
-## Implementação Técnica
-
-Não há alterações de código necessárias. O problema é de **configuração** no Facebook Developer Console.
-
-### Ação Requerida do Usuário
-
-1. Acessar o Facebook Developer Console
-2. Gerar um novo Access Token com as permissões corretas
-3. Atualizar o secret `WHATSAPP_ACCESS_TOKEN` nos Cloud Secrets
-4. Verificar a URL do webhook está correta no Meta
-5. Testar enviando uma mensagem
-
-### Permissões Necessárias no Token
-
-O token de acesso deve ter:
-- `whatsapp_business_management`
-- `whatsapp_business_messaging`
-
-### Checklist Final
-
-- [ ] Novo Access Token gerado
-- [ ] Token atualizado no Cloud Secrets
-- [ ] URL do webhook verificada no Meta
-- [ ] Webhook subscrito ao evento `messages`
-- [ ] Teste de envio de mensagem funcionando
