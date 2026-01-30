@@ -410,13 +410,22 @@ async function sendWhatsAppText(to: string, body: string): Promise<boolean> {
   const accessToken = Deno.env.get("WHATSAPP_ACCESS_TOKEN");
   const phoneNumberId = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID");
 
+  // Enhanced logging for debugging
+  console.log("[WhatsApp] Attempting to send message");
+  console.log("[WhatsApp] To:", to.slice(0, 4) + "****" + to.slice(-2));
+  console.log("[WhatsApp] Phone Number ID:", phoneNumberId ? phoneNumberId.slice(0, 4) + "****" : "MISSING");
+  console.log("[WhatsApp] Access Token:", accessToken ? "Present (" + accessToken.length + " chars)" : "MISSING");
+
   if (!accessToken || !phoneNumberId) {
-    console.error("[WhatsApp] Missing credentials");
+    console.error("[WhatsApp] Missing credentials - accessToken:", !!accessToken, "phoneNumberId:", !!phoneNumberId);
     return false;
   }
 
   try {
-    const response = await fetch(`https://graph.facebook.com/v18.0/${phoneNumberId}/messages`, {
+    const url = `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`;
+    console.log("[WhatsApp] API URL:", url.replace(phoneNumberId, "****"));
+
+    const response = await fetch(url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -431,14 +440,20 @@ async function sendWhatsAppText(to: string, body: string): Promise<boolean> {
       }),
     });
 
-    if (!response.ok) {
-      const result = await response.json();
-      console.error("[WhatsApp] Error:", JSON.stringify(result));
+    const result = await response.json();
+    console.log("[WhatsApp] Response status:", response.status);
+    console.log("[WhatsApp] Response body:", JSON.stringify(result));
+
+    if (response.ok) {
+      console.log("[WhatsApp] ✅ Message sent successfully! Message ID:", result.messages?.[0]?.id);
+      return true;
+    } else {
+      console.error("[WhatsApp] ❌ API Error - Status:", response.status);
+      console.error("[WhatsApp] ❌ Error details:", JSON.stringify(result));
       return false;
     }
-    return true;
   } catch (error) {
-    console.error("[WhatsApp] Error:", error);
+    console.error("[WhatsApp] ❌ Exception:", error);
     return false;
   }
 }
