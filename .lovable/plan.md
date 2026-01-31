@@ -1,42 +1,47 @@
 
 
-# Atualização do WHATSAPP_ACCESS_TOKEN
+# Correção da Configuração do Webhook
 
-## Objetivo
+## Problema Identificado
 
-Atualizar o secret `WHATSAPP_ACCESS_TOKEN` com o novo token permanente fornecido pelo usuário para restaurar a funcionalidade de envio de mensagens do bot.
+O arquivo `supabase/config.toml` está incompleto - contém apenas o `project_id` mas falta a configuração `verify_jwt = false` para as edge functions. Isso faz com que o Supabase rejeite todas as requisições do Meta (webhooks) porque elas não incluem um token JWT válido.
 
-## Contexto
+## Solução
 
-O token anterior expirou em 30-Jan-26, causando erro 401 nas tentativas de envio de mensagens. O novo token foi gerado pelo usuário no Meta Business Settings.
+Atualizar o `supabase/config.toml` para desabilitar a verificação JWT nas funções que precisam receber webhooks externos.
 
-## Passos de Implementação
+## Alterações Necessárias
 
-### 1. Atualizar o Secret
+### 1. Atualizar supabase/config.toml
 
-Atualizar o valor do secret `WHATSAPP_ACCESS_TOKEN` no Lovable Cloud com o novo token:
-- Token: `EAAYgmYUSHkcBQg6bZCgEJIRRJAJZC7TOmyvSis55pqVZB9ixgpv2xTeowRMibEYhZAZCQKFv3yjxb71F9KB0TehCocmwOHcua0o0hR0l8I8kW7ignCB3ehFM52BKPDjDqFe9wyTRJOKDlXg0wu6N4P5ONm6LaZCQkV4RZBYIqxXt55qBRalv61PZCvKZCf0M2a3SCEqjTmciHZC0MBCEqD0Dws8MDXUlZCLJFvlLjZAY`
+Adicionar a configuração correta para as edge functions:
 
-### 2. Testar a Conexão
+```toml
+project_id = "njaylytxqksoibyiijms"
 
-Após atualizar o secret, testar o envio de mensagem usando o endpoint `wa-test` para confirmar que o token está funcionando.
+[functions.whatsapp-webhook]
+verify_jwt = false
 
-### 3. Verificar Logs
+[functions.wa-test]
+verify_jwt = false
+```
 
-Verificar os logs do edge function para confirmar que não há mais erros de autenticação (401) ou permissão (erro 10).
+## Por que isso é necessário?
+
+- **Webhooks do Meta não enviam JWT**: Quando o WhatsApp envia uma mensagem para seu webhook, não inclui um token de autenticação do Supabase
+- **verify_jwt = true (padrão)**: Bloqueia requisições sem JWT válido - é por isso que os webhooks não chegam
+- **verify_jwt = false**: Permite que requisições externas (como do Meta) acessem a função
 
 ## Resultado Esperado
 
-Após a atualização:
-1. O bot voltará a responder mensagens no WhatsApp
-2. Os logs mostrarão status 200 nas chamadas para a API do Meta
-3. Você poderá testar o fluxo do quiz enviando "restart"
+Após esta alteração:
+1. Os webhooks do Meta serão aceitos pela função `whatsapp-webhook`
+2. Você verá logs de processamento quando enviar mensagens no WhatsApp
+3. O bot responderá às mensagens usando o novo token
 
-## Detalhes Técnicos
+## Segurança
 
-| Item | Valor |
-|------|-------|
-| Secret a atualizar | `WHATSAPP_ACCESS_TOKEN` |
-| Tamanho do token | 213 caracteres |
-| Edge functions afetadas | `whatsapp-webhook`, `wa-test` |
+A função `whatsapp-webhook` já implementa sua própria validação:
+- Verifica o `WHATSAPP_VERIFY_TOKEN` para validação do webhook
+- A função `wa-test` usa `TEST_ENDPOINT_TOKEN` para proteção
 
