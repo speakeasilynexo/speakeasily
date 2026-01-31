@@ -1,68 +1,42 @@
 
 
-# Diagnóstico Confirmado: Meta Não Está Encaminhando Mensagens
+# Atualização do WHATSAPP_ACCESS_TOKEN
 
-## Situação Atual
+## Objetivo
 
-O sistema está **funcionando corretamente**. Quando fiz uma chamada de teste direta ao webhook simulando uma mensagem "B", tudo funcionou perfeitamente:
+Atualizar o secret `WHATSAPP_ACCESS_TOKEN` com o novo token permanente fornecido pelo usuário para restaurar a funcionalidade de envio de mensagens do bot.
 
-| Componente | Status |
-|------------|--------|
-| Edge Function recebe e processa | ✅ Funcionando |
-| Lógica do quiz atualiza estado | ✅ Funcionando |
-| Envio de resposta via WhatsApp API | ✅ Funcionando (status 200) |
-| Você recebeu mensagem do bot | ✅ Deve ter recebido agora |
+## Contexto
 
-## Evidências
+O token anterior expirou em 30-Jan-26, causando erro 401 nas tentativas de envio de mensagens. O novo token foi gerado pelo usuário no Meta Business Settings.
 
-Após minha chamada de teste:
-- Estado do usuário: `step: question_3`
-- Respostas registradas: `["B", "B"]`
-- Score: `3`
-- Mensagem enviada com ID: `wamid.HBgLMzQ2NzI5NTMwNjIVAgARGBI3RjRGOEVCQTlGNEE4Nzg4QTcA`
+## Passos de Implementação
 
-## Causa Raiz
+### 1. Atualizar o Secret
 
-O Meta **não está encaminhando suas mensagens reais** para o webhook. As possíveis causas são:
+Atualizar o valor do secret `WHATSAPP_ACCESS_TOKEN` no Lovable Cloud com o novo token:
+- Token: `EAAYgmYUSHkcBQg6bZCgEJIRRJAJZC7TOmyvSis55pqVZB9ixgpv2xTeowRMibEYhZAZCQKFv3yjxb71F9KB0TehCocmwOHcua0o0hR0l8I8kW7ignCB3ehFM52BKPDjDqFe9wyTRJOKDlXg0wu6N4P5ONm6LaZCQkV4RZBYIqxXt55qBRalv61PZCvKZCf0M2a3SCEqjTmciHZC0MBCEqD0Dws8MDXUlZCLJFvlLjZAY`
 
-1. **Webhook não está verificado/ativo** no Facebook Developer Console
-2. **Campo "messages" não inscrito** na configuração do webhook
-3. **URL do webhook incorreta** ou mudou após uma atualização
+### 2. Testar a Conexão
 
-## Plano de Ação
+Após atualizar o secret, testar o envio de mensagem usando o endpoint `wa-test` para confirmar que o token está funcionando.
 
-### Etapa 1: Re-verificar Webhook no Meta
+### 3. Verificar Logs
 
-No **Facebook Developer Console** > **WhatsApp** > **Configuration** > **Webhook**:
+Verificar os logs do edge function para confirmar que não há mais erros de autenticação (401) ou permissão (erro 10).
 
-1. Confirmar que a URL está correta: `https://njaylytxqksoibyiijms.supabase.co/functions/v1/whatsapp-webhook`
-2. Clicar em **Verify and Save** para re-verificar
-3. Garantir que o campo **messages** está marcado com ✅
+## Resultado Esperado
 
-### Etapa 2: Verificar Subscribed Fields
+Após a atualização:
+1. O bot voltará a responder mensagens no WhatsApp
+2. Os logs mostrarão status 200 nas chamadas para a API do Meta
+3. Você poderá testar o fluxo do quiz enviando "restart"
 
-Em **WhatsApp** > **Configuration** > **Webhook fields**:
-- Certifique-se de que `messages` está na lista de campos inscritos
-- Se não estiver, clique em **Subscribe** ao lado de `messages`
+## Detalhes Técnicos
 
-### Etapa 3: Testar Novamente
-
-Após re-verificar:
-1. Envie "restart" do seu WhatsApp
-2. Verifique se aparece nos logs: `[WEBHOOK] POST handler started`
-3. Se aparecer, o fluxo está restaurado
-
-## Verificação Imediata
-
-Você **deve ter recebido uma mensagem do bot agora** (da minha chamada de teste que simulou a resposta "B"). 
-
-- Se recebeu: confirma que o envio funciona, problema é só no recebimento do Meta
-- Se não recebeu: pode haver problema também no envio
-
-## Próximos Passos
-
-1. Confirme se recebeu a mensagem do bot agora
-2. Re-verifique o webhook no Meta Developer Console
-3. Teste enviando "restart" novamente
-4. Verifique os logs para confirmar que a mensagem chegou
+| Item | Valor |
+|------|-------|
+| Secret a atualizar | `WHATSAPP_ACCESS_TOKEN` |
+| Tamanho do token | 213 caracteres |
+| Edge functions afetadas | `whatsapp-webhook`, `wa-test` |
 
