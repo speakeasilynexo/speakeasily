@@ -83,7 +83,9 @@ type EventType =
   | "trial_ended"
   | "level_assessed"
   | "onboarding_complete"
-  | "user_started";
+  | "user_started"
+  | "message_received"
+  | "message_sent";
 
 // deno-lint-ignore no-explicit-any
 type SupabaseClientType = ReturnType<typeof createClient<any>>;
@@ -406,11 +408,13 @@ Return ONLY JSON:
 
 // ============== WHATSAPP FUNCTIONS ==============
 
-async function sendWhatsAppText(to: string, body: string): Promise<boolean> {
+// Referência global para o cliente Supabase (será definida no handler)
+let globalSupabase: SupabaseClientType | null = null;
+
+async function sendWhatsAppText(to: string, body: string): Promise<{ success: boolean; messageId?: string }> {
   const accessToken = Deno.env.get("WHATSAPP_ACCESS_TOKEN");
   const phoneNumberId = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID");
 
-  // Enhanced logging for debugging
   console.log("[WhatsApp] Attempting to send message");
   console.log("[WhatsApp] To:", to.slice(0, 4) + "****" + to.slice(-2));
   console.log("[WhatsApp] Phone Number ID:", phoneNumberId ? phoneNumberId.slice(0, 4) + "****" : "MISSING");
@@ -418,7 +422,7 @@ async function sendWhatsAppText(to: string, body: string): Promise<boolean> {
 
   if (!accessToken || !phoneNumberId) {
     console.error("[WhatsApp] Missing credentials - accessToken:", !!accessToken, "phoneNumberId:", !!phoneNumberId);
-    return false;
+    return { success: false };
   }
 
   try {
@@ -445,24 +449,59 @@ async function sendWhatsAppText(to: string, body: string): Promise<boolean> {
     console.log("[WhatsApp] Response body:", JSON.stringify(result));
 
     if (response.ok) {
-      console.log("[WhatsApp] ✅ Message sent successfully! Message ID:", result.messages?.[0]?.id);
-      return true;
+      const messageId = result.messages?.[0]?.id;
+      console.log("[WhatsApp] ✅ Message sent successfully! Message ID:", messageId);
+      return { success: true, messageId };
     } else {
       console.error("[WhatsApp] ❌ API Error - Status:", response.status);
       console.error("[WhatsApp] ❌ Error details:", JSON.stringify(result));
-      return false;
+      return { success: false };
     }
   } catch (error) {
     console.error("[WhatsApp] ❌ Exception:", error);
-    return false;
+    return { success: false };
   }
 }
 
 async function send(to: string, msg1: string, msg2?: string): Promise<void> {
-  await sendWhatsAppText(to, msg1);
+  const result1 = await sendWhatsAppText(to, msg1);
+
+  // Registrar message_sent no wa_events
+  if (globalSupabase && result1.success) {
+    try {
+      await globalSupabase.from("wa_events").insert({
+        wa_id: to,
+        event_type: "message_sent",
+        metadata: {
+          text: msg1.slice(0, 500), // Limitar para evitar payloads grandes
+          message_id: result1.messageId || null,
+          status: "sent",
+        },
+      });
+    } catch (e) {
+      console.error("[Telemetry] Error tracking message_sent:", e);
+    }
+  }
+
   if (msg2) {
     await new Promise((r) => setTimeout(r, 600));
-    await sendWhatsAppText(to, msg2);
+    const result2 = await sendWhatsAppText(to, msg2);
+
+    if (globalSupabase && result2.success) {
+      try {
+        await globalSupabase.from("wa_events").insert({
+          wa_id: to,
+          event_type: "message_sent",
+          metadata: {
+            text: msg2.slice(0, 500),
+            message_id: result2.messageId || null,
+            status: "sent",
+          },
+        });
+      } catch (e) {
+        console.error("[Telemetry] Error tracking message_sent:", e);
+      }
+    }
   }
 }
 
@@ -1103,15 +1142,34 @@ async function processWebhookPayload(
       for (const message of msgs) {
         console.log("[WEBHOOK] Processing message type:", message.type);
         
+        const waId = message.from;
+        const contact = value.contacts?.find((c) => c.wa_id === waId);
+
+        // Registrar message_received para TODOS os tipos de mensagem
+        try {
+          await supabase.from("wa_events").insert({
+            wa_id: waId,
+            event_type: "message_received",
+            metadata: {
+              type: message.type,
+              text: message.text?.body || null,
+              message_id: message.id,
+              timestamp: message.timestamp,
+              contact_name: contact?.profile?.name || null,
+            },
+          });
+          console.log("[WEBHOOK] message_received tracked for:", maskWaId(waId));
+        } catch (trackError) {
+          console.error("[WEBHOOK] Error tracking message_received:", trackError);
+        }
+
+        // Processar apenas mensagens de texto
         if (message.type !== "text" || !message.text?.body) {
-          console.log("[WEBHOOK] Skipping non-text message");
+          console.log("[WEBHOOK] Skipping non-text message (already tracked)");
           continue;
         }
 
-        const waId = message.from;
-        const contact = value.contacts?.find((c) => c.wa_id === waId);
         const messageText = message.text.body;
-
         console.log("[WEBHOOK] Message from:", maskWaId(waId));
 
         // Processar mensagem completa
@@ -1202,6 +1260,7 @@ serve(async (req: Request) => {
     }
 
     const supabase: SupabaseClientType = createClient(supabaseUrl, supabaseKey);
+    globalSupabase = supabase; // Definir referência global para tracking de message_sent
     console.log("[WEBHOOK] Supabase client created");
 
     // 5. Processar em background usando EdgeRuntime.waitUntil
