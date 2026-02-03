@@ -1,47 +1,43 @@
 
 
-# Correção da Configuração do Webhook
+# Plano: Atualizar Configuração para Número WhatsApp Real
 
-## Problema Identificado
+## Situação Atual
+O número real **+34 657 10 01 00** foi registrado com sucesso na API do Meta (status: `Conectado`). 
 
-O arquivo `supabase/config.toml` está incompleto - contém apenas o `project_id` mas falta a configuração `verify_jwt = false` para as edge functions. Isso faz com que o Supabase rejeite todas as requisições do Meta (webhooks) porque elas não incluem um token JWT válido.
+O novo **Phone Number ID** é: `972394899295556`
 
-## Solução
+## O Que Precisa Ser Feito
 
-Atualizar o `supabase/config.toml` para desabilitar a verificação JWT nas funções que precisam receber webhooks externos.
+### Passo 1: Atualizar o Secret WHATSAPP_PHONE_NUMBER_ID
+Vou solicitar que você atualize o valor do secret para o novo ID.
 
-## Alterações Necessárias
+**Novo valor:** `972394899295556`
 
-### 1. Atualizar supabase/config.toml
+### Passo 2: Verificar Webhook no Meta Developer Console
+Você precisará verificar se o webhook está configurado para o número correto:
 
-Adicionar a configuração correta para as edge functions:
+1. Acesse **developers.facebook.com** → seu App → **WhatsApp** → **Configuração**
+2. Na seção **Webhook**, verifique:
+   - **URL do Webhook**: `https://njaylytxqksoibyiijms.supabase.co/functions/v1/whatsapp-webhook`
+   - **Verify Token**: `SPEAKEASILY_VERIFY`
+3. **IMPORTANTE**: Na caixa de seleção de número (onde aparecia o número de teste), agora deve aparecer o número real **+34 657 10 01 00**. Selecione-o.
+4. Em **Campos do Webhook**, certifique-se que **messages** está inscrito para o número real.
 
-```toml
-project_id = "njaylytxqksoibyiijms"
+### Passo 3: Testar
+Após as atualizações:
+1. Envie "restart" para **+34 657 10 01 00**
+2. Verificarei os logs para confirmar recebimento
 
-[functions.whatsapp-webhook]
-verify_jwt = false
+## Alterações Técnicas
+- Nenhuma alteração de código necessária
+- Apenas atualização do secret `WHATSAPP_PHONE_NUMBER_ID`
 
-[functions.wa-test]
-verify_jwt = false
-```
-
-## Por que isso é necessário?
-
-- **Webhooks do Meta não enviam JWT**: Quando o WhatsApp envia uma mensagem para seu webhook, não inclui um token de autenticação do Supabase
-- **verify_jwt = true (padrão)**: Bloqueia requisições sem JWT válido - é por isso que os webhooks não chegam
-- **verify_jwt = false**: Permite que requisições externas (como do Meta) acessem a função
-
-## Resultado Esperado
-
-Após esta alteração:
-1. Os webhooks do Meta serão aceitos pela função `whatsapp-webhook`
-2. Você verá logs de processamento quando enviar mensagens no WhatsApp
-3. O bot responderá às mensagens usando o novo token
-
-## Segurança
-
-A função `whatsapp-webhook` já implementa sua própria validação:
-- Verifica o `WHATSAPP_VERIFY_TOKEN` para validação do webhook
-- A função `wa-test` usa `TEST_ENDPOINT_TOKEN` para proteção
+## Resumo das Ações
+| Ação | Responsável |
+|------|-------------|
+| Atualizar secret WHATSAPP_PHONE_NUMBER_ID para `972394899295556` | Você (via prompt que vou mostrar) |
+| Selecionar número real no dropdown do webhook | Você (Meta Developer Console) |
+| Inscrever campo "messages" para o número real | Você (Meta Developer Console) |
+| Verificar logs após teste | Eu |
 
