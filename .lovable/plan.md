@@ -1,86 +1,72 @@
-# SpeakEasily - MVP Implementation Plan
 
-## Overview
-Bot de inglés via WhatsApp com placement test profissional e sistema de aprendizado guiado.
+# Plano: Corrigir Links WhatsApp (CTA)
 
-## MVP1 - Placement Test Profissional ✅
+## Diagnóstico
 
-### Fluxo em 3 partes:
+Os botões CTA (Call to Action) do site estão com links incorretos para o WhatsApp, causando o problema de exibir lista de contatos ao invés de abrir diretamente a conversa com o bot.
 
-1. **Parte 1/3 - Diagnóstico Rápido**
-   - 3 questões múltipla escolha (A/B/C/D)
-   - Q1: Tempo verbal em contexto
-   - Q2: Preposição/collocation
-   - Q3: Estrutura de frase
-   - Microfeedback imediato após cada resposta
+### Arquivos afetados:
 
-2. **Parte 2/3 - Produção Escrita**
-   - Escrever 2 frases sobre si mesmo
-   - Avaliação com heurística + LLM opcional
-   - Score de 1-5
+| Arquivo | Problema | Linha |
+|---------|----------|-------|
+| `src/pages/Index.tsx` | Placeholder `TU_NUMERO` não substituído | 19 |
+| `src/pages/StudentProgress.tsx` | Formato correto, mas sem `?text=` | 182, 196, 396 |
 
-3. **Parte 3/3 - Áudio Opcional**
-   - Script: "Hi, I'm ___. I'm from ___. I want to learn English because ___."
-   - SKIP disponível
+## Solução
 
-4. **Resultado Final**
-   - Nível CEFR (A1/A2/B1/B2/C1)
-   - 2 pontos fortes + 2 pontos a melhorar
-   - Recomendação: Plan 7 días
-   - CTA: "Escribe NEXT para empezar"
+### 1. Atualizar `Index.tsx`
 
-### Eventos de telemetria:
-- `placement_started`
-- `placement_question_answered` (metadata: q_id, answer, correct, feedback)
-- `placement_written_submitted` (metadata: text, score, notes)
-- `placement_audio_received` (metadata: media_id, duration, transcript, score)
-- `placement_completed` (metadata: level, strengths[], weaknesses[], recommended_plan)
+**Antes:**
+```typescript
+const whatsappLink = "https://wa.me/TU_NUMERO?text=Hello";
+```
 
-## MVP2 - Sistema de Aprendizado ✅
+**Depois:**
+```typescript
+const whatsappLink = "https://wa.me/34657100100?text=Hello";
+```
 
-### Plan 7 días
-Cada dia contém:
-- 4 exercícios interativos
-- 1 tarefa de produção final (texto ou áudio)
-- Checkpoint (precisa 70% para passar)
+O número `34657100100` corresponde a:
+- `34` = código país Espanha
+- `657100100` = número do bot (657 10 01 00)
 
-### Tipos de exercícios:
-- `choose_correct` - Múltipla escolha
-- `fill_in_blank` - Completar lacunas
-- `reorder_words` - Ordenar palavras
-- `correct_the_mistake` - Corrigir erro
+### 2. Atualizar `StudentProgress.tsx`
 
-### Sistema de Review
-- `mistake_tags` rastreados por usuário
-- Comando REVIEW puxa 3 exercícios baseados nos erros
-- Contagem de erros reduz quando acerta no review
+**Antes:**
+```typescript
+const whatsappLink = `https://wa.me/34657100100`;
+```
 
-### Comandos disponíveis:
-- `NEXT` - Avança no plano
-- `PROGRESO` - Mostra progresso + link da página
-- `REVIEW` - Inicia repaso de erros
-- `RESTART` - Reinicia (com confirmação)
-- `HELP` - Lista comandos
+**Depois:**
+```typescript
+const whatsappLink = "https://wa.me/34657100100?text=NEXT";
+```
 
-### Página de progresso web
-- Rota: `/u/{wa_id}`
-- Mostra: nível, dia atual, lições completadas, erros frequentes, eventos recentes
-- Sem autenticação (MVP)
-- CTA: "Volver al WhatsApp"
+Adicionamos `?text=NEXT` para que o usuário já tenha a mensagem pré-preenchida ao voltar para continuar as lições.
 
-## Estrutura de Dados
+## Comportamento Esperado Após Correção
 
-### wa_users
-- wa_id, name, level, subscription_status, created_at, updated_at
+1. Usuário clica em qualquer CTA do site
+2. WhatsApp abre diretamente na tela de conversa com o número +34 657 10 01 00
+3. Campo de texto já vem preenchido com "Hello" (landing page) ou "NEXT" (página de progresso)
+4. Usuário só precisa clicar em enviar
 
-### wa_state
-- wa_id, step, data (JSON com progress, placement, etc.)
+## Arquivos a Modificar
 
-### wa_events
-- wa_id, event_type, metadata (JSON), created_at
+```text
+src/pages/Index.tsx        → linha 19
+src/pages/StudentProgress.tsx → linhas 182, 196, 396
+```
 
-## Regras de UX
-- Idioma do coach: ESPAÑOL
-- Conteúdo de inglês: INGLÊS
-- Respostas curtas, humanas, com emojis sutis
-- Mensagens não robotizadas
+## Detalhes Técnicos
+
+O formato do link `wa.me` deve seguir estas regras:
+- Usar apenas dígitos (sem `+`, espaços ou hífens)
+- Incluir código do país
+- Parâmetro `text` é opcional mas melhora UX
+- URL deve ser codificada se o texto tiver caracteres especiais
+
+Exemplo completo:
+```
+https://wa.me/34657100100?text=Hello
+```
