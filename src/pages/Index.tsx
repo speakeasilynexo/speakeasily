@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 const Index = () => {
-  const whatsappLink = "https://wa.me/TU_NUMERO?text=Hello";
+  const whatsappLink = "https://wa.me/34657100100?text=Hello";
 
   return (
     <div className="min-h-screen bg-background">

@@ -179,7 +179,7 @@ export default function StudentProgress() {
      "checkpoint_failed", "placement_completed", "production_submitted", "review_completed"].includes(e.event_type)
   ).slice(0, 10);
 
-  const whatsappLink = `https://wa.me/34657100100`;
+  const whatsappLink = "https://wa.me/34657100100?text=NEXT";
 
   return (
     <div className="min-h-screen bg-background">
