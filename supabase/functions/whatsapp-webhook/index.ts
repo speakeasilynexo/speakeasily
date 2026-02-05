@@ -47,6 +47,18 @@ interface TrialInfo {
   trial_status: TrialStatus;
 }
 
+interface UserData {
+  wa_id: string;
+  name: string | null;
+  level: EnglishLevel | null;
+  subscription_status: string;
+  trial_started_at: string | null;
+  trial_expires_at: string | null;
+  trial_completed: boolean;
+  is_subscribed: boolean;
+  subscription_plan: string | null;
+}
+
 interface MistakeTag {
   tag: string;
   count: number;
@@ -84,6 +96,11 @@ interface LessonExercise {
   mistake_tag: string;
 }
 
+interface ReviewCountToday {
+  date: string;
+  count: number;
+}
+
 interface LessonProgress {
   current_day: number;
   current_exercise_index: number;
@@ -98,6 +115,7 @@ interface LessonProgress {
   review_mode?: boolean;
   review_exercises?: LessonExercise[];
   review_index?: number;
+  review_count_today?: ReviewCountToday;
 }
 
 interface StateData {
@@ -110,6 +128,11 @@ type EventType =
   | "exercise_failed"
   | "goal_selected"
   | "trial_ended"
+  | "trial_started"
+  | "trial_completed"
+  | "trial_expired"
+  | "paywall_shown"
+  | "review_limited_shown"
   | "level_assessed"
   | "onboarding_complete"
   | "user_started"
@@ -136,6 +159,7 @@ type SupabaseClientType = ReturnType<typeof createClient<any>>;
 const TRIAL_DAYS = 7;
 const TRIAL_LESSONS = 20;
 const PASSING_SCORE = 0.7; // 70% para passar checkpoint
+const FREE_REVIEW_LIMIT = 3; // 3 ejercicios de repaso gratis por día
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -628,10 +652,10 @@ async function getOrCreateUser(
   supabase: SupabaseClientType,
   waId: string,
   name: string | null,
-): Promise<{ wa_id: string; name: string | null; level: EnglishLevel | null; subscription_status: string } | null> {
+): Promise<UserData | null> {
   const { data: existing } = await supabase
     .from("wa_users")
-    .select("wa_id, name, level, subscription_status")
+    .select("wa_id, name, level, subscription_status, trial_started_at, trial_expires_at, trial_completed, is_subscribed, subscription_plan")
     .eq("wa_id", waId)
     .maybeSingle();
 
@@ -641,13 +665,30 @@ async function getOrCreateUser(
       name: existing.name as string | null,
       level: existing.level as EnglishLevel | null,
       subscription_status: existing.subscription_status as string,
+      trial_started_at: existing.trial_started_at as string | null,
+      trial_expires_at: existing.trial_expires_at as string | null,
+      trial_completed: existing.trial_completed as boolean,
+      is_subscribed: existing.is_subscribed as boolean,
+      subscription_plan: existing.subscription_plan as string | null,
     };
   }
 
+  // New user: start trial
+  const now = new Date();
+  const trialExpiresAt = new Date(now.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+
   const { data: newUser, error } = await supabase
     .from("wa_users")
-    .insert({ wa_id: waId, name, subscription_status: "trial" })
-    .select("wa_id, name, level, subscription_status")
+    .insert({ 
+      wa_id: waId, 
+      name, 
+      subscription_status: "trial",
+      trial_started_at: now.toISOString(),
+      trial_expires_at: trialExpiresAt.toISOString(),
+      trial_completed: false,
+      is_subscribed: false,
+    })
+    .select("wa_id, name, level, subscription_status, trial_started_at, trial_expires_at, trial_completed, is_subscribed, subscription_plan")
     .single();
 
   if (error) {
@@ -655,11 +696,22 @@ async function getOrCreateUser(
     return null;
   }
 
+  // Track trial_started event
+  await trackEvent(supabase, waId, "trial_started", {
+    trial_started_at: now.toISOString(),
+    trial_expires_at: trialExpiresAt.toISOString(),
+  });
+
   return {
     wa_id: newUser.wa_id as string,
     name: newUser.name as string | null,
     level: newUser.level as EnglishLevel | null,
     subscription_status: newUser.subscription_status as string,
+    trial_started_at: newUser.trial_started_at as string | null,
+    trial_expires_at: newUser.trial_expires_at as string | null,
+    trial_completed: newUser.trial_completed as boolean,
+    is_subscribed: newUser.is_subscribed as boolean,
+    subscription_plan: newUser.subscription_plan as string | null,
   };
 }
 
@@ -740,6 +792,130 @@ function getTrialProgress(trial: TrialInfo): { lessonsLeft: number; daysLeft: nu
     lessonsLeft: Math.max(0, TRIAL_LESSONS - trial.lessons_completed),
     daysLeft: Math.max(0, TRIAL_DAYS - daysDiff),
   };
+}
+
+// ============== PAYWALL SYSTEM ==============
+
+const SUBSCRIBE_URL = "https://speakeasilynexo-digitalapp.lovable.app/subscribe";
+
+function getSubscribeLink(waId: string, source: string): string {
+  return `${SUBSCRIBE_URL}?wa_id=${waId}&source=${source}`;
+}
+
+function isTrialExpired(user: UserData): { expired: boolean; reason: "trial_completed" | "trial_expired" | null } {
+  if (user.is_subscribed) {
+    return { expired: false, reason: null };
+  }
+
+  if (user.trial_completed) {
+    return { expired: true, reason: "trial_completed" };
+  }
+
+  if (user.trial_expires_at) {
+    const expiresAt = new Date(user.trial_expires_at);
+    if (new Date() > expiresAt) {
+      return { expired: true, reason: "trial_expired" };
+    }
+  }
+
+  return { expired: false, reason: null };
+}
+
+async function sendPaywallMessage(
+  supabase: SupabaseClientType,
+  waId: string,
+  reason: "trial_completed" | "trial_expired",
+  command: string
+): Promise<void> {
+  const subscribeLink = getSubscribeLink(waId, "paywall");
+
+  await trackEvent(supabase, waId, "paywall_shown", {
+    reason,
+    command,
+  });
+
+  await send(waId,
+    `✅ *Tu prueba terminó*\n\n` +
+    `Para seguir con audios + revisión inteligente + nuevos módulos, activa tu suscripción aquí:\n\n` +
+    `🔗 ${subscribeLink}\n\n` +
+    `Puedes ver tu progreso con *PROGRESO*.`
+  );
+}
+
+async function checkReviewLimit(
+  supabase: SupabaseClientType,
+  waId: string,
+  state: { step: string; data: StateData }
+): Promise<{ allowed: boolean; remaining: number }> {
+  const progress = state.data.progress;
+  if (!progress) return { allowed: false, remaining: 0 };
+
+  // Get today's date string for comparison
+  const today = new Date().toISOString().slice(0, 10);
+  
+  // Check review count in progress data
+  const reviewToday = progress.review_count_today || { date: "", count: 0 };
+  
+  if (reviewToday.date !== today) {
+    // Reset for new day
+    return { allowed: true, remaining: FREE_REVIEW_LIMIT };
+  }
+
+  const remaining = Math.max(0, FREE_REVIEW_LIMIT - reviewToday.count);
+  return { allowed: remaining > 0, remaining };
+}
+
+async function incrementReviewCount(
+  supabase: SupabaseClientType,
+  waId: string,
+  state: { step: string; data: StateData }
+): Promise<void> {
+  const progress = state.data.progress;
+  if (!progress) return;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const reviewToday = progress.review_count_today || { date: "", count: 0 };
+
+  if (reviewToday.date !== today) {
+    progress.review_count_today = { date: today, count: 1 };
+  } else {
+    progress.review_count_today = { date: today, count: reviewToday.count + 1 };
+  }
+
+  await updateState(supabase, waId, state.step, state.data);
+}
+
+async function sendReviewLimitedMessage(
+  supabase: SupabaseClientType,
+  waId: string
+): Promise<void> {
+  const subscribeLink = getSubscribeLink(waId, "review_limit");
+
+  await trackEvent(supabase, waId, "review_limited_shown", {});
+
+  await send(waId,
+    `🙌 *Has agotado tu review gratis de hoy*\n\n` +
+    `Activa la suscripción para review ilimitado:\n` +
+    `🔗 ${subscribeLink}`
+  );
+}
+
+async function markTrialCompleted(
+  supabase: SupabaseClientType,
+  waId: string,
+  user: UserData,
+  progress: LessonProgress
+): Promise<void> {
+  await supabase.from("wa_users").update({
+    trial_completed: true,
+  }).eq("wa_id", waId);
+
+  await trackEvent(supabase, waId, "trial_completed", {
+    day: 7,
+    level: user.level,
+    lessons_completed: progress.total_lessons_completed,
+    exercises_completed: progress.exercises_completed,
+  });
 }
 
 // ============== AI FUNCTIONS ==============
@@ -1267,6 +1443,7 @@ async function handleDayProduction(
   waId: string,
   content: string,
   state: { step: string; data: StateData },
+  user: UserData,
   isAudio: boolean = false,
   audioId?: string
 ): Promise<void> {
@@ -1299,13 +1476,14 @@ async function handleDayProduction(
     await new Promise(r => setTimeout(r, 600));
   }
 
-  await finishDayLesson(supabase, waId, state);
+  await finishDayLesson(supabase, waId, state, user);
 }
 
 async function finishDayLesson(
   supabase: SupabaseClientType,
   waId: string,
-  state: { step: string; data: StateData }
+  state: { step: string; data: StateData },
+  user: UserData
 ): Promise<void> {
   const progress = state.data.progress!;
   const day = SEVEN_DAY_PLAN.find(l => l.day === progress.current_day)!;
@@ -1339,15 +1517,33 @@ async function finishDayLesson(
     await updateState(supabase, waId, "day_complete", { ...state.data, progress });
 
     const hasNextDay = progress.current_day <= 7;
+    const subscribeLink = getSubscribeLink(waId, "day7_complete");
     
-    await send(waId,
-      `🎉 *¡Día ${day.day} completado!*\n\n` +
-      `✅ Checkpoint: *APROBADO*\n` +
-      `📊 Aciertos: ${progress.day_score}/${progress.day_attempts} (${Math.round(accuracy * 100)}%)\n\n` +
-      (hasNextDay 
-        ? `Escribe *NEXT* para el Día ${progress.current_day} 🚀`
-        : `🏆 ¡Has completado los 7 días! Escribe *PROGRESO* para ver tu resumen.`)
-    );
+    // Check if Day 7 was just completed (current_day is now 8)
+    if (day.day === 7) {
+      // Mark trial as completed
+      await markTrialCompleted(supabase, waId, user, progress);
+      
+      // Send celebration + mini-report + subscribe link
+      await send(waId,
+        `🎉🏆 *¡FELICIDADES!* 🏆🎉\n\n` +
+        `Has completado el *Plan de 7 días*.\n\n` +
+        `📊 *Tu resumen:*\n` +
+        `• Lecciones: ${progress.total_lessons_completed}\n` +
+        `• Ejercicios: ${progress.exercises_completed}\n` +
+        `• Nivel: ${LEVEL_NAMES[user.level || "beginner"]}\n\n` +
+        `Para seguir aprendiendo con audios, revisión inteligente y nuevos módulos, activa tu suscripción:\n\n` +
+        `🔗 ${subscribeLink}\n\n` +
+        `Escribe *PROGRESO* para ver tu avance completo.`
+      );
+    } else {
+      await send(waId,
+        `🎉 *¡Día ${day.day} completado!*\n\n` +
+        `✅ Checkpoint: *APROBADO*\n` +
+        `📊 Aciertos: ${progress.day_score}/${progress.day_attempts} (${Math.round(accuracy * 100)}%)\n\n` +
+        `Escribe *NEXT* para el Día ${progress.current_day} 🚀`
+      );
+    }
   } else {
     await updateState(supabase, waId, "day_failed", { ...state.data, progress });
 
@@ -1366,7 +1562,8 @@ async function finishDayLesson(
 async function startReview(
   supabase: SupabaseClientType,
   waId: string,
-  state: { step: string; data: StateData }
+  state: { step: string; data: StateData },
+  limitedMode: boolean = false
 ): Promise<void> {
   const progress = state.data.progress!;
   const mistakeTags = progress.mistake_tags || [];
@@ -1401,13 +1598,19 @@ async function startReview(
     return;
   }
 
+  // If in limited mode (trial expired), increment the daily counter
+  if (limitedMode) {
+    await incrementReviewCount(supabase, waId, state);
+  }
+
   progress.review_mode = true;
   progress.review_exercises = reviewExercises;
   progress.review_index = 0;
 
   await trackEvent(supabase, waId, "review_started", {
     exercise_count: reviewExercises.length,
-    tags: sortedTags.slice(0, 3).map(t => t.tag)
+    tags: sortedTags.slice(0, 3).map(t => t.tag),
+    limited_mode: limitedMode
   });
 
   await updateState(supabase, waId, "review_exercise", { ...state.data, progress });
@@ -1498,7 +1701,7 @@ async function handleProgressCommand(
   supabase: SupabaseClientType,
   waId: string,
   state: { step: string; data: StateData },
-  user: { level: EnglishLevel | null }
+  user: UserData
 ): Promise<void> {
   const progress = state.data.progress;
   
@@ -1514,15 +1717,27 @@ async function handleProgressCommand(
     .map(t => t.tag.replace(/_/g, " "));
 
   // Generar link a la página de progreso
-  const baseUrl = Deno.env.get("SUPABASE_URL")?.replace(".supabase.co", ".lovable.app") || "https://speakeasilynexo-digitalapp.lovable.app";
-  const progressUrl = `${baseUrl}/u/${waId}`;
+  const progressUrl = `https://speakeasilynexo-digitalapp.lovable.app/u/${waId}`;
+  const subscribeLink = getSubscribeLink(waId, "progreso");
+
+  // Check trial status
+  const trialStatus = isTrialExpired(user);
+  let trialMessage = "";
+  
+  if (user.is_subscribed) {
+    trialMessage = "✨ *Suscripción activa*";
+  } else if (trialStatus.expired) {
+    trialMessage = `❌ *Tu prueba terminó*\n🔗 Activa tu suscripción: ${subscribeLink}`;
+  } else {
+    trialMessage = `⏳ *Prueba:* ${trialInfo.daysLeft} días restantes`;
+  }
 
   await send(waId,
     `📊 *Tu Progreso*\n\n` +
     `🎯 Nivel: ${LEVEL_NAMES[user.level]}\n` +
     `📖 Día actual: ${progress.current_day}/7\n` +
     `✅ Lecciones completadas: ${progress.total_lessons_completed}\n` +
-    `⏳ Prueba: ${trialInfo.lessonsLeft} lecciones / ${trialInfo.daysLeft} días\n\n` +
+    `${trialMessage}\n\n` +
     (topMistakes.length > 0 
       ? `📝 *Errores frecuentes:*\n${topMistakes.map(m => `• ${m}`).join("\n")}\n\n`
       : "") +
@@ -1609,6 +1824,7 @@ async function processMessage(
       `• *NEXT* — Continuar con el plan\n` +
       `• *PROGRESO* — Ver tu avance y link\n` +
       `• *REVIEW* — Repasar errores\n` +
+      `• *SUSCRIBIRME* — Ver planes\n` +
       `• *RESTART* — Reiniciar (con confirmación)\n\n` +
       `💬 ¡Escribe lo que necesites!`
     );
@@ -1620,9 +1836,37 @@ async function processMessage(
     return;
   }
 
+  // Handle subscribe command
+  if (lower === "subscribe" || lower === "suscribirme" || lower === "suscripcion" || lower === "suscripción") {
+    const subscribeLink = getSubscribeLink(waId, "command");
+    await send(waId,
+      `💳 *Planes de Suscripción*\n\n` +
+      `Accede a todos los beneficios:\n` +
+      `✅ Audios y práctica real\n` +
+      `✅ Corrección inmediata\n` +
+      `✅ Revisión inteligente ilimitada\n` +
+      `✅ Nuevos módulos cada semana\n\n` +
+      `🔗 Ver planes: ${subscribeLink}`
+    );
+    return;
+  }
+
   if (lower === "review" || lower === "repaso" || lower === "repasar") {
     if (progress) {
-      await startReview(supabase, waId, state);
+      // Check paywall for non-subscribers
+      const trialStatus = isTrialExpired(user);
+      if (trialStatus.expired && !user.is_subscribed) {
+        // Limited review for expired trial
+        const reviewLimit = await checkReviewLimit(supabase, waId, state);
+        if (!reviewLimit.allowed) {
+          await sendReviewLimitedMessage(supabase, waId);
+          return;
+        }
+        // Pass limitedMode = true to increment counter
+        await startReview(supabase, waId, state, true);
+      } else {
+        await startReview(supabase, waId, state);
+      }
     } else {
       await send(waId, "Primero completa el placement test. Envía cualquier mensaje para empezar.");
     }
@@ -1707,6 +1951,12 @@ async function processMessage(
     case "day_complete":
     case "day_failed": {
       if (["NEXT", "SIGUIENTE", "OK", "CONTINUAR"].includes(normalized)) {
+        // Check paywall
+        const trialStatus = isTrialExpired(user);
+        if (trialStatus.expired && trialStatus.reason) {
+          await sendPaywallMessage(supabase, waId, trialStatus.reason, "NEXT");
+          return;
+        }
         await startDayLesson(supabase, waId, state);
       } else {
         await send(waId, "Escribe *NEXT* para continuar o *REVIEW* para repasar. 📚");
@@ -1722,9 +1972,9 @@ async function processMessage(
 
     case "day_production": {
       if (audioData) {
-        await handleDayProduction(supabase, waId, messageText, state, true, audioData.media_id);
+        await handleDayProduction(supabase, waId, messageText, state, user, true, audioData.media_id);
       } else {
-        await handleDayProduction(supabase, waId, messageText, state);
+        await handleDayProduction(supabase, waId, messageText, state, user);
       }
       break;
     }
