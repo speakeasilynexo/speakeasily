@@ -1,82 +1,86 @@
+# SpeakEasily - MVP Implementation Plan
 
+## Overview
+Bot de inglés via WhatsApp com placement test profissional e sistema de aprendizado guiado.
 
-# Diagnóstico: WhatsApp Webhooks Não Chegam
+## MVP1 - Placement Test Profissional ✅
 
-## Situação Atual
+### Fluxo em 3 partes:
 
-| Item | Status |
-|------|--------|
-| Número +34 657 10 01 00 | Conectado no WhatsApp Manager ✅ |
-| Secret WHATSAPP_PHONE_NUMBER_ID | Atualizado para `972394899295556` ✅ |
-| Edge function `whatsapp-webhook` | Ativa e responde a verificações ✅ |
-| Webhooks recebidos | ❌ Nenhum POST chegando |
+1. **Parte 1/3 - Diagnóstico Rápido**
+   - 3 questões múltipla escolha (A/B/C/D)
+   - Q1: Tempo verbal em contexto
+   - Q2: Preposição/collocation
+   - Q3: Estrutura de frase
+   - Microfeedback imediato após cada resposta
 
-## Diagnóstico
+2. **Parte 2/3 - Produção Escrita**
+   - Escrever 2 frases sobre si mesmo
+   - Avaliação com heurística + LLM opcional
+   - Score de 1-5
 
-O problema está **no lado do Meta** - a verificação do webhook foi feita, mas Meta não está entregando os eventos. Possíveis causas:
+3. **Parte 3/3 - Áudio Opcional**
+   - Script: "Hi, I'm ___. I'm from ___. I want to learn English because ___."
+   - SKIP disponível
 
-1. **Subscrição de webhook não está ativa** para o campo `messages` na conta WABA
-2. **O número precisa ser re-associado** ao webhook após registro
-3. **Permissões do App** podem estar incompletas
+4. **Resultado Final**
+   - Nível CEFR (A1/A2/B1/B2/C1)
+   - 2 pontos fortes + 2 pontos a melhorar
+   - Recomendação: Plan 7 días
+   - CTA: "Escribe NEXT para empezar"
 
-## Plano de Ação
+### Eventos de telemetria:
+- `placement_started`
+- `placement_question_answered` (metadata: q_id, answer, correct, feedback)
+- `placement_written_submitted` (metadata: text, score, notes)
+- `placement_audio_received` (metadata: media_id, duration, transcript, score)
+- `placement_completed` (metadata: level, strengths[], weaknesses[], recommended_plan)
 
-### Passo 1: Testar Envio de Mensagem (Saída)
-Primeiro precisamos confirmar que as credenciais do número real funcionam para **enviar** mensagens. Isso valida:
-- Access Token está correto
-- Phone Number ID está correto
-- Número está realmente ativo na Cloud API
+## MVP2 - Sistema de Aprendizado ✅
 
-Você precisará me fornecer seu **número pessoal** (para onde enviar a mensagem de teste).
+### Plan 7 días
+Cada dia contém:
+- 4 exercícios interativos
+- 1 tarefa de produção final (texto ou áudio)
+- Checkpoint (precisa 70% para passar)
 
-### Passo 2: Verificar Subscrições do Webhook
-No Meta Developer Console:
-1. Vá em **WhatsApp → Configuración**
-2. Na seção **Webhook**, clique em **Administrar**
-3. Confirme que **messages** tem ✅ (checkbox marcado)
-4. Se não tiver, marque e salve
+### Tipos de exercícios:
+- `choose_correct` - Múltipla escolha
+- `fill_in_blank` - Completar lacunas
+- `reorder_words` - Ordenar palavras
+- `correct_the_mistake` - Corrigir erro
 
-### Passo 3: Verificar App Webhooks (Nível Geral)
-1. No Meta Developer Console, vá em **Configuración del app → Webhooks**
-2. Procure por **WhatsApp Business Account**
-3. Confirme que a URL está subscrita e ativa
+### Sistema de Review
+- `mistake_tags` rastreados por usuário
+- Comando REVIEW puxa 3 exercícios baseados nos erros
+- Contagem de erros reduz quando acerta no review
 
-### Passo 4: Re-verificar o Webhook
-1. Vá em **WhatsApp → Configuración**
-2. Clique em **Editar** no webhook
-3. Mantenha a mesma URL e Token
-4. Clique em **Verificar y guardar** novamente
+### Comandos disponíveis:
+- `NEXT` - Avança no plano
+- `PROGRESO` - Mostra progresso + link da página
+- `REVIEW` - Inicia repaso de erros
+- `RESTART` - Reinicia (com confirmação)
+- `HELP` - Lista comandos
 
-### Passo 5: Localizar API Logs no Meta
-Para encontrar logs de webhook no Meta:
-1. Vá em **developers.facebook.com**
-2. Selecione seu App
-3. No menu lateral, procure **Herramientas** ou **Tools**
-4. Clique em **API Log** ou **Webhook Logs**
+### Página de progresso web
+- Rota: `/u/{wa_id}`
+- Mostra: nível, dia atual, lições completadas, erros frequentes, eventos recentes
+- Sem autenticação (MVP)
+- CTA: "Volver al WhatsApp"
 
-Se não encontrar, tente:
-- **App Dashboard → Activity Log**
-- **WhatsApp → Herramientas → API Log**
+## Estrutura de Dados
 
-## Detalhes Técnicos
+### wa_users
+- wa_id, name, level, subscription_status, created_at, updated_at
 
-A edge function está pronta e funcional:
+### wa_state
+- wa_id, step, data (JSON com progress, placement, etc.)
 
-```text
-POST /functions/v1/whatsapp-webhook
-├── Lê body como texto
-├── Parse JSON
-├── Valida payload (object === "whatsapp_business_account")
-├── Processa em background com EdgeRuntime.waitUntil()
-└── Retorna 200 OK imediatamente
-```
+### wa_events
+- wa_id, event_type, metadata (JSON), created_at
 
-A verificação GET também funciona:
-- Verificamos anteriormente que a função responde corretamente ao challenge do Meta
-
-## Próximos Passos
-
-1. **Informe seu número pessoal** para teste de envio
-2. **Confirme subscrição do campo "messages"** no webhook
-3. **Procure API Logs** no Meta para ver se há tentativas de entrega
-
+## Regras de UX
+- Idioma do coach: ESPAÑOL
+- Conteúdo de inglês: INGLÊS
+- Respostas curtas, humanas, com emojis sutis
+- Mensagens não robotizadas
