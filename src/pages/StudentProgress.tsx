@@ -193,7 +193,7 @@ export default function StudentProgress() {
                 {user.name || "Estudiante"} • SpeakEasily
               </p>
             </div>
-            <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
+            <a href={whatsappLink}>
               <Button className="gap-2">
                 <MessageCircle className="h-4 w-4" />
                 Volver al WhatsApp
@@ -393,7 +393,7 @@ export default function StudentProgress() {
             <p className="text-muted-foreground mb-4">
               Vuelve al WhatsApp y escribe <strong>NEXT</strong> para tu próxima lección.
             </p>
-            <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
+            <a href={whatsappLink}>
               <Button size="lg" className="gap-2">
                 <MessageCircle className="h-5 w-5" />
                 Abrir WhatsApp
