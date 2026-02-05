@@ -41,7 +41,7 @@ const Index = () => {
             </a>
           </nav>
           <Button className="gradient-hero" asChild>
-            <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
+            <a href={whatsappLink}>
               Empieza Ahora
             </a>
           </Button>
@@ -71,7 +71,7 @@ const Index = () => {
 
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button size="lg" className="gradient-hero text-lg px-8 py-6 shadow-elevated" asChild>
-                  <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
+                  <a href={whatsappLink}>
                     <MessageCircle className="w-5 h-5 mr-2" />
                     Empieza Gratis por WhatsApp
                   </a>
@@ -255,7 +255,7 @@ const Index = () => {
               </div>
 
               <Button size="lg" className="w-full gradient-hero text-lg py-6 shadow-elevated" asChild>
-                <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
+                <a href={whatsappLink}>
                   <MessageCircle className="w-5 h-5 mr-2" />
                   Empezar Mi Prueba Gratis
                 </a>
@@ -293,7 +293,7 @@ const Index = () => {
           <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">¿Listo para Hablar Inglés?</h2>
           <p className="text-muted-foreground text-lg mb-8">Empieza ahora y verás tu progreso en pocos días.</p>
           <Button size="lg" className="gradient-hero text-lg px-8 py-6 shadow-elevated" asChild>
-            <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
+            <a href={whatsappLink}>
               <MessageCircle className="w-5 h-5 mr-2" />
               Iniciar Mi Viaje
               <ArrowRight className="w-5 h-5 ml-2" />
