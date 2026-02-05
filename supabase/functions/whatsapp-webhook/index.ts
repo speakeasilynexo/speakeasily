@@ -149,7 +149,18 @@ type EventType =
   | "checkpoint_passed"
   | "checkpoint_failed"
   | "review_started"
-  | "review_completed";
+  | "review_completed"
+  | "admin_bypass_used";
+
+type SubscriptionPlan = "mensual" | "trimestral" | "semestral";
+
+interface AccessStatus {
+  isAdmin: boolean;
+  isSubscribed: boolean;
+  plan: SubscriptionPlan | null;
+  trialActive: boolean;
+  trialExpired: boolean;
+}
 
 // deno-lint-ignore no-explicit-any
 type SupabaseClientType = ReturnType<typeof createClient<any>>;
@@ -648,11 +659,18 @@ async function send(to: string, msg1: string, msg2?: string): Promise<void> {
 
 // ============== DATABASE FUNCTIONS ==============
 
+function isAdminWaId(waId: string): boolean {
+  const adminWaId = Deno.env.get("ADMIN_WA_ID");
+  return !!(adminWaId && waId === adminWaId);
+}
+
 async function getOrCreateUser(
   supabase: SupabaseClientType,
   waId: string,
   name: string | null,
 ): Promise<UserData | null> {
+  const isAdmin = isAdminWaId(waId);
+  
   const { data: existing } = await supabase
     .from("wa_users")
     .select("wa_id, name, level, subscription_status, trial_started_at, trial_expires_at, trial_completed, is_subscribed, subscription_plan")
@@ -660,6 +678,22 @@ async function getOrCreateUser(
     .maybeSingle();
 
   if (existing) {
+    // For admin: DO NOT set trial dates automatically
+    if (isAdmin) {
+      console.log("[DB] Admin user detected, skipping trial setup:", waId.slice(0, 4) + "****");
+      return {
+        wa_id: existing.wa_id as string,
+        name: existing.name as string | null,
+        level: existing.level as EnglishLevel | null,
+        subscription_status: existing.subscription_status as string,
+        trial_started_at: existing.trial_started_at as string | null,
+        trial_expires_at: existing.trial_expires_at as string | null,
+        trial_completed: existing.trial_completed as boolean,
+        is_subscribed: existing.is_subscribed as boolean,
+        subscription_plan: existing.subscription_plan as string | null,
+      };
+    }
+
     // Check if trial dates need to be set (existing user with NULL trial dates)
     if (existing.trial_started_at === null) {
       const now = new Date();
@@ -710,8 +744,46 @@ async function getOrCreateUser(
     };
   }
 
-  // New user: start trial
+  // New user
   const now = new Date();
+  
+  // For admin: create user WITHOUT trial dates
+  if (isAdmin) {
+    const { data: newUser, error } = await supabase
+      .from("wa_users")
+      .insert({ 
+        wa_id: waId, 
+        name, 
+        subscription_status: "paid",
+        trial_started_at: null,
+        trial_expires_at: null,
+        trial_completed: false,
+        is_subscribed: false,
+      })
+      .select("wa_id, name, level, subscription_status, trial_started_at, trial_expires_at, trial_completed, is_subscribed, subscription_plan")
+      .single();
+
+    if (error) {
+      console.error("[DB] Error:", error);
+      return null;
+    }
+
+    console.log("[DB] Admin user created without trial:", waId.slice(0, 4) + "****");
+
+    return {
+      wa_id: newUser.wa_id as string,
+      name: newUser.name as string | null,
+      level: newUser.level as EnglishLevel | null,
+      subscription_status: newUser.subscription_status as string,
+      trial_started_at: newUser.trial_started_at as string | null,
+      trial_expires_at: newUser.trial_expires_at as string | null,
+      trial_completed: newUser.trial_completed as boolean,
+      is_subscribed: newUser.is_subscribed as boolean,
+      subscription_plan: newUser.subscription_plan as string | null,
+    };
+  }
+
+  // Regular user: start trial
   const trialExpiresAt = new Date(now.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
 
   const { data: newUser, error } = await supabase
@@ -829,6 +901,67 @@ function getTrialProgress(trial: TrialInfo): { lessonsLeft: number; daysLeft: nu
     lessonsLeft: Math.max(0, TRIAL_LESSONS - trial.lessons_completed),
     daysLeft: Math.max(0, TRIAL_DAYS - daysDiff),
   };
+}
+
+// ============== ADMIN & ACCESS CONTROL ==============
+
+function getAccessStatus(
+  waUser: UserData,
+  waId: string,
+  reqHeaders?: Headers
+): AccessStatus {
+  const adminWaId = Deno.env.get("ADMIN_WA_ID");
+  const adminKey = Deno.env.get("ADMIN_KEY");
+  const headerAdminKey = reqHeaders?.get("x-admin-key");
+
+  // Check if admin
+  const isAdminById = adminWaId && waId === adminWaId;
+  const isAdminByKey = adminKey && headerAdminKey && headerAdminKey === adminKey;
+  const isAdmin = !!(isAdminById || isAdminByKey);
+
+  if (isAdmin) {
+    return {
+      isAdmin: true,
+      isSubscribed: true,
+      plan: (waUser.subscription_plan as SubscriptionPlan) || "trimestral",
+      trialActive: false,
+      trialExpired: false,
+    };
+  }
+
+  // Regular user
+  const isSubscribed = waUser.is_subscribed === true;
+  
+  let trialActive = false;
+  let trialExpired = false;
+  
+  if (waUser.trial_expires_at) {
+    const expiresAt = new Date(waUser.trial_expires_at);
+    const now = new Date();
+    trialActive = now < expiresAt;
+    trialExpired = now >= expiresAt;
+  }
+
+  return {
+    isAdmin: false,
+    isSubscribed,
+    plan: isSubscribed ? (waUser.subscription_plan as SubscriptionPlan) : null,
+    trialActive,
+    trialExpired,
+  };
+}
+
+async function trackAdminBypass(
+  supabase: SupabaseClientType,
+  waId: string,
+  reason: "ADMIN_WA_ID" | "ADMIN_KEY",
+  plan: SubscriptionPlan | null
+): Promise<void> {
+  await trackEvent(supabase, waId, "admin_bypass_used", {
+    wa_id: waId,
+    reason,
+    plan: plan || "trimestral",
+  });
 }
 
 // ============== PAYWALL SYSTEM ==============
@@ -1890,9 +2023,18 @@ async function processMessage(
 
   if (lower === "review" || lower === "repaso" || lower === "repasar") {
     if (progress) {
-      // Check paywall for non-subscribers
-      const trialStatus = isTrialExpired(user);
-      if (trialStatus.expired && !user.is_subscribed) {
+      // Use getAccessStatus for paywall check
+      const accessStatus = getAccessStatus(user, waId);
+      
+      // Admin bypass for REVIEW
+      if (accessStatus.isAdmin) {
+        await trackAdminBypass(supabase, waId, "ADMIN_WA_ID", accessStatus.plan);
+        await startReview(supabase, waId, state);
+        return;
+      }
+      
+      // Regular user: check paywall
+      if (!accessStatus.isSubscribed && accessStatus.trialExpired) {
         // Limited review for expired trial
         const reviewLimit = await checkReviewLimit(supabase, waId, state);
         if (!reviewLimit.allowed) {
@@ -1988,10 +2130,21 @@ async function processMessage(
     case "day_complete":
     case "day_failed": {
       if (["NEXT", "SIGUIENTE", "OK", "CONTINUAR"].includes(normalized)) {
-        // Check paywall
-        const trialStatus = isTrialExpired(user);
-        if (trialStatus.expired && trialStatus.reason) {
-          await sendPaywallMessage(supabase, waId, trialStatus.reason, "NEXT");
+        // Use getAccessStatus for paywall check
+        const accessStatus = getAccessStatus(user, waId);
+        
+        // Admin bypass for NEXT/LESSON
+        if (accessStatus.isAdmin) {
+          await trackAdminBypass(supabase, waId, "ADMIN_WA_ID", accessStatus.plan);
+          await startDayLesson(supabase, waId, state);
+          return;
+        }
+        
+        // Regular user: check paywall
+        if (!accessStatus.isSubscribed && accessStatus.trialExpired) {
+          const trialStatus = isTrialExpired(user);
+          const reason = trialStatus.reason || "trial_expired";
+          await sendPaywallMessage(supabase, waId, reason, "NEXT");
           return;
         }
         await startDayLesson(supabase, waId, state);
