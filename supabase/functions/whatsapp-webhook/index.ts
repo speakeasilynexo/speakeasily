@@ -660,6 +660,43 @@ async function getOrCreateUser(
     .maybeSingle();
 
   if (existing) {
+    // Check if trial dates need to be set (existing user with NULL trial dates)
+    if (existing.trial_started_at === null) {
+      const now = new Date();
+      const trialExpiresAt = new Date(now.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+
+      await supabase
+        .from("wa_users")
+        .update({
+          trial_started_at: now.toISOString(),
+          trial_expires_at: trialExpiresAt.toISOString(),
+          trial_completed: existing.trial_completed ?? false,
+          is_subscribed: existing.is_subscribed ?? false,
+        })
+        .eq("wa_id", waId);
+
+      // Track trial_started event
+      await trackEvent(supabase, waId, "trial_started", {
+        trial_started_at: now.toISOString(),
+        trial_expires_at: trialExpiresAt.toISOString(),
+        existing_user: true,
+      });
+
+      console.log("[DB] Trial dates set for existing user:", waId.slice(0, 4) + "****");
+
+      return {
+        wa_id: existing.wa_id as string,
+        name: existing.name as string | null,
+        level: existing.level as EnglishLevel | null,
+        subscription_status: existing.subscription_status as string,
+        trial_started_at: now.toISOString(),
+        trial_expires_at: trialExpiresAt.toISOString(),
+        trial_completed: existing.trial_completed ?? false,
+        is_subscribed: existing.is_subscribed ?? false,
+        subscription_plan: existing.subscription_plan as string | null,
+      };
+    }
+
     return {
       wa_id: existing.wa_id as string,
       name: existing.name as string | null,

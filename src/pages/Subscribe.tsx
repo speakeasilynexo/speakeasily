@@ -55,6 +55,7 @@ const BENEFITS = [
 ];
 
 const WHATSAPP_LINK = "https://wa.me/34657100100";
+const SUPABASE_FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 
 export default function Subscribe() {
   const [searchParams] = useSearchParams();
@@ -104,11 +105,21 @@ export default function Subscribe() {
   };
 
   const handleSubscribe = async () => {
+    if (!waId) {
+      toast({
+        title: "Error",
+        description: "No se pudo identificar tu cuenta. Por favor, vuelve desde WhatsApp.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
+      // Track subscribe_clicked event
       await supabase.from("wa_events").insert({
-        wa_id: waId || "web_visitor",
+        wa_id: waId,
         event_type: "subscribe_clicked",
         metadata: {
           plan: selectedPlan,
@@ -116,13 +127,37 @@ export default function Subscribe() {
         },
       });
 
-      // Placeholder: Stripe not integrated yet
-      toast({
-        title: "Pago en configuración",
-        description: "Te avisaremos cuando esté habilitado. ¡Gracias por tu interés!",
+      // Call activate-subscription edge function
+      const response = await fetch(`${SUPABASE_FUNCTIONS_URL}/activate-subscription`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          wa_id: waId,
+          plan: selectedPlan,
+          source,
+        }),
       });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Error al activar la suscripción");
+      }
+
+      toast({
+        title: "¡Suscripción activada! 🎉",
+        description: `Tu plan ${selectedPlanInfo.name} está activo. ¡Vuelve a WhatsApp y escribe NEXT!`,
+      });
+
     } catch (error) {
-      console.error("Error tracking subscribe click:", error);
+      console.error("Error activating subscription:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "No se pudo activar la suscripción. Intenta de nuevo.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
