@@ -1,72 +1,42 @@
 
-# Plano: Corrigir Links WhatsApp (CTA)
+# Plano: Corrigir Deep Link do WhatsApp
 
 ## Diagnóstico
 
-Os botões CTA (Call to Action) do site estão com links incorretos para o WhatsApp, causando o problema de exibir lista de contatos ao invés de abrir diretamente a conversa com o bot.
-
-### Arquivos afetados:
-
-| Arquivo | Problema | Linha |
-|---------|----------|-------|
-| `src/pages/Index.tsx` | Placeholder `TU_NUMERO` não substituído | 19 |
-| `src/pages/StudentProgress.tsx` | Formato correto, mas sem `?text=` | 182, 196, 396 |
+O problema ocorre porque os links do WhatsApp estão com `target="_blank"`, que em dispositivos iOS/Safari mobile faz o sistema interpretar como "compartilhamento" ao invés de deep link direto.
 
 ## Solução
 
-### 1. Atualizar `Index.tsx`
+Remover `target="_blank"` e `rel="noopener noreferrer"` de todos os links WhatsApp para que o iOS reconheça corretamente como deep link.
+
+### Arquivos a modificar:
+
+| Arquivo | Linhas | Mudança |
+|---------|--------|---------|
+| `src/pages/Index.tsx` | 44, 74, 258, 296 | Remover `target="_blank" rel="noopener noreferrer"` |
+| `src/pages/StudentProgress.tsx` | Verificar CTAs | Mesma correção se aplicável |
+
+### Exemplo da mudança:
 
 **Antes:**
-```typescript
-const whatsappLink = "https://wa.me/TU_NUMERO?text=Hello";
+```tsx
+<a href={whatsappLink} target="_blank" rel="noopener noreferrer">
 ```
 
 **Depois:**
-```typescript
-const whatsappLink = "https://wa.me/34657100100?text=Hello";
+```tsx
+<a href={whatsappLink}>
 ```
 
-O número `34657100100` corresponde a:
-- `34` = código país Espanha
-- `657100100` = número do bot (657 10 01 00)
+## Comportamento Esperado
 
-### 2. Atualizar `StudentProgress.tsx`
-
-**Antes:**
-```typescript
-const whatsappLink = `https://wa.me/34657100100`;
-```
-
-**Depois:**
-```typescript
-const whatsappLink = "https://wa.me/34657100100?text=NEXT";
-```
-
-Adicionamos `?text=NEXT` para que o usuário já tenha a mensagem pré-preenchida ao voltar para continuar as lições.
-
-## Comportamento Esperado Após Correção
-
-1. Usuário clica em qualquer CTA do site
-2. WhatsApp abre diretamente na tela de conversa com o número +34 657 10 01 00
-3. Campo de texto já vem preenchido com "Hello" (landing page) ou "NEXT" (página de progresso)
-4. Usuário só precisa clicar em enviar
-
-## Arquivos a Modificar
-
-```text
-src/pages/Index.tsx        → linha 19
-src/pages/StudentProgress.tsx → linhas 182, 196, 396
-```
+1. Usuário clica no botão CTA
+2. iOS detecta o link `wa.me` como deep link
+3. WhatsApp abre diretamente na conversa com +34 657 10 01 00
+4. Mensagem "Hello" ou "NEXT" já aparece pré-preenchida
 
 ## Detalhes Técnicos
 
-O formato do link `wa.me` deve seguir estas regras:
-- Usar apenas dígitos (sem `+`, espaços ou hífens)
-- Incluir código do país
-- Parâmetro `text` é opcional mas melhora UX
-- URL deve ser codificada se o texto tiver caracteres especiais
-
-Exemplo completo:
-```
-https://wa.me/34657100100?text=Hello
-```
+- Links `wa.me` são Universal Links no iOS
+- Quando abertos sem `target="_blank"`, o iOS os intercepta e abre diretamente no app
+- Com `target="_blank"`, o Safari tenta abrir nova aba, o que pode confundir o sistema de deep links
