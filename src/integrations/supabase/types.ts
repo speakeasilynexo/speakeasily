@@ -77,27 +77,42 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_subscribed: boolean | null
           level: Database["public"]["Enums"]["english_level"] | null
           name: string | null
+          subscription_plan: string | null
           subscription_status: string
+          trial_completed: boolean | null
+          trial_expires_at: string | null
+          trial_started_at: string | null
           updated_at: string
           wa_id: string
         }
         Insert: {
           created_at?: string
           id?: string
+          is_subscribed?: boolean | null
           level?: Database["public"]["Enums"]["english_level"] | null
           name?: string | null
+          subscription_plan?: string | null
           subscription_status?: string
+          trial_completed?: boolean | null
+          trial_expires_at?: string | null
+          trial_started_at?: string | null
           updated_at?: string
           wa_id: string
         }
         Update: {
           created_at?: string
           id?: string
+          is_subscribed?: boolean | null
           level?: Database["public"]["Enums"]["english_level"] | null
           name?: string | null
+          subscription_plan?: string | null
           subscription_status?: string
+          trial_completed?: boolean | null
+          trial_expires_at?: string | null
+          trial_started_at?: string | null
           updated_at?: string
           wa_id?: string
         }
