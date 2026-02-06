@@ -469,6 +469,37 @@ const I18N: Record<string, Record<Language, string>> = {
     es: "🎤 Error al procesar el audio. Por favor, escribe tu respuesta.",
     en: "🎤 Error processing audio. Please type your answer.",
   },
+  // Admin commands
+  admin_status: {
+    pt: "🔧 *Status Admin*\n\n✅ Modo Admin: ATIVO\n📱 wa_id: {wa_id_masked}\n📍 Step atual: {step}\n📊 Progresso: Dia {day}, Exercício {exercise}/{total_exercises}\n💳 Subscrição: {subscription} ({plan})\n⏰ Trial: {trial_status}\n\n*Últimos eventos ({event_count}):*\n{events}\n\n*Comandos disponíveis:*\n• /admin reset - Reiniciar para welcome\n• /admin step [nome] - Ir para step específico",
+    es: "🔧 *Status Admin*\n\n✅ Modo Admin: ACTIVO\n📱 wa_id: {wa_id_masked}\n📍 Step actual: {step}\n📊 Progreso: Día {day}, Ejercicio {exercise}/{total_exercises}\n💳 Suscripción: {subscription} ({plan})\n⏰ Trial: {trial_status}\n\n*Últimos eventos ({event_count}):*\n{events}\n\n*Comandos disponibles:*\n• /admin reset - Reiniciar a welcome\n• /admin step [nombre] - Ir a step específico",
+    en: "🔧 *Admin Status*\n\n✅ Admin Mode: ACTIVE\n📱 wa_id: {wa_id_masked}\n📍 Current Step: {step}\n📊 Progress: Day {day}, Exercise {exercise}/{total_exercises}\n💳 Subscription: {subscription} ({plan})\n⏰ Trial: {trial_status}\n\n*Recent events ({event_count}):*\n{events}\n\n*Available commands:*\n• /admin reset - Reset to welcome\n• /admin step [name] - Jump to specific step",
+  },
+  admin_not_active: {
+    pt: "❌ Modo admin não está ativo para este número.",
+    es: "❌ Modo admin no está activo para este número.",
+    en: "❌ Admin mode is not active for this number.",
+  },
+  admin_reset_done: {
+    pt: "🔄 *Reset admin completo!*\n\nStep: welcome\nDados: limpos\n\nEnvie qualquer mensagem para começar.",
+    es: "🔄 *¡Reset admin completo!*\n\nStep: welcome\nDatos: limpios\n\nEnvía cualquier mensaje para empezar.",
+    en: "🔄 *Admin reset complete!*\n\nStep: welcome\nData: cleared\n\nSend any message to start.",
+  },
+  admin_step_changed: {
+    pt: "✅ *Step alterado para:* {step}\n\nDados mantidos. Envie qualquer mensagem para continuar.",
+    es: "✅ *Step cambiado a:* {step}\n\nDatos mantenidos. Envía cualquier mensaje para continuar.",
+    en: "✅ *Step changed to:* {step}\n\nData preserved. Send any message to continue.",
+  },
+  admin_step_invalid: {
+    pt: "❌ Step inválido: {step}\n\n*Steps válidos:*\n{valid_steps}",
+    es: "❌ Step inválido: {step}\n\n*Steps válidos:*\n{valid_steps}",
+    en: "❌ Invalid step: {step}\n\n*Valid steps:*\n{valid_steps}",
+  },
+  admin_help: {
+    pt: "🔧 *Comandos Admin*\n\n• /admin ou /admin status - Ver diagnóstico\n• /admin reset - Reiniciar para welcome\n• /admin step [nome] - Ir para step\n\n*Steps válidos:*\n{valid_steps}",
+    es: "🔧 *Comandos Admin*\n\n• /admin o /admin status - Ver diagnóstico\n• /admin reset - Reiniciar a welcome\n• /admin step [nombre] - Ir a step\n\n*Steps válidos:*\n{valid_steps}",
+    en: "🔧 *Admin Commands*\n\n• /admin or /admin status - View diagnostics\n• /admin reset - Reset to welcome\n• /admin step [name] - Jump to step\n\n*Valid steps:*\n{valid_steps}",
+  },
 };
 
 // Helper to get translated text
@@ -1601,6 +1632,146 @@ async function trackAdminBypass(
     reason,
     plan: plan || "trimestral",
   });
+}
+
+// ============== ADMIN COMMANDS ==============
+
+const VALID_STEPS = [
+  "welcome", "language_picker", "pre_placement",
+  "placement_q1", "placement_q2", "placement_q3",
+  "placement_written", "placement_audio", "placement_result",
+  "select_goal", "ready", "day_intro", "day_exercise",
+  "day_production", "day_complete", "day_failed",
+  "review_mode", "confirm_restart"
+] as const;
+
+async function getRecentEvents(
+  supabase: SupabaseClientType,
+  waId: string,
+  limit: number = 5
+): Promise<Array<{ event_type: string; created_at: string }>> {
+  const { data } = await supabase
+    .from("wa_events")
+    .select("event_type, created_at")
+    .eq("wa_id", waId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  return data || [];
+}
+
+function maskWaId(waId: string): string {
+  if (waId.length <= 6) return waId;
+  return waId.slice(0, 3) + "***" + waId.slice(-4);
+}
+
+async function handleAdminCommand(
+  supabase: SupabaseClientType,
+  waId: string,
+  messageText: string,
+  state: { step: string; data: StateData },
+  user: UserData,
+  lang: Language
+): Promise<boolean> {
+  const lower = messageText.toLowerCase().trim();
+  
+  // Check if it's an admin command
+  const isAdminCmd = lower.startsWith("/admin") || 
+                     lower.startsWith("admin ") || 
+                     lower === "admin";
+  
+  if (!isAdminCmd) return false;
+  
+  const accessStatus = getAccessStatus(user, waId);
+  
+  // Silently ignore for non-admins
+  if (!accessStatus.isAdmin) {
+    console.log(`[ADMIN] Non-admin tried admin command: ${waId}`);
+    return false;
+  }
+  
+  // Parse subcommand
+  const parts = lower.replace("/admin", "").replace("admin", "").trim().split(/\s+/);
+  const subcommand = parts[0] || "status";
+  const arg = parts.slice(1).join(" ");
+  
+  console.log(`[ADMIN] Command: ${subcommand}, Arg: ${arg}`);
+  
+  // Track admin command usage
+  await trackEvent(supabase, waId, "admin_bypass_used", {
+    command: "admin",
+    subcommand,
+    arg,
+  });
+  
+  if (subcommand === "reset") {
+    // Force reset to welcome with empty data
+    await updateState(supabase, waId, "welcome", {});
+    await send(waId, t(lang, "admin_reset_done"));
+    return true;
+  }
+  
+  if (subcommand === "step" && arg) {
+    const targetStep = arg.toLowerCase();
+    
+    if (!VALID_STEPS.includes(targetStep as typeof VALID_STEPS[number])) {
+      await send(waId, t(lang, "admin_step_invalid", {
+        step: targetStep,
+        valid_steps: VALID_STEPS.join(", "),
+      }));
+      return true;
+    }
+    
+    await updateState(supabase, waId, targetStep, state.data);
+    await send(waId, t(lang, "admin_step_changed", { step: targetStep }));
+    return true;
+  }
+  
+  if (subcommand === "help") {
+    await send(waId, t(lang, "admin_help", {
+      valid_steps: VALID_STEPS.join("\n• "),
+    }));
+    return true;
+  }
+  
+  // Default: show status
+  const progress = state.data.progress;
+  const recentEvents = await getRecentEvents(supabase, waId, 5);
+  
+  const eventsFormatted = recentEvents.length > 0
+    ? recentEvents.map(e => {
+        const time = new Date(e.created_at).toLocaleTimeString("es", { 
+          hour: "2-digit", 
+          minute: "2-digit" 
+        });
+        return `• ${time} - ${e.event_type}`;
+      }).join("\n")
+    : "• Nenhum evento recente";
+  
+  const trialStatus = accessStatus.trialActive 
+    ? "active" 
+    : accessStatus.trialExpired 
+      ? "expired" 
+      : "N/A (admin)";
+  
+  const currentDay = progress?.current_day || 1;
+  const currentExercise = (progress?.current_exercise_index || 0) + 1;
+  const dayLesson = DAY_LESSONS.find(d => d.day === currentDay);
+  const totalExercises = dayLesson?.exercises.length || 4;
+  
+  await send(waId, t(lang, "admin_status", {
+    wa_id_masked: maskWaId(waId),
+    step: state.step,
+    day: String(currentDay),
+    exercise: String(currentExercise),
+    total_exercises: String(totalExercises),
+    subscription: accessStatus.isSubscribed ? "paid" : "trial",
+    plan: accessStatus.plan || "admin_bypass",
+    trial_status: trialStatus,
+    event_count: String(recentEvents.length),
+    events: eventsFormatted,
+  }));
+  
+  return true;
 }
 
 // ============== PAYWALL SYSTEM ==============
@@ -3253,6 +3424,13 @@ async function processMessage(
     progress.trial = initTrial();
     await updateState(supabase, waId, state.step, { ...state.data, progress });
     await trackEvent(supabase, waId, "user_started", { name: userName });
+  }
+
+  // ========== ADMIN COMMANDS (PRIORITY - BEFORE OTHER COMMANDS) ==========
+  
+  const adminHandled = await handleAdminCommand(supabase, waId, messageText, state, user, lang);
+  if (adminHandled) {
+    return;
   }
 
   // ========== GLOBAL COMMANDS ==========
