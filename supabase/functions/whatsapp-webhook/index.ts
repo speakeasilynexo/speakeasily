@@ -1755,7 +1755,7 @@ async function handleAdminCommand(
   
   const currentDay = progress?.current_day || 1;
   const currentExercise = (progress?.current_exercise_index || 0) + 1;
-  const dayLesson = DAY_LESSONS.find(d => d.day === currentDay);
+  const dayLesson = SEVEN_DAY_PLAN.find(d => d.day === currentDay);
   const totalExercises = dayLesson?.exercises.length || 4;
   
   await send(waId, t(lang, "admin_status", {
