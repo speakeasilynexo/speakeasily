@@ -158,7 +158,9 @@ type EventType =
   | "review_completed"
   | "admin_bypass_used"
   | "language_selected"
-  | "subscribe_link_opened";
+  | "subscribe_link_opened"
+  | "audio_transcribed"
+  | "audio_transcription_failed";
 
 type SubscriptionPlan = "mensual" | "trimestral" | "semestral";
 
@@ -435,6 +437,37 @@ const I18N: Record<string, Record<Language, string>> = {
     pt: "🎉 Você completou o Plano de 7 dias! Escreva *REVIEW* para revisar.",
     es: "🎉 ¡Has completado el Plan de 7 días! Escribe *REVIEW* para repasar.",
     en: "🎉 You've completed the 7-day Plan! Type *REVIEW* to review.",
+  },
+  // Audio transcription
+  audio_transcript_header: {
+    pt: "📝 *Transcrição:* _{transcript}_",
+    es: "📝 *Transcripción:* _{transcript}_",
+    en: "📝 *Transcript:* _{transcript}_",
+  },
+  audio_pronunciation_tip: {
+    pt: "🎧 *Pronúncia:* {tip}",
+    es: "🎧 *Pronunciación:* {tip}",
+    en: "🎧 *Pronunciation:* {tip}",
+  },
+  audio_repeat: {
+    pt: "🔁 Tente novamente ou escreva sua resposta.",
+    es: "🔁 Inténtalo de nuevo o escribe tu respuesta.",
+    en: "🔁 Try again or type your answer.",
+  },
+  audio_next: {
+    pt: "👏 Excelente! Continuando...",
+    es: "👏 ¡Excelente! Continuando...",
+    en: "👏 Excellent! Continuing...",
+  },
+  audio_transcription_failed: {
+    pt: "🎤 Não consegui entender o áudio. Por favor, escreva sua resposta.",
+    es: "🎤 No pude entender el audio. Por favor, escribe tu respuesta.",
+    en: "🎤 Couldn't understand the audio. Please type your answer.",
+  },
+  audio_download_failed: {
+    pt: "🎤 Erro ao processar o áudio. Por favor, escreva sua resposta.",
+    es: "🎤 Error al procesar el audio. Por favor, escribe tu respuesta.",
+    en: "🎤 Error processing audio. Please type your answer.",
   },
 };
 
@@ -1734,6 +1767,273 @@ async function callAI(systemPrompt: string, userMessage: string): Promise<string
   }
 }
 
+// ============== AUDIO TRANSCRIPTION (WHISPER) ==============
+
+interface TranscriptionResult {
+  success: boolean;
+  transcript: string;
+  confidence?: number;
+  error?: string;
+}
+
+interface MediaUrlResponse {
+  url: string;
+  mime_type: string;
+  sha256: string;
+  file_size: number;
+  id: string;
+  messaging_product: string;
+}
+
+/**
+ * Fetch the download URL for a WhatsApp media file
+ */
+async function fetchMediaUrl(mediaId: string): Promise<{ url: string; mimeType: string } | null> {
+  const accessToken = Deno.env.get("WHATSAPP_ACCESS_TOKEN");
+  
+  if (!accessToken) {
+    console.error("[AUDIO] Missing WHATSAPP_ACCESS_TOKEN");
+    return null;
+  }
+
+  try {
+    const response = await fetch(`https://graph.facebook.com/v18.0/${mediaId}`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      console.error("[AUDIO] fetchMediaUrl error:", response.status, await response.text());
+      return null;
+    }
+
+    const data = await response.json() as MediaUrlResponse;
+    console.log("[AUDIO] Media URL fetched for:", mediaId);
+    
+    return {
+      url: data.url,
+      mimeType: data.mime_type || "audio/ogg",
+    };
+  } catch (error) {
+    console.error("[AUDIO] fetchMediaUrl exception:", error);
+    return null;
+  }
+}
+
+/**
+ * Download the media file from WhatsApp
+ */
+async function downloadMedia(url: string): Promise<Blob | null> {
+  const accessToken = Deno.env.get("WHATSAPP_ACCESS_TOKEN");
+  
+  if (!accessToken) {
+    console.error("[AUDIO] Missing WHATSAPP_ACCESS_TOKEN");
+    return null;
+  }
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      console.error("[AUDIO] downloadMedia error:", response.status);
+      return null;
+    }
+
+    const blob = await response.blob();
+    console.log("[AUDIO] Media downloaded, size:", blob.size);
+    
+    return blob;
+  } catch (error) {
+    console.error("[AUDIO] downloadMedia exception:", error);
+    return null;
+  }
+}
+
+/**
+ * Transcribe audio using OpenAI Whisper API
+ */
+async function transcribeAudio(audioBlob: Blob, mimeType: string): Promise<TranscriptionResult> {
+  const openaiKey = Deno.env.get("OPENAI_API_KEY");
+  
+  if (!openaiKey) {
+    console.error("[AUDIO] Missing OPENAI_API_KEY");
+    return { success: false, transcript: "", error: "missing_api_key" };
+  }
+
+  try {
+    // Determine file extension based on mime type
+    const extMap: Record<string, string> = {
+      "audio/ogg": "ogg",
+      "audio/opus": "opus",
+      "audio/mpeg": "mp3",
+      "audio/mp4": "m4a",
+      "audio/wav": "wav",
+      "audio/webm": "webm",
+    };
+    const ext = extMap[mimeType] || "ogg";
+    
+    const formData = new FormData();
+    formData.append("file", audioBlob, `audio.${ext}`);
+    formData.append("model", "whisper-1");
+    formData.append("language", "en"); // Transcribe to English
+    formData.append("response_format", "verbose_json");
+
+    const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${openaiKey}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("[AUDIO] Whisper API error:", response.status, errorText);
+      return { success: false, transcript: "", error: `whisper_error_${response.status}` };
+    }
+
+    const data = await response.json();
+    const transcript = data.text?.trim() || "";
+    
+    console.log("[AUDIO] Transcription successful:", transcript.slice(0, 50) + "...");
+    
+    return {
+      success: true,
+      transcript,
+      confidence: data.segments?.[0]?.avg_logprob ? Math.exp(data.segments[0].avg_logprob) : undefined,
+    };
+  } catch (error) {
+    console.error("[AUDIO] transcribeAudio exception:", error);
+    return { success: false, transcript: "", error: "transcription_exception" };
+  }
+}
+
+/**
+ * Full pipeline: fetch URL -> download -> transcribe
+ */
+async function processAudioMessage(
+  supabase: SupabaseClientType,
+  waId: string,
+  mediaId: string,
+  mimeType?: string
+): Promise<TranscriptionResult> {
+  console.log("[AUDIO] Starting audio processing for media:", mediaId);
+  
+  // Step 1: Get media URL
+  const mediaInfo = await fetchMediaUrl(mediaId);
+  if (!mediaInfo) {
+    await trackEvent(supabase, waId, "audio_transcription_failed", {
+      media_id: mediaId,
+      error: "fetch_url_failed",
+    });
+    return { success: false, transcript: "", error: "fetch_url_failed" };
+  }
+
+  // Step 2: Download media
+  const audioBlob = await downloadMedia(mediaInfo.url);
+  if (!audioBlob) {
+    await trackEvent(supabase, waId, "audio_transcription_failed", {
+      media_id: mediaId,
+      error: "download_failed",
+    });
+    return { success: false, transcript: "", error: "download_failed" };
+  }
+
+  // Step 3: Transcribe
+  const result = await transcribeAudio(audioBlob, mimeType || mediaInfo.mimeType);
+  
+  if (result.success) {
+    await trackEvent(supabase, waId, "audio_transcribed", {
+      media_id: mediaId,
+      transcript: result.transcript.slice(0, 500),
+      confidence: result.confidence,
+      mime_type: mimeType || mediaInfo.mimeType,
+    });
+  } else {
+    await trackEvent(supabase, waId, "audio_transcription_failed", {
+      media_id: mediaId,
+      error: result.error,
+    });
+  }
+
+  return result;
+}
+
+/**
+ * Generate a short pronunciation tip based on the expected answer
+ */
+async function generatePronunciationTip(
+  expectedAnswer: string,
+  userTranscript: string,
+  lang: Language
+): Promise<string> {
+  const feedbackLang = lang === "en" ? "English" : lang === "pt" ? "Portuguese" : "Spanish";
+  
+  const systemPrompt = `You are a pronunciation coach. Give ONE short tip (max 15 words) in ${feedbackLang}.
+Compare the expected answer to what the student said.
+Focus on the most important pronunciation issue if any.
+If pronunciation seems correct, give encouragement.
+Be friendly and supportive.`;
+
+  const userMessage = `Expected: "${expectedAnswer}"
+Student said: "${userTranscript}"`;
+
+  const response = await callAI(systemPrompt, userMessage);
+  
+  if (response && response.length < 100) {
+    return response.trim();
+  }
+  
+  // Fallback tips
+  const fallbacks: Record<Language, string> = {
+    pt: "Continue praticando! Sua pronúncia está melhorando.",
+    es: "¡Sigue practicando! Tu pronunciación está mejorando.",
+    en: "Keep practicing! Your pronunciation is improving.",
+  };
+  
+  return fallbacks[lang];
+}
+
+/**
+ * Extract answer from transcript for MCQ (A/B/C/D)
+ */
+function extractMCQFromTranscript(transcript: string): string | null {
+  const lower = transcript.toLowerCase().trim();
+  
+  // Direct letter match
+  if (/^[abcd]\.?$/i.test(lower)) {
+    return lower.charAt(0).toUpperCase();
+  }
+  
+  // Contains option letter clearly
+  const letterMatch = lower.match(/\b(option\s+)?([abcd])\b/i);
+  if (letterMatch) {
+    return letterMatch[2].toUpperCase();
+  }
+  
+  // Spoken letters
+  const spokenMap: Record<string, string> = {
+    "a": "A", "ay": "A", "ei": "A",
+    "b": "B", "be": "B", "bee": "B", "bi": "B",
+    "c": "C", "see": "C", "si": "C", "ce": "C",
+    "d": "D", "de": "D", "dee": "D", "di": "D",
+  };
+  
+  const words = lower.split(/\s+/);
+  for (const word of words) {
+    if (spokenMap[word]) {
+      return spokenMap[word];
+    }
+  }
+  
+  return null;
+}
+
 async function evaluateWrittenProduction(text: string, lang: Language): Promise<{ score: number; notes: string }> {
   const feedbackLang = lang === "en" ? "English" : lang === "pt" ? "Portuguese" : "Spanish";
   const systemPrompt = `You are an English evaluator. Evaluate the following text written by a student.
@@ -2249,7 +2549,8 @@ async function handleExerciseAnswer(
   waId: string,
   answer: string,
   state: { step: string; data: StateData },
-  lang: Language
+  lang: Language,
+  audioData?: { media_id: string; mime_type?: string }
 ): Promise<void> {
   const progress = state.data.progress!;
   const day = SEVEN_DAY_PLAN.find(l => l.day === progress.current_day)!;
@@ -2260,7 +2561,44 @@ async function handleExerciseAnswer(
     return;
   }
 
-  const evaluation = await evaluateExerciseAnswer(exercise, answer, lang);
+  let actualAnswer = answer;
+  let transcript: string | null = null;
+  let pronunciationTip: string | null = null;
+
+  // If audio was sent, transcribe it first
+  if (audioData) {
+    const transcriptionResult = await processAudioMessage(
+      supabase,
+      waId,
+      audioData.media_id,
+      audioData.mime_type
+    );
+
+    if (!transcriptionResult.success || !transcriptionResult.transcript.trim()) {
+      // Transcription failed - ask user to type answer instead
+      await send(waId, t(lang, "audio_transcription_failed"));
+      return; // Don't advance exercise, let user retry with text
+    }
+
+    transcript = transcriptionResult.transcript;
+    console.log("[EXERCISE] Audio transcript:", transcript);
+
+    // For MCQ exercises, extract the letter from transcript
+    if (exercise.type === "choose_correct" && exercise.options) {
+      const mcqAnswer = extractMCQFromTranscript(transcript);
+      if (mcqAnswer) {
+        actualAnswer = mcqAnswer;
+      } else {
+        // Couldn't extract MCQ answer from audio
+        actualAnswer = transcript;
+      }
+    } else {
+      // For other exercise types, use the full transcript
+      actualAnswer = transcript;
+    }
+  }
+
+  const evaluation = await evaluateExerciseAnswer(exercise, actualAnswer, lang);
   progress.day_attempts++;
 
   if (evaluation.correct) {
@@ -2282,16 +2620,46 @@ async function handleExerciseAnswer(
     }
   }
 
+  // Track with transcript info if audio was used
   await trackEvent(supabase, waId, "exercise_answered", {
     lesson_id: day.lesson_id,
     ex_id: exercise.id,
-    user_answer: answer,
+    user_answer: actualAnswer,
     correct: evaluation.correct,
     feedback: evaluation.feedback,
-    mistake_tag: evaluation.correct ? null : exercise.mistake_tag
+    mistake_tag: evaluation.correct ? null : exercise.mistake_tag,
+    input_type: audioData ? "audio" : "text",
+    transcript: transcript,
+    media_id: audioData?.media_id || null,
   });
 
-  await send(waId, evaluation.feedback);
+  // Build response for audio input
+  if (audioData && transcript) {
+    // Show transcription first
+    await send(waId, t(lang, "audio_transcript_header", { transcript }));
+    await new Promise(r => setTimeout(r, 400));
+
+    // Show correction
+    await send(waId, evaluation.feedback);
+    await new Promise(r => setTimeout(r, 400));
+
+    // Generate and show pronunciation tip
+    pronunciationTip = await generatePronunciationTip(exercise.correct_answer, transcript, lang);
+    await send(waId, t(lang, "audio_pronunciation_tip", { tip: pronunciationTip }));
+    await new Promise(r => setTimeout(r, 400));
+
+    // Show next step prompt
+    if (evaluation.correct) {
+      await send(waId, t(lang, "audio_next"));
+    } else {
+      await send(waId, t(lang, "audio_repeat"));
+      return; // Don't advance to next exercise on audio error - let them retry
+    }
+  } else {
+    // Regular text feedback
+    await send(waId, evaluation.feedback);
+  }
+
   await new Promise(r => setTimeout(r, 600));
 
   // Next exercise or production
@@ -2579,6 +2947,147 @@ async function handleReviewAnswer(
   }
 }
 
+// Handle review answer with audio transcription
+async function handleReviewAnswerWithAudio(
+  supabase: SupabaseClientType,
+  waId: string,
+  state: { step: string; data: StateData },
+  lang: Language,
+  audioData: { media_id: string; mime_type?: string }
+): Promise<void> {
+  const progress = state.data.progress!;
+  const exercises = progress.review_exercises!;
+  const index = progress.review_index!;
+  const exercise = exercises[index];
+
+  // Transcribe audio
+  const transcriptionResult = await processAudioMessage(
+    supabase,
+    waId,
+    audioData.media_id,
+    audioData.mime_type
+  );
+
+  if (!transcriptionResult.success || !transcriptionResult.transcript.trim()) {
+    await send(waId, t(lang, "audio_transcription_failed"));
+    return;
+  }
+
+  const transcript = transcriptionResult.transcript;
+  let actualAnswer = transcript;
+
+  // For MCQ, extract letter
+  if (exercise.type === "choose_correct" && exercise.options) {
+    const mcqAnswer = extractMCQFromTranscript(transcript);
+    if (mcqAnswer) {
+      actualAnswer = mcqAnswer;
+    }
+  }
+
+  // Show transcript
+  await send(waId, t(lang, "audio_transcript_header", { transcript }));
+  await new Promise(r => setTimeout(r, 400));
+
+  const evaluation = await evaluateExerciseAnswer(exercise, actualAnswer, lang);
+
+  if (evaluation.correct) {
+    const tag = progress.mistake_tags?.find(t => t.tag === exercise.mistake_tag);
+    if (tag && tag.count > 0) {
+      tag.count--;
+    }
+  }
+
+  await send(waId, evaluation.feedback);
+  await new Promise(r => setTimeout(r, 400));
+
+  // Pronunciation tip
+  const tip = await generatePronunciationTip(exercise.correct_answer, transcript, lang);
+  await send(waId, t(lang, "audio_pronunciation_tip", { tip }));
+  await new Promise(r => setTimeout(r, 400));
+
+  if (!evaluation.correct) {
+    await send(waId, t(lang, "audio_repeat"));
+    return;
+  }
+
+  await send(waId, t(lang, "audio_next"));
+  await new Promise(r => setTimeout(r, 600));
+
+  progress.review_index!++;
+
+  if (progress.review_index! < exercises.length) {
+    await updateState(supabase, waId, "review_exercise", { ...state.data, progress });
+    await sendReviewExercise(supabase, waId, state, lang);
+  } else {
+    progress.review_mode = false;
+    progress.review_exercises = undefined;
+    progress.review_index = undefined;
+
+    await trackEvent(supabase, waId, "review_completed", {});
+    await updateState(supabase, waId, "ready", { ...state.data, progress });
+    await send(waId, t(lang, "review_complete"));
+  }
+}
+
+// Handle day production with audio transcription
+async function handleDayProductionWithTranscription(
+  supabase: SupabaseClientType,
+  waId: string,
+  state: { step: string; data: StateData },
+  user: UserData,
+  lang: Language,
+  audioData: { media_id: string; mime_type?: string }
+): Promise<void> {
+  const progress = state.data.progress!;
+  const day = SEVEN_DAY_PLAN.find(l => l.day === progress.current_day)!;
+
+  // Transcribe audio
+  const transcriptionResult = await processAudioMessage(
+    supabase,
+    waId,
+    audioData.media_id,
+    audioData.mime_type
+  );
+
+  let transcript = "";
+  let score = 4;
+  let notes = lang === "pt" ? "Excelente prática de áudio! 🎤" : 
+              lang === "es" ? "¡Excelente práctica de audio! 🎤" : 
+              "Excellent audio practice! 🎤";
+
+  if (transcriptionResult.success && transcriptionResult.transcript.trim()) {
+    transcript = transcriptionResult.transcript;
+    
+    // Evaluate the transcribed content
+    const evaluation = await evaluateWrittenProduction(transcript, lang);
+    score = Math.max(3, evaluation.score); // At least 3 for audio effort
+    notes = evaluation.notes;
+
+    // Show transcript
+    await send(waId, t(lang, "audio_transcript_header", { transcript }));
+    await new Promise(r => setTimeout(r, 400));
+  } else {
+    // Couldn't transcribe but still received audio
+    await send(waId, t(lang, "audio_received"));
+  }
+
+  await trackEvent(supabase, waId, "production_submitted", {
+    lesson_id: day.lesson_id,
+    type: "audio",
+    content: transcript || null,
+    media_id: audioData.media_id,
+    score,
+    notes,
+    transcription_success: transcriptionResult.success,
+  });
+
+  const scoreLabel = lang === "pt" ? "Pontuação" : lang === "es" ? "Puntuación" : "Score";
+  await send(waId, `${notes}\n\n⭐ ${scoreLabel}: ${score}/5`);
+  await new Promise(r => setTimeout(r, 600));
+
+  await finishDayLesson(supabase, waId, state, user, lang);
+}
+
 // ============== COMMAND HANDLERS ==============
 
 function parseGoal(text: string): LearningGoal | null {
@@ -2663,7 +3172,7 @@ async function processMessage(
   waId: string,
   userName: string | null,
   messageText: string,
-  audioData?: { media_id: string }
+  audioData?: { media_id: string; mime_type?: string }
 ): Promise<void> {
   const user = await getOrCreateUser(supabase, waId, userName);
   if (!user) return;
@@ -2910,13 +3419,21 @@ async function processMessage(
 
     case "day_intro":
     case "lesson_exercise": {
-      await handleExerciseAnswer(supabase, waId, messageText, state, lang);
+      // Pass audioData if present for audio transcription
+      if (audioData) {
+        await handleExerciseAnswer(supabase, waId, messageText, state, lang, {
+          media_id: audioData.media_id,
+          mime_type: audioData.mime_type,
+        });
+      } else {
+        await handleExerciseAnswer(supabase, waId, messageText, state, lang);
+      }
       break;
     }
 
     case "day_production": {
       if (audioData) {
-        await handleDayProduction(supabase, waId, messageText, state, user, lang, true, audioData.media_id);
+        await handleDayProductionWithTranscription(supabase, waId, state, user, lang, audioData);
       } else {
         await handleDayProduction(supabase, waId, messageText, state, user, lang);
       }
@@ -2924,7 +3441,12 @@ async function processMessage(
     }
 
     case "review_exercise": {
-      await handleReviewAnswer(supabase, waId, messageText, state, lang);
+      // Pass audioData if present for audio transcription
+      if (audioData) {
+        await handleReviewAnswerWithAudio(supabase, waId, state, lang, audioData);
+      } else {
+        await handleReviewAnswer(supabase, waId, messageText, state, lang);
+      }
       break;
     }
 
@@ -3014,7 +3536,10 @@ async function processWebhookPayload(
               waId, 
               contact?.profile?.name ?? null, 
               "[AUDIO]",
-              { media_id: message.audio.id }
+              { 
+                media_id: message.audio.id,
+                mime_type: message.audio.mime_type,
+              }
             );
             console.log("[WEBHOOK] Audio processMessage completed for:", maskWaId(waId));
           } catch (processError) {
