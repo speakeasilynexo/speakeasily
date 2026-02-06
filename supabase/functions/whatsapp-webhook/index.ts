@@ -3642,13 +3642,6 @@ async function processMessage(
   }
 }
 
-// ============== UTILITIES ==============
-
-function maskWaId(waId: string): string {
-  if (waId.length <= 4) return "****";
-  return waId.slice(0, 4) + "****" + waId.slice(-4);
-}
-
 // ============== BACKGROUND PROCESSING ==============
 
 async function processWebhookPayload(
