@@ -254,9 +254,9 @@ const Index = () => {
                 </div>
               </div>
 
-              <Button size="lg" className="w-full gradient-hero text-lg py-6 shadow-elevated" asChild>
+              <Button size="lg" className="w-full gradient-hero text-base sm:text-lg py-6 shadow-elevated whitespace-normal text-center" asChild>
                 <a href={whatsappLink}>
-                  <MessageCircle className="w-5 h-5 mr-2" />
+                  <MessageCircle className="w-5 h-5 mr-2 flex-shrink-0" />
                   Empezar Mi Prueba Gratis
                 </a>
               </Button>
