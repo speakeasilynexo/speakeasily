@@ -549,6 +549,48 @@ const I18N: Record<string, Record<Language, string>> = {
     es: "🎤 Error al procesar el audio. Por favor, escribe tu respuesta.",
     en: "🎤 Error processing audio. Please type your answer.",
   },
+  // Conversational audio feedback - structured response
+  audio_conv_transcript_pt: {
+    pt: "🎧 *Transcrição (o que eu entendi):*\n\n\"{transcript}\"",
+    es: "🎧 *Transcrição (o que eu entendi):*\n\n\"{transcript}\"",
+    en: "🎧 *Transcrição (o que eu entendi):*\n\n\"{transcript}\"",
+  },
+  audio_conv_transcript_es: {
+    pt: "🎧 *Transcripción (lo que entendí):*\n\n\"{transcript}\"",
+    es: "🎧 *Transcripción (lo que entendí):*\n\n\"{transcript}\"",
+    en: "🎧 *Transcripción (lo que entendí):*\n\n\"{transcript}\"",
+  },
+  audio_conv_feedback_pt: {
+    pt: "✅ *Em inglês, uma forma correta seria:*\n\"{english_correct}\"\n\n💡 *Mais natural:*\n\"{english_natural}\"\n\n📝 *Ajustes:*\n{fixes}\n\n🔁 *Repete esta frase (curta):*\n\"{target_sentence}\"",
+    es: "✅ *Em inglês, uma forma correta seria:*\n\"{english_correct}\"\n\n💡 *Mais natural:*\n\"{english_natural}\"\n\n📝 *Ajustes:*\n{fixes}\n\n🔁 *Repete esta frase (curta):*\n\"{target_sentence}\"",
+    en: "✅ *Em inglês, uma forma correta seria:*\n\"{english_correct}\"\n\n💡 *Mais natural:*\n\"{english_natural}\"\n\n📝 *Ajustes:*\n{fixes}\n\n🔁 *Repete esta frase (curta):*\n\"{target_sentence}\"",
+  },
+  audio_conv_feedback_es: {
+    pt: "✅ *En inglés, una forma correcta sería:*\n\"{english_correct}\"\n\n💡 *Más natural:*\n\"{english_natural}\"\n\n📝 *Ajustes:*\n{fixes}\n\n🔁 *Repite esta frase (corta):*\n\"{target_sentence}\"",
+    es: "✅ *En inglés, una forma correcta sería:*\n\"{english_correct}\"\n\n💡 *Más natural:*\n\"{english_natural}\"\n\n📝 *Ajustes:*\n{fixes}\n\n🔁 *Repite esta frase (corta):*\n\"{target_sentence}\"",
+    en: "✅ *En inglés, una forma correcta sería:*\n\"{english_correct}\"\n\n💡 *Más natural:*\n\"{english_natural}\"\n\n📝 *Ajustes:*\n{fixes}\n\n🔁 *Repite esta frase (corta):*\n\"{target_sentence}\"",
+  },
+  audio_conv_not_understood_pt: {
+    pt: "⚠️ Não consegui entender o áudio (muito baixo ou com ruído). Pode gravar de novo bem perto do microfone?",
+    es: "⚠️ Não consegui entender o áudio (muito baixo ou com ruído). Pode gravar de novo bem perto do microfone?",
+    en: "⚠️ Não consegui entender o áudio (muito baixo ou com ruído). Pode gravar de novo bem perto do microfone?",
+  },
+  audio_conv_not_understood_es: {
+    pt: "⚠️ No pude entender el audio (muy bajo o con ruido). ¿Puedes grabarlo de nuevo más cerca del micrófono?",
+    es: "⚠️ No pude entender el audio (muy bajo o con ruido). ¿Puedes grabarlo de nuevo más cerca del micrófono?",
+    en: "⚠️ No pude entender el audio (muy bajo o con ruido). ¿Puedes grabarlo de nuevo más cerca del micrófono?",
+  },
+  // Post placement test prompt - gaming context
+  post_placement_audio_prompt_pt: {
+    pt: "Para começar, me manda um áudio dizendo (em português):\n\n_\"Meu nome é ___ e eu quero aprender inglês para jogar LoL.\"_",
+    es: "Para começar, me manda um áudio dizendo (em português):\n\n_\"Meu nome é ___ e eu quero aprender inglês para jogar LoL.\"_",
+    en: "Para começar, me manda um áudio dizendo (em português):\n\n_\"Meu nome é ___ e eu quero aprender inglês para jogar LoL.\"_",
+  },
+  post_placement_audio_prompt_es: {
+    pt: "Para empezar, envíame un audio diciendo (en español):\n\n_\"Me llamo ___ y quiero aprender inglés para jugar LoL.\"_",
+    es: "Para empezar, envíame un audio diciendo (en español):\n\n_\"Me llamo ___ y quiero aprender inglés para jugar LoL.\"_",
+    en: "Para empezar, envíame un audio diciendo (en español):\n\n_\"Me llamo ___ y quiero aprender inglés para jugar LoL.\"_",
+  },
   // Audio preference commands
   audio_on_confirmed: {
     pt: "🎤 *Preferência de áudio ativada!*\n\nAgora você pode responder todos os exercícios por áudio. Sua pronúncia será avaliada!",
@@ -2482,6 +2524,222 @@ function extractMCQFromTranscript(transcript: string): string | null {
   return null;
 }
 
+// ============== LANGUAGE DETECTION FROM TEXT ==============
+
+type DetectedLanguage = "es" | "pt" | "en";
+
+/**
+ * Simple heuristic-based language detection from text.
+ * Detects Spanish (ES), Portuguese (PT), or English (EN).
+ */
+function detectLanguageFromText(text: string): DetectedLanguage {
+  const lower = text.toLowerCase();
+  
+  // Portuguese indicators (unique to PT)
+  const ptIndicators = [
+    "ção", "ões", "ão", "não", "você", "voce", "está", "esta", "muito", 
+    "também", "porque", "para", "com", "uma", "tenho", "sou", "estou",
+    "meu", "minha", "seu", "sua", "quero", "falar", "aprender", "jogar",
+    "trabalho", "trabalhar", "obrigado", "obrigada", "olá", "oi", "tudo",
+    "bom dia", "boa tarde", "boa noite", "fazer", "ajuda", "preciso"
+  ];
+  
+  // Spanish indicators (unique to ES)
+  const esIndicators = [
+    "ción", "ciones", "ñ", "estoy", "soy", "tengo", "quiero", "porque",
+    "muy", "también", "pero", "para", "con", "una", "hola", "gracias",
+    "buenos días", "buenas tardes", "buenas noches", "trabajo", "trabajar",
+    "aprender", "jugar", "hablar", "necesito", "ayuda", "llamo", "vivo"
+  ];
+  
+  // English indicators
+  const enIndicators = [
+    "i'm", "i am", "i have", "i want", "my name is", "hello", "hi",
+    "thank you", "thanks", "please", "because", "work", "working",
+    "learning", "playing", "need", "help", "good morning", "good afternoon",
+    "good evening", "the", "and", "that", "this", "with", "for"
+  ];
+  
+  let ptScore = 0;
+  let esScore = 0;
+  let enScore = 0;
+  
+  for (const indicator of ptIndicators) {
+    if (lower.includes(indicator)) ptScore++;
+  }
+  
+  for (const indicator of esIndicators) {
+    if (lower.includes(indicator)) esScore++;
+  }
+  
+  for (const indicator of enIndicators) {
+    if (lower.includes(indicator)) enScore++;
+  }
+  
+  // Check for clear language markers
+  if (lower.includes("você") || lower.includes("voce") || lower.includes("não") || lower.includes("meu nome é")) {
+    ptScore += 5;
+  }
+  if (lower.includes("me llamo") || lower.includes("quiero") || lower.includes("estoy")) {
+    esScore += 5;
+  }
+  if (lower.includes("my name is") || lower.includes("i'm") || lower.includes("i am")) {
+    enScore += 5;
+  }
+  
+  // Determine language
+  if (ptScore > esScore && ptScore > enScore) {
+    return "pt";
+  }
+  if (esScore > ptScore && esScore > enScore) {
+    return "es";
+  }
+  if (enScore > 0) {
+    return "en";
+  }
+  
+  // Default to Spanish (Barcelona audience)
+  return "es";
+}
+
+interface ConversationalAudioFeedback {
+  english_correct: string;
+  english_natural: string;
+  fix1: string;
+  fix2: string;
+  target_sentence: string;
+}
+
+/**
+ * Generate conversational audio feedback using AI.
+ * Takes the transcription and generates a proper English version with corrections.
+ */
+async function generateConversationalAudioFeedback(
+  transcript: string,
+  detectedLang: DetectedLanguage
+): Promise<ConversationalAudioFeedback | null> {
+  const feedbackLang = detectedLang === "pt" ? "Portuguese" : detectedLang === "es" ? "Spanish" : "English";
+  
+  const systemPrompt = `You are an English language coach. The student sent an audio message trying to practice English (or speaking in their native language about wanting to learn English).
+
+Your task:
+1. Understand what they meant to say
+2. Provide the correct English version
+3. Provide a more natural/fluent version
+4. Give 1-2 short grammar/vocabulary tips in ${feedbackLang}
+5. Suggest a short target sentence for them to repeat
+
+IMPORTANT:
+- If the transcript seems to be in ${feedbackLang}, translate it to English properly
+- If already in English, correct any mistakes
+- Be encouraging but honest - don't invent compliments
+- Keep the target sentence SHORT (max 8 words)
+
+Return ONLY this JSON format:
+{
+  "english_correct": "grammatically correct version",
+  "english_natural": "more natural/fluent version", 
+  "fix1": "first tip in ${feedbackLang}",
+  "fix2": "second tip in ${feedbackLang} (or empty if not needed)",
+  "target_sentence": "short phrase to repeat"
+}`;
+
+  const userMessage = `Student said: "${transcript}"`;
+  
+  const response = await callAI(systemPrompt, userMessage);
+  
+  try {
+    const match = response.match(/\{[\s\S]*\}/);
+    if (match) {
+      const result = JSON.parse(match[0]);
+      return {
+        english_correct: String(result.english_correct || transcript),
+        english_natural: String(result.english_natural || transcript),
+        fix1: String(result.fix1 || ""),
+        fix2: String(result.fix2 || ""),
+        target_sentence: String(result.target_sentence || ""),
+      };
+    }
+  } catch (e) {
+    console.error("[AI] Parse error in conversational audio feedback:", e);
+  }
+  
+  return null;
+}
+
+/**
+ * Handle conversational audio - when user sends audio outside of exercise context.
+ * Provides structured feedback with transcription, corrections, and target sentence.
+ */
+async function handleConversationalAudio(
+  supabase: SupabaseClientType,
+  waId: string,
+  audioData: { media_id: string; mime_type?: string },
+  userLang: Language | null
+): Promise<boolean> {
+  console.log("[AUDIO] Processing conversational audio for:", waId);
+  
+  // Transcribe the audio
+  const transcriptionResult = await processAudioMessage(
+    supabase,
+    waId,
+    audioData.media_id,
+    audioData.mime_type,
+    "conversational"
+  );
+  
+  if (!transcriptionResult.success || !transcriptionResult.transcript.trim()) {
+    // Cannot understand the audio
+    const errorLang = userLang || "es";
+    const errorKey = errorLang === "pt" ? "audio_conv_not_understood_pt" : "audio_conv_not_understood_es";
+    await send(waId, t(errorLang, errorKey));
+    return true;
+  }
+  
+  const transcript = transcriptionResult.transcript;
+  
+  // Detect language from transcript
+  const detectedLang = detectLanguageFromText(transcript);
+  
+  // Determine response language: use detected if ES/PT, else fall back to user's saved language or ES
+  const responseLang: Language = (detectedLang === "es" || detectedLang === "pt") 
+    ? detectedLang 
+    : (userLang || "es");
+  
+  // Send transcription first
+  const transcriptKey = responseLang === "pt" ? "audio_conv_transcript_pt" : "audio_conv_transcript_es";
+  await send(waId, t(responseLang, transcriptKey, { transcript }));
+  await new Promise(r => setTimeout(r, 500));
+  
+  // Generate AI feedback
+  const feedback = await generateConversationalAudioFeedback(transcript, responseLang);
+  
+  if (feedback) {
+    // Build fixes string
+    const fixes = [feedback.fix1, feedback.fix2]
+      .filter(f => f && f.trim().length > 0)
+      .map(f => `• ${f}`)
+      .join("\n");
+    
+    // Send structured feedback
+    const feedbackKey = responseLang === "pt" ? "audio_conv_feedback_pt" : "audio_conv_feedback_es";
+    await send(waId, t(responseLang, feedbackKey, {
+      english_correct: feedback.english_correct,
+      english_natural: feedback.english_natural,
+      fixes: fixes || (responseLang === "pt" ? "• Bom começo!" : "• ¡Buen comienzo!"),
+      target_sentence: feedback.target_sentence || feedback.english_natural.split(".")[0],
+    }));
+  } else {
+    // Fallback: just confirm we received the audio
+    const fallbackMsg = responseLang === "pt" 
+      ? "🎤 Recebi seu áudio! Continue praticando enviando mais mensagens."
+      : "🎤 ¡Recibí tu audio! Sigue practicando enviando más mensajes.";
+    await send(waId, fallbackMsg);
+  }
+  
+  return true;
+}
+
 async function evaluateWrittenProduction(text: string, lang: Language): Promise<{ score: number; notes: string }> {
   const feedbackLang = lang === "en" ? "English" : lang === "pt" ? "Portuguese" : "Spanish";
   const systemPrompt = `You are an English evaluator. Evaluate the following text written by a student.
@@ -4066,11 +4324,19 @@ async function processMessage(
     }
 
     case "placement_result": {
+      // Handle conversational audio - user practicing after placement
+      if (audioData) {
+        await handleConversationalAudio(supabase, waId, audioData, lang);
+        return;
+      }
+      
       if (["NEXT", "SIGUIENTE", "PRÓXIMO", "OK", "SI", "SÍ", "SIM", "YES"].includes(normalized)) {
         await send(waId, t(lang, "select_goal"));
         await updateState(supabase, waId, "select_goal", state.data);
       } else {
-        await send(waId, t(lang, "type_next"));
+        // Send gaming-context prompt based on language
+        const promptKey = lang === "pt" ? "post_placement_audio_prompt_pt" : "post_placement_audio_prompt_es";
+        await send(waId, t(lang, promptKey));
       }
       break;
     }
@@ -4092,6 +4358,12 @@ async function processMessage(
     case "ready":
     case "day_complete":
     case "day_failed": {
+      // Handle conversational audio in these states
+      if (audioData) {
+        await handleConversationalAudio(supabase, waId, audioData, lang);
+        return;
+      }
+      
       if (["NEXT", "SIGUIENTE", "PRÓXIMO", "OK", "CONTINUAR"].includes(normalized)) {
         // Admin bypass for NEXT/LESSON
         if (accessStatus.isAdmin) {
@@ -4148,6 +4420,12 @@ async function processMessage(
     }
 
     default: {
+      // Handle conversational audio in unknown/default states
+      if (audioData) {
+        await handleConversationalAudio(supabase, waId, audioData, lang);
+        return;
+      }
+      
       // Unknown state, restart flow
       if (user.level) {
         await send(waId, t(lang, "lets_continue"), t(lang, "type_next_or_review"));
