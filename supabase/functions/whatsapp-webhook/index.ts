@@ -638,6 +638,38 @@ const I18N: Record<string, Record<Language, string>> = {
     es: "\n\n🔍 *Debug Audio (Admin):*\n• request_id: {request_id}\n• step: {step}\n• transcripción_completa: {transcript}",
     en: "\n\n🔍 *Audio Debug (Admin):*\n• request_id: {request_id}\n• step: {step}\n• full_transcript: {transcript}",
   },
+  // Audio beta errors - honest messages
+  audio_beta_unavailable_pt: {
+    pt: "⚠️ O modo de áudio está em beta e temporariamente indisponível.\nPor favor, envie a mesma frase por *texto*.",
+    es: "⚠️ O modo de áudio está em beta e temporariamente indisponível.\nPor favor, envie a mesma frase por *texto*.",
+    en: "⚠️ O modo de áudio está em beta e temporariamente indisponível.\nPor favor, envie a mesma frase por *texto*.",
+  },
+  audio_beta_unavailable_es: {
+    pt: "⚠️ El modo de audio está en beta y temporalmente no disponible.\nPor favor, envía la misma frase por *texto*.",
+    es: "⚠️ El modo de audio está en beta y temporalmente no disponible.\nPor favor, envía la misma frase por *texto*.",
+    en: "⚠️ El modo de audio está en beta y temporalmente no disponible.\nPor favor, envía la misma frase por *texto*.",
+  },
+  audio_beta_limit_reached_pt: {
+    pt: "⚠️ Limite do modo beta de áudio atingido por hoje.\nPor favor, envie sua resposta por *texto*.",
+    es: "⚠️ Limite do modo beta de áudio atingido por hoje.\nPor favor, envie sua resposta por *texto*.",
+    en: "⚠️ Limite do modo beta de áudio atingido por hoje.\nPor favor, envie sua resposta por *texto*.",
+  },
+  audio_beta_limit_reached_es: {
+    pt: "⚠️ Límite del modo beta de audio alcanzado hoy.\nPor favor, envía tu respuesta por *texto*.",
+    es: "⚠️ Límite del modo beta de audio alcanzado hoy.\nPor favor, envía tu respuesta por *texto*.",
+    en: "⚠️ Límite del modo beta de audio alcanzado hoy.\nPor favor, envía tu respuesta por *texto*.",
+  },
+  // Audio transcription prefix - "I heard"
+  audio_i_heard_pt: {
+    pt: "🎧 *Eu ouvi:*\n\n\"{transcript}\"",
+    es: "🎧 *Eu ouvi:*\n\n\"{transcript}\"",
+    en: "🎧 *Eu ouvi:*\n\n\"{transcript}\"",
+  },
+  audio_i_heard_es: {
+    pt: "🎧 *Escuché:*\n\n\"{transcript}\"",
+    es: "🎧 *Escuché:*\n\n\"{transcript}\"",
+    en: "🎧 *Escuché:*\n\n\"{transcript}\"",
+  },
 };
 
 // Helper to get translated text
@@ -2126,6 +2158,7 @@ interface TranscriptionResult {
   error?: string;
   request_id?: string;
   audio_seconds?: number;
+  raw_error?: string;
 }
 
 interface MediaUrlResponse {
@@ -2253,8 +2286,34 @@ async function transcribeAudio(audioBlob: Blob, mimeType: string): Promise<Trans
         const errorText = await response.text();
         console.error(`[AUDIO] Whisper API error (attempt ${attempt + 1}):`, response.status, errorText);
         
-        // Handle rate limit with retry
+        // Handle 401/403 as auth errors (don't retry)
+        if (response.status === 401 || response.status === 403) {
+          return { 
+            success: false, 
+            transcript: "", 
+            error: "auth_error", 
+            request_id: requestId,
+            raw_error: errorText,
+          };
+        }
+        
+        // Handle rate limit (429) - differentiate quota_exceeded vs rate_limit
         if (response.status === 429) {
+          const isQuotaExceeded = errorText.includes("insufficient_quota") || 
+                                  errorText.includes("exceeded your current quota");
+          
+          if (isQuotaExceeded) {
+            // Quota exceeded - don't retry, billing issue
+            return { 
+              success: false, 
+              transcript: "", 
+              error: "quota_exceeded", 
+              request_id: requestId,
+              raw_error: errorText,
+            };
+          }
+          
+          // Regular rate limit - retry with backoff
           if (attempt < maxRetries) {
             const delay = baseDelay * Math.pow(2, attempt); // 800ms, 1600ms
             console.log(`[AUDIO] Rate limited, retrying in ${delay}ms...`);
@@ -2265,7 +2324,8 @@ async function transcribeAudio(audioBlob: Blob, mimeType: string): Promise<Trans
             success: false, 
             transcript: "", 
             error: "rate_limit", 
-            request_id: requestId 
+            request_id: requestId,
+            raw_error: errorText,
           };
         }
         
@@ -2273,7 +2333,8 @@ async function transcribeAudio(audioBlob: Blob, mimeType: string): Promise<Trans
           success: false, 
           transcript: "", 
           error: `whisper_error_${response.status}`, 
-          request_id: requestId 
+          request_id: requestId,
+          raw_error: errorText,
         };
       }
 
@@ -2373,6 +2434,153 @@ async function processAudioMessage(
   }
 
   return result;
+}
+
+// ============== AUDIO RATE LIMITING ==============
+
+const AUDIO_LIMIT_PER_USER_DAY = 2;   // 2 audios/user/day (beta)
+const AUDIO_LIMIT_GLOBAL_DAY = 20;    // 20 audios/day total (beta)
+
+interface RateLimitResult {
+  allowed: boolean;
+  reason?: "user_limit" | "global_limit";
+}
+
+/**
+ * Check if user can send audio (rate limit check)
+ */
+async function checkAudioRateLimit(
+  supabase: SupabaseClientType,
+  waId: string
+): Promise<RateLimitResult> {
+  const today = new Date().toISOString().split("T")[0];
+  
+  try {
+    // Check user limit
+    const { data: userUsage } = await supabase
+      .from("audio_usage")
+      .select("count")
+      .eq("wa_id", waId)
+      .eq("date", today)
+      .single();
+    
+    if (userUsage && userUsage.count >= AUDIO_LIMIT_PER_USER_DAY) {
+      console.log(`[AUDIO] User ${waId} exceeded daily limit: ${userUsage.count}/${AUDIO_LIMIT_PER_USER_DAY}`);
+      return { allowed: false, reason: "user_limit" };
+    }
+    
+    // Check global limit
+    const { data: globalUsage } = await supabase
+      .from("audio_usage")
+      .select("count")
+      .eq("wa_id", "global")
+      .eq("date", today)
+      .single();
+    
+    if (globalUsage && globalUsage.count >= AUDIO_LIMIT_GLOBAL_DAY) {
+      console.log(`[AUDIO] Global limit exceeded: ${globalUsage.count}/${AUDIO_LIMIT_GLOBAL_DAY}`);
+      return { allowed: false, reason: "global_limit" };
+    }
+    
+    return { allowed: true };
+  } catch (error) {
+    console.error("[AUDIO] Rate limit check error:", error);
+    // Allow on error (fail open)
+    return { allowed: true };
+  }
+}
+
+/**
+ * Increment audio usage counter for user and global
+ */
+async function incrementAudioUsage(
+  supabase: SupabaseClientType,
+  waId: string
+): Promise<void> {
+  const today = new Date().toISOString().split("T")[0];
+  
+  try {
+    // Upsert user count
+    const { data: existingUser } = await supabase
+      .from("audio_usage")
+      .select("id, count")
+      .eq("wa_id", waId)
+      .eq("date", today)
+      .single();
+    
+    if (existingUser) {
+      await supabase
+        .from("audio_usage")
+        .update({ count: existingUser.count + 1 })
+        .eq("id", existingUser.id);
+    } else {
+      await supabase
+        .from("audio_usage")
+        .insert({ wa_id: waId, date: today, count: 1 });
+    }
+    
+    // Upsert global count
+    const { data: existingGlobal } = await supabase
+      .from("audio_usage")
+      .select("id, count")
+      .eq("wa_id", "global")
+      .eq("date", today)
+      .single();
+    
+    if (existingGlobal) {
+      await supabase
+        .from("audio_usage")
+        .update({ count: existingGlobal.count + 1 })
+        .eq("id", existingGlobal.id);
+    } else {
+      await supabase
+        .from("audio_usage")
+        .insert({ wa_id: "global", date: today, count: 1 });
+    }
+    
+    console.log(`[AUDIO] Incremented usage for ${waId} and global`);
+  } catch (error) {
+    console.error("[AUDIO] Increment usage error:", error);
+  }
+}
+
+/**
+ * Log transcription error to database for analysis
+ */
+async function logTranscriptionError(
+  supabase: SupabaseClientType,
+  waId: string,
+  errorCode: string,
+  rawError: string | undefined,
+  requestId: string
+): Promise<void> {
+  try {
+    await supabase
+      .from("audio_transcription_errors")
+      .insert({
+        wa_id: waId,
+        error_code: errorCode,
+        raw_error: rawError || null,
+        request_id: requestId,
+      });
+    console.log(`[AUDIO] Logged transcription error: ${errorCode} for ${waId}`);
+  } catch (error) {
+    console.error("[AUDIO] Failed to log transcription error:", error);
+  }
+}
+
+/**
+ * Check if error is a service error (vs audio quality issue)
+ */
+function isServiceError(errorCode: string | undefined): boolean {
+  if (!errorCode) return false;
+  const serviceErrors = [
+    "quota_exceeded",
+    "rate_limit", 
+    "auth_error",
+    "missing_api_key",
+  ];
+  return serviceErrors.includes(errorCode) || errorCode.startsWith("whisper_error_");
 }
 
 // ============== LEVENSHTEIN SCORING (no libs) ==============
@@ -2679,7 +2887,18 @@ async function handleConversationalAudio(
 ): Promise<boolean> {
   console.log("[AUDIO] Processing conversational audio for:", waId);
   
-  // Transcribe the audio
+  const responseLang: Language = userLang || "es";
+  
+  // Step 1: Check rate limit BEFORE transcription
+  const rateLimitCheck = await checkAudioRateLimit(supabase, waId);
+  if (!rateLimitCheck.allowed) {
+    console.log(`[AUDIO] Rate limit hit for ${waId}: ${rateLimitCheck.reason}`);
+    const limitKey = responseLang === "pt" ? "audio_beta_limit_reached_pt" : "audio_beta_limit_reached_es";
+    await send(waId, t(responseLang, limitKey));
+    return true;
+  }
+  
+  // Step 2: Transcribe the audio
   const transcriptionResult = await processAudioMessage(
     supabase,
     waId,
@@ -2688,50 +2907,86 @@ async function handleConversationalAudio(
     "conversational"
   );
   
+  // Step 3: Handle transcription failure
   if (!transcriptionResult.success || !transcriptionResult.transcript.trim()) {
-    // Cannot understand the audio
-    const errorLang = userLang || "es";
-    const errorKey = errorLang === "pt" ? "audio_conv_not_understood_pt" : "audio_conv_not_understood_es";
-    await send(waId, t(errorLang, errorKey));
+    const errorCode = transcriptionResult.error || "unknown";
+    
+    // Log error to database for analysis
+    await logTranscriptionError(
+      supabase,
+      waId,
+      errorCode,
+      transcriptionResult.raw_error,
+      transcriptionResult.request_id || crypto.randomUUID()
+    );
+    
+    // Choose appropriate message based on error type
+    if (isServiceError(errorCode)) {
+      // Service error (quota, rate limit, auth) - be honest
+      console.log(`[AUDIO] Service error for ${waId}: ${errorCode}`);
+      const errorKey = responseLang === "pt" ? "audio_beta_unavailable_pt" : "audio_beta_unavailable_es";
+      await send(waId, t(responseLang, errorKey));
+    } else {
+      // Audio quality issue (download failed, etc) - ask to re-record
+      console.log(`[AUDIO] Audio quality issue for ${waId}: ${errorCode}`);
+      const errorKey = responseLang === "pt" ? "audio_conv_not_understood_pt" : "audio_conv_not_understood_es";
+      await send(waId, t(responseLang, errorKey));
+    }
     return true;
   }
   
+  // Step 4: Success - increment usage counter
+  await incrementAudioUsage(supabase, waId);
+  
   const transcript = transcriptionResult.transcript;
   
-  // Detect language from transcript
+  // Detect language from transcript for response
   const detectedLang = detectLanguageFromText(transcript);
   
   // Determine response language: use detected if ES/PT, else fall back to user's saved language or ES
-  const responseLang: Language = (detectedLang === "es" || detectedLang === "pt") 
+  const feedbackLang: Language = (detectedLang === "es" || detectedLang === "pt") 
     ? detectedLang 
-    : (userLang || "es");
+    : responseLang;
   
-  // Send transcription first
-  const transcriptKey = responseLang === "pt" ? "audio_conv_transcript_pt" : "audio_conv_transcript_es";
-  await send(waId, t(responseLang, transcriptKey, { transcript }));
+  // Step 5: Send "Eu ouvi" / "Escuché" message first
+  const heardKey = feedbackLang === "pt" ? "audio_i_heard_pt" : "audio_i_heard_es";
+  await send(waId, t(feedbackLang, heardKey, { transcript }));
   await new Promise(r => setTimeout(r, 500));
   
-  // Generate AI feedback
-  const feedback = await generateConversationalAudioFeedback(transcript, responseLang);
+  // Step 6: Generate AI feedback with corrections
+  const feedback = await generateConversationalAudioFeedback(transcript, feedbackLang);
   
   if (feedback) {
-    // Build fixes string
-    const fixes = [feedback.fix1, feedback.fix2]
-      .filter(f => f && f.trim().length > 0)
-      .map(f => `• ${f}`)
-      .join("\n");
+    // Build fixes string - only include non-empty fixes
+    const fixesList = [feedback.fix1, feedback.fix2]
+      .filter(f => f && f.trim().length > 0);
     
-    // Send structured feedback
-    const feedbackKey = responseLang === "pt" ? "audio_conv_feedback_pt" : "audio_conv_feedback_es";
-    await send(waId, t(responseLang, feedbackKey, {
-      english_correct: feedback.english_correct,
-      english_natural: feedback.english_natural,
-      fixes: fixes || (responseLang === "pt" ? "• Bom começo!" : "• ¡Buen comienzo!"),
-      target_sentence: feedback.target_sentence || feedback.english_natural.split(".")[0],
-    }));
+    // Only show fixes section if there are actual corrections
+    const fixes = fixesList.length > 0 
+      ? fixesList.map(f => `• ${f}`).join("\n")
+      : "";
+    
+    // Build feedback message
+    const feedbackKey = feedbackLang === "pt" ? "audio_conv_feedback_pt" : "audio_conv_feedback_es";
+    
+    // If no fixes, use simplified message
+    if (fixes) {
+      await send(waId, t(feedbackLang, feedbackKey, {
+        english_correct: feedback.english_correct,
+        english_natural: feedback.english_natural,
+        fixes: fixes,
+        target_sentence: feedback.target_sentence || feedback.english_natural.split(".")[0],
+      }));
+    } else {
+      // Simpler message without fixes section
+      const simpleMsg = feedbackLang === "pt"
+        ? `✅ *Em inglês:*\n"${feedback.english_natural}"\n\n🔁 *Repete:*\n"${feedback.target_sentence || feedback.english_natural.split(".")[0]}"`
+        : `✅ *En inglés:*\n"${feedback.english_natural}"\n\n🔁 *Repite:*\n"${feedback.target_sentence || feedback.english_natural.split(".")[0]}"`;
+      await send(waId, simpleMsg);
+    }
   } else {
     // Fallback: just confirm we received the audio
-    const fallbackMsg = responseLang === "pt" 
+    const fallbackMsg = feedbackLang === "pt" 
       ? "🎤 Recebi seu áudio! Continue praticando enviando mais mensagens."
       : "🎤 ¡Recibí tu audio! Sigue practicando enviando más mensajes.";
     await send(waId, fallbackMsg);

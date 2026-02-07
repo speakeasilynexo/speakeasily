@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      audio_transcription_errors: {
+        Row: {
+          created_at: string
+          error_code: string
+          id: string
+          raw_error: string | null
+          request_id: string | null
+          wa_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_code: string
+          id?: string
+          raw_error?: string | null
+          request_id?: string | null
+          wa_id: string
+        }
+        Update: {
+          created_at?: string
+          error_code?: string
+          id?: string
+          raw_error?: string | null
+          request_id?: string | null
+          wa_id?: string
+        }
+        Relationships: []
+      }
+      audio_usage: {
+        Row: {
+          count: number
+          created_at: string
+          date: string
+          id: string
+          wa_id: string
+        }
+        Insert: {
+          count?: number
+          created_at?: string
+          date?: string
+          id?: string
+          wa_id: string
+        }
+        Update: {
+          count?: number
+          created_at?: string
+          date?: string
+          id?: string
+          wa_id?: string
+        }
+        Relationships: []
+      }
       wa_events: {
         Row: {
           created_at: string
