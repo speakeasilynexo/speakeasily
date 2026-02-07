@@ -127,6 +127,11 @@ interface LessonProgress {
 interface StateData {
   placement?: PlacementState;
   progress?: LessonProgress;
+  // Audio practice state: tracks the current target sentence for repetition
+  audio_practice?: {
+    target_sentence: string;
+    attempts: number;
+  };
 }
 
 type EventType =
@@ -561,14 +566,36 @@ const I18N: Record<string, Record<Language, string>> = {
     en: "🎧 *Transcripción (lo que entendí):*\n\n\"{transcript}\"",
   },
   audio_conv_feedback_pt: {
-    pt: "✅ *Em inglês, uma forma correta seria:*\n\"{english_correct}\"\n\n💡 *Mais natural:*\n\"{english_natural}\"\n\n📝 *Ajustes:*\n{fixes}\n\n🔁 *Repete esta frase (curta):*\n\"{target_sentence}\"",
-    es: "✅ *Em inglês, uma forma correta seria:*\n\"{english_correct}\"\n\n💡 *Mais natural:*\n\"{english_natural}\"\n\n📝 *Ajustes:*\n{fixes}\n\n🔁 *Repete esta frase (curta):*\n\"{target_sentence}\"",
-    en: "✅ *Em inglês, uma forma correta seria:*\n\"{english_correct}\"\n\n💡 *Mais natural:*\n\"{english_natural}\"\n\n📝 *Ajustes:*\n{fixes}\n\n🔁 *Repete esta frase (curta):*\n\"{target_sentence}\"",
+    pt: "✅ *Em inglês, uma forma correta seria:*\n\"{english_correct}\"\n\n💡 *Mais natural:*\n\"{english_natural}\"\n\n📝 *Ajustes:*\n{fixes}\n\n🔁 *Repete esta frase (curta = só 1 frase, 6-8 palavras):*\n\"{target_sentence}\"",
+    es: "✅ *Em inglês, uma forma correta seria:*\n\"{english_correct}\"\n\n💡 *Mais natural:*\n\"{english_natural}\"\n\n📝 *Ajustes:*\n{fixes}\n\n🔁 *Repete esta frase (curta = só 1 frase, 6-8 palavras):*\n\"{target_sentence}\"",
+    en: "✅ *Em inglês, uma forma correta seria:*\n\"{english_correct}\"\n\n💡 *Mais natural:*\n\"{english_natural}\"\n\n📝 *Ajustes:*\n{fixes}\n\n🔁 *Repete esta frase (curta = só 1 frase, 6-8 palavras):*\n\"{target_sentence}\"",
   },
   audio_conv_feedback_es: {
-    pt: "✅ *En inglés, una forma correcta sería:*\n\"{english_correct}\"\n\n💡 *Más natural:*\n\"{english_natural}\"\n\n📝 *Ajustes:*\n{fixes}\n\n🔁 *Repite esta frase (corta):*\n\"{target_sentence}\"",
-    es: "✅ *En inglés, una forma correcta sería:*\n\"{english_correct}\"\n\n💡 *Más natural:*\n\"{english_natural}\"\n\n📝 *Ajustes:*\n{fixes}\n\n🔁 *Repite esta frase (corta):*\n\"{target_sentence}\"",
-    en: "✅ *En inglés, una forma correcta sería:*\n\"{english_correct}\"\n\n💡 *Más natural:*\n\"{english_natural}\"\n\n📝 *Ajustes:*\n{fixes}\n\n🔁 *Repite esta frase (corta):*\n\"{target_sentence}\"",
+    pt: "✅ *En inglés, una forma correcta sería:*\n\"{english_correct}\"\n\n💡 *Más natural:*\n\"{english_natural}\"\n\n📝 *Ajustes:*\n{fixes}\n\n🔁 *Repite esta frase (corta = solo 1 frase, 6-8 palabras):*\n\"{target_sentence}\"",
+    es: "✅ *En inglés, una forma correcta sería:*\n\"{english_correct}\"\n\n💡 *Más natural:*\n\"{english_natural}\"\n\n📝 *Ajustes:*\n{fixes}\n\n🔁 *Repite esta frase (corta = solo 1 frase, 6-8 palabras):*\n\"{target_sentence}\"",
+    en: "✅ *En inglés, una forma correcta sería:*\n\"{english_correct}\"\n\n💡 *Más natural:*\n\"{english_natural}\"\n\n📝 *Ajustes:*\n{fixes}\n\n🔁 *Repite esta frase (corta = solo 1 frase, 6-8 palabras):*\n\"{target_sentence}\"",
+  },
+  // Audio practice success - when user correctly repeats the target sentence
+  audio_practice_success_pt: {
+    pt: "✅ *Perfeito!* Pronúncia ok. 👏\n\n🚀 Vamos continuar! Envie *NEXT* para avançar ou me mande outro áudio.",
+    es: "✅ *Perfeito!* Pronúncia ok. 👏\n\n🚀 Vamos continuar! Envie *NEXT* para avançar ou me mande outro áudio.",
+    en: "✅ *Perfeito!* Pronúncia ok. 👏\n\n🚀 Vamos continuar! Envie *NEXT* para avançar ou me mande outro áudio.",
+  },
+  audio_practice_success_es: {
+    pt: "✅ *¡Perfecto!* Pronunciación ok. 👏\n\n🚀 ¡Vamos a continuar! Envía *NEXT* para avanzar o mándame otro audio.",
+    es: "✅ *¡Perfecto!* Pronunciación ok. 👏\n\n🚀 ¡Vamos a continuar! Envía *NEXT* para avanzar o mándame otro audio.",
+    en: "✅ *¡Perfecto!* Pronunciación ok. 👏\n\n🚀 ¡Vamos a continuar! Envía *NEXT* para avanzar o mándame otro audio.",
+  },
+  // Audio heard - simplified versions without redundant info
+  audio_i_heard_pt: {
+    pt: "🎧 *Eu ouvi:*\n\"{transcript}\"",
+    es: "🎧 *Eu ouvi:*\n\"{transcript}\"",
+    en: "🎧 *Eu ouvi:*\n\"{transcript}\"",
+  },
+  audio_i_heard_es: {
+    pt: "🎧 *Escuché:*\n\"{transcript}\"",
+    es: "🎧 *Escuché:*\n\"{transcript}\"",
+    en: "🎧 *Escuché:*\n\"{transcript}\"",
   },
   audio_conv_not_understood_pt: {
     pt: "⚠️ Não consegui entender o áudio (muito baixo ou com ruído). Pode gravar de novo bem perto do microfone?",
@@ -2878,6 +2905,7 @@ Return ONLY this JSON format:
 /**
  * Handle conversational audio - when user sends audio outside of exercise context.
  * Provides structured feedback with transcription, corrections, and target sentence.
+ * NEW: Checks if user correctly repeated the target sentence and advances instead of looping.
  */
 async function handleConversationalAudio(
   supabase: SupabaseClientType,
@@ -2948,12 +2976,58 @@ async function handleConversationalAudio(
     ? detectedLang 
     : responseLang;
   
-  // Step 5: Send "Eu ouvi" / "Escuché" message first
+  // Step 5: Check if there's a pending target sentence to match
+  const state = await getOrCreateState(supabase, waId);
+  const audioPractice = state.data.audio_practice;
+  
+  if (audioPractice && audioPractice.target_sentence) {
+    // User is practicing - check if they matched the target
+    const { score, label } = calculateAudioScore(audioPractice.target_sentence, transcript);
+    console.log(`[AUDIO] Score for target match: ${score} (${label})`);
+    
+    if (label === "correct" || label === "close") {
+      // SUCCESS! User correctly repeated the target
+      console.log(`[AUDIO] User correctly repeated target sentence`);
+      
+      // Clear the audio practice state
+      state.data.audio_practice = undefined;
+      await updateState(supabase, waId, state.step, state.data);
+      
+      // Send success message
+      const successKey = feedbackLang === "pt" ? "audio_practice_success_pt" : "audio_practice_success_es";
+      await send(waId, t(feedbackLang, successKey));
+      
+      return true;
+    } else {
+      // Not close enough - show what we heard and encourage retry
+      const heardKey = feedbackLang === "pt" ? "audio_i_heard_pt" : "audio_i_heard_es";
+      await send(waId, t(feedbackLang, heardKey, { transcript }));
+      await new Promise(r => setTimeout(r, 500));
+      
+      // Increment attempts
+      state.data.audio_practice = {
+        target_sentence: audioPractice.target_sentence,
+        attempts: (audioPractice.attempts || 0) + 1,
+      };
+      await updateState(supabase, waId, state.step, state.data);
+      
+      // Give a short hint and ask to retry
+      const retryMsg = feedbackLang === "pt"
+        ? `🔄 Quase! Tente de novo:\n\n🔁 *"${audioPractice.target_sentence}"*\n\n_Fale devagar e claro._`
+        : `🔄 ¡Casi! Inténtalo de nuevo:\n\n🔁 *"${audioPractice.target_sentence}"*\n\n_Habla despacio y claro._`;
+      await send(waId, retryMsg);
+      
+      return true;
+    }
+  }
+  
+  // Step 6: No pending target - this is a new conversational audio
+  // Send "Eu ouvi" / "Escuché" message first
   const heardKey = feedbackLang === "pt" ? "audio_i_heard_pt" : "audio_i_heard_es";
   await send(waId, t(feedbackLang, heardKey, { transcript }));
   await new Promise(r => setTimeout(r, 500));
   
-  // Step 6: Generate AI feedback with corrections
+  // Step 7: Generate AI feedback with corrections
   const feedback = await generateConversationalAudioFeedback(transcript, feedbackLang);
   
   if (feedback) {
@@ -2961,29 +3035,56 @@ async function handleConversationalAudio(
     const fixesList = [feedback.fix1, feedback.fix2]
       .filter(f => f && f.trim().length > 0);
     
-    // Only show fixes section if there are actual corrections
-    const fixes = fixesList.length > 0 
-      ? fixesList.map(f => `• ${f}`).join("\n")
-      : "";
+    // Determine target sentence
+    const targetSentence = feedback.target_sentence || feedback.english_natural.split(".")[0].trim();
     
-    // Build feedback message
-    const feedbackKey = feedbackLang === "pt" ? "audio_conv_feedback_pt" : "audio_conv_feedback_es";
+    // Check if transcript is already correct/natural (avoid redundant feedback)
+    const normalizedTranscript = normalizeForScoring(transcript);
+    const normalizedCorrect = normalizeForScoring(feedback.english_correct);
+    const normalizedNatural = normalizeForScoring(feedback.english_natural);
     
-    // If no fixes, use simplified message
-    if (fixes) {
-      await send(waId, t(feedbackLang, feedbackKey, {
-        english_correct: feedback.english_correct,
-        english_natural: feedback.english_natural,
-        fixes: fixes,
-        target_sentence: feedback.target_sentence || feedback.english_natural.split(".")[0],
-      }));
+    const isAlreadyCorrect = normalizedTranscript === normalizedCorrect || 
+                              normalizedTranscript === normalizedNatural ||
+                              calculateAudioScore(feedback.english_correct, transcript).score >= 0.95;
+    
+    if (isAlreadyCorrect && fixesList.length === 0) {
+      // User's English was already perfect - just confirm and give target to practice
+      const perfectMsg = feedbackLang === "pt"
+        ? `✅ *Está perfeito!* 🌟\n\n🔁 Agora repete (pronúncia):\n*"${targetSentence}"*`
+        : `✅ *¡Está perfecto!* 🌟\n\n🔁 Ahora repite (pronunciación):\n*"${targetSentence}"*`;
+      await send(waId, perfectMsg);
     } else {
-      // Simpler message without fixes section
-      const simpleMsg = feedbackLang === "pt"
-        ? `✅ *Em inglês:*\n"${feedback.english_natural}"\n\n🔁 *Repete:*\n"${feedback.target_sentence || feedback.english_natural.split(".")[0]}"`
-        : `✅ *En inglés:*\n"${feedback.english_natural}"\n\n🔁 *Repite:*\n"${feedback.target_sentence || feedback.english_natural.split(".")[0]}"`;
-      await send(waId, simpleMsg);
+      // Only show fixes section if there are actual corrections
+      const fixes = fixesList.length > 0 
+        ? fixesList.map(f => `• ${f}`).join("\n")
+        : "";
+      
+      // Build feedback message
+      const feedbackKey = feedbackLang === "pt" ? "audio_conv_feedback_pt" : "audio_conv_feedback_es";
+      
+      // If no fixes, use simplified message
+      if (fixes) {
+        await send(waId, t(feedbackLang, feedbackKey, {
+          english_correct: feedback.english_correct,
+          english_natural: feedback.english_natural,
+          fixes: fixes,
+          target_sentence: targetSentence,
+        }));
+      } else {
+        // Simpler message without fixes section - also explain "curta"
+        const simpleMsg = feedbackLang === "pt"
+          ? `✅ *Em inglês:*\n"${feedback.english_natural}"\n\n🔁 *Repete esta frase (curta = só 1 frase, 6-8 palavras):*\n"${targetSentence}"`
+          : `✅ *En inglés:*\n"${feedback.english_natural}"\n\n🔁 *Repite esta frase (corta = solo 1 frase, 6-8 palabras):*\n"${targetSentence}"`;
+        await send(waId, simpleMsg);
+      }
     }
+    
+    // Save the target sentence for next audio check
+    state.data.audio_practice = {
+      target_sentence: targetSentence,
+      attempts: 0,
+    };
+    await updateState(supabase, waId, state.step, state.data);
   } else {
     // Fallback: just confirm we received the audio
     const fallbackMsg = feedbackLang === "pt" 
