@@ -1,140 +1,205 @@
 
-# Admin Status Command Implementation Plan
 
-## Problem Summary
+# Plano: Fluxo de Áudio Profissional com Rate Limiting
 
-You encountered two issues:
-1. **Audio test failed** because you were in the `day_production` step, and the audio transcription hit a rate limit (429 error from Whisper API)
-2. **RESTART command didn't work** - based on the logs, the last message logged was the audio at 21:25:42. The RESTART command should work from any state, so if it didn't respond, there might have been a logging/timing issue OR the message wasn't received by the webhook
+## Contexto
 
-## Current State
-- Your wa_id is `34672953062` (confirmed as ADMIN_WA_ID)
-- Current step: `day_failed` (Day 2, 25% score)
-- Admin bypass IS configured and working (per memory and code review)
+O bot atual responde com "Não consegui entender o áudio (muito baixo ou com ruído)" quando a API do OpenAI falha por falta de quota. Isso é enganoso e parece fake. Precisamos de um fluxo honesto e profissional.
 
-## Proposed Solution: Add Admin Status Command
+## Visão Geral das Mudanças
 
-Create an admin-only diagnostic command (`/admin` or `status`) that provides:
-- Confirmation that admin mode is active
-- Current bot state information
-- System health check
-- Quick actions (force reset, skip to any step)
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                    FLUXO DE ÁUDIO ATUAL                         │
+├─────────────────────────────────────────────────────────────────┤
+│  Audio → Transcrição → Falha API → "Áudio baixo/ruído" ❌      │
+│                                    (mensagem errada)            │
+└─────────────────────────────────────────────────────────────────┘
+
+                            ↓
+
+┌─────────────────────────────────────────────────────────────────┐
+│                    FLUXO DE ÁUDIO NOVO                          │
+├─────────────────────────────────────────────────────────────────┤
+│  Audio → Check Rate Limit → Transcrição → Sucesso:             │
+│                   ↓                         • "Eu ouvi: ..."    │
+│              Se limite:                     • Correção EN       │
+│              "Limite beta"                  • Frase para repetir│
+│                   ↓                                             │
+│              Se falha API:                                      │
+│              "Modo beta indisponível, envie texto"              │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## Implementation Details
+## 1. Criar Tabelas no Banco de Dados
 
-### 1. Add I18N Keys for Admin Messages
+### Tabela: `audio_transcription_errors`
+Registra falhas de transcrição para análise.
 
-Add new entries to the I18N dictionary:
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | uuid | PK |
+| wa_id | text | Telefone do usuário |
+| error_code | text | quota_exceeded, rate_limit, auth_error, etc |
+| raw_error | text | Resposta completa da API |
+| request_id | text | ID único da requisição |
+| created_at | timestamptz | Timestamp |
+
+### Tabela: `audio_usage`
+Controla rate limit por usuário e global.
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | uuid | PK |
+| wa_id | text | Telefone (ou 'global' para contagem global) |
+| date | date | Data do uso |
+| count | integer | Quantidade de áudios no dia |
+| created_at | timestamptz | Timestamp |
+
+**Índice único**: `(wa_id, date)` para upsert eficiente.
+
+---
+
+## 2. Modificar Função `transcribeAudio`
+
+**Arquivo**: `supabase/functions/whatsapp-webhook/index.ts`  
+**Linhas**: ~2250-2280
+
+### Mudança: Diferenciar tipos de erro 429
 
 ```text
-admin_status: Status diagnostico for admin showing:
-- Admin status (active/inactive)
-- Current wa_id
-- Current step/state
-- Subscription status
-- Trial status
-- Last N events summary
-```
+Atual:
+  if (response.status === 429) → error: "rate_limit"
 
-### 2. Add Admin Commands
-
-Implement these admin-only commands in `processMessage()`:
-
-| Command | Action |
-|---------|--------|
-| `/admin` or `ADMIN STATUS` | Show diagnostic info |
-| `/reset` or `ADMIN RESET` | Force reset to welcome (no confirmation) |
-| `/skip [step]` | Jump to specific step |
-| `/setstep [step_name]` | Set arbitrary step |
-
-### 3. Code Changes in whatsapp-webhook/index.ts
-
-Location: After global commands section (around line 3258), add admin command handling:
-
-```text
-// ========== ADMIN COMMANDS (BEFORE OTHER COMMANDS) ==========
-
-if (lower.startsWith("/admin") || lower.startsWith("admin ") || lower === "admin") {
-  const accessStatus = getAccessStatus(user, waId);
-  
-  if (!accessStatus.isAdmin) {
-    // Silently ignore for non-admins
-    continue with normal flow
+Novo:
+  if (response.status === 429) {
+    if (errorText contém "insufficient_quota") → error: "quota_exceeded"
+    senão → error: "rate_limit"
   }
-  
-  // Parse subcommand
-  if (lower includes "status" or just "/admin") {
-    -> Show full diagnostic
-  } else if (lower includes "reset") {
-    -> Force reset without confirmation
-  } else if (lower includes "skip") {
-    -> Parse target step and jump
-  }
-}
+  if (response.status === 401) → error: "auth_error"
+  if (response.status === 403) → error: "auth_error"
 ```
 
-### 4. Admin Diagnostic Message Format
+---
+
+## 3. Adicionar Funções de Rate Limiting
+
+**Arquivo**: `supabase/functions/whatsapp-webhook/index.ts`  
+**Local**: Após a função `processAudioMessage` (~linha 2376)
+
+### Novas funções:
 
 ```text
-🔧 *Admin Status*
+checkAudioRateLimit(supabase, waId):
+  - Buscar contagem do usuário hoje (limite: 2/dia)
+  - Buscar contagem global hoje (limite: 20/dia)
+  - Retornar { allowed: boolean, reason?: "user_limit" | "global_limit" }
 
-✅ Admin Mode: ACTIVE
-📱 wa_id: 34672***3062
-📍 Current Step: day_failed
-📊 Progress: Day 2, Exercise 4/4
-💳 Subscription: paid (admin bypass)
-⏰ Trial: N/A (admin)
+incrementAudioUsage(supabase, waId):
+  - Upsert em audio_usage para usuário
+  - Upsert em audio_usage para "global"
 
-*Recent Events (5):*
-• 21:25 - audio_transcription_failed
-• 21:25 - production_submitted
-• 21:23 - exercise_answered
-...
-
-*Quick Actions:*
-• /admin reset - Reset to welcome
-• /admin step ready - Jump to ready
-• /admin step day_intro - Jump to lesson
+logTranscriptionError(supabase, waId, errorCode, rawError, requestId):
+  - Insert em audio_transcription_errors
 ```
 
-### 5. Force Reset Command
+---
 
-Add an admin-only instant reset:
-- Command: `/admin reset` or `ADMIN RESET`
-- Action: Immediately reset to `welcome` step with empty data
-- No confirmation needed (admin is trusted)
-- Log event: `admin_reset_used`
+## 4. Adicionar Novas Strings I18N
 
-### 6. Event Tracking
+**Arquivo**: `supabase/functions/whatsapp-webhook/index.ts`  
+**Local**: Dicionário I18N (~linha 540)
 
-Add new event type to track admin command usage:
-- `admin_command_used` with metadata: `{ command, subcommand, result }`
+```text
+audio_beta_unavailable_pt:
+  "⚠️ O modo de áudio está em beta e temporariamente indisponível.
+   Por favor, envie a mesma frase por texto."
+
+audio_beta_unavailable_es:
+  "⚠️ El modo de audio está en beta y temporalmente no disponible.
+   Por favor, envía la misma frase por texto."
+
+audio_beta_limit_reached_pt:
+  "⚠️ Limite do modo beta atingido hoje.
+   Por favor, envie sua resposta por texto."
+
+audio_beta_limit_reached_es:
+  "⚠️ Límite del modo beta alcanzado hoy.
+   Por favor, envía tu respuesta por texto."
+```
 
 ---
 
-## Files to Modify
+## 5. Modificar `handleConversationalAudio`
 
-| File | Changes |
-|------|---------|
-| `supabase/functions/whatsapp-webhook/index.ts` | Add admin command handling, I18N keys, and helper functions |
+**Arquivo**: `supabase/functions/whatsapp-webhook/index.ts`  
+**Linhas**: ~2674-2741
+
+### Novo fluxo:
+
+```text
+1. ANTES de transcrever, verificar rate limit:
+   - Se limite excedido → enviar mensagem "limite beta" → return true
+
+2. Chamar transcrição
+
+3. Se falhou:
+   - Logar erro em audio_transcription_errors
+   - Se error = quota_exceeded | auth_error | rate_limit | whisper_error_*:
+     → enviar mensagem "beta indisponível, envie texto"
+   - Se error = download_failed | fetch_url_failed:
+     → manter mensagem atual (problema de áudio real)
+
+4. Se sucesso:
+   - Incrementar contagem de uso
+   - Enviar "Eu ouvi: ..." primeiro
+   - Depois correção + frase para repetir
+```
 
 ---
 
-## Technical Notes
+## 6. Atualizar Outros Handlers de Áudio
 
-1. **Security**: Admin commands only execute if `getAccessStatus().isAdmin === true`
-2. **Non-intrusive**: Non-admin users who type `/admin` just get normal flow
-3. **Logging**: All admin commands are tracked in `wa_events`
-4. **Language**: Admin messages will use the user's preferred language
+Os mesmos princípios devem ser aplicados em:
+- Handler de áudio no placement test (~linha 3400+)
+- Handler de áudio em exercícios (~linha 3600+)
+
+Verificar se usam `processAudioMessage` e aplicar mesma lógica de erro.
 
 ---
 
-## Testing Plan
+## Resumo das Mudanças
 
-After implementation:
-1. Send `/admin` from your admin wa_id -> Should show diagnostic
-2. Send `/admin reset` -> Should immediately reset to welcome
-3. Send `/admin` from a non-admin number -> Should be ignored
-4. Verify `wa_events` logs the `admin_command_used` event
+| Local | Tipo | Descrição |
+|-------|------|-----------|
+| Banco de dados | Migração | Criar tabelas `audio_transcription_errors` e `audio_usage` |
+| Linha ~2257 | Código | Diferenciar `quota_exceeded` de `rate_limit` |
+| Linha ~2376 | Código | Adicionar 3 novas funções helper |
+| Linha ~540 | I18N | Adicionar 4 novas strings de erro |
+| Linha ~2674 | Código | Modificar `handleConversationalAudio` para novo fluxo |
+
+---
+
+## Constantes de Rate Limit
+
+```text
+const AUDIO_LIMIT_PER_USER_DAY = 2;   // 2 áudios/usuário/dia
+const AUDIO_LIMIT_GLOBAL_DAY = 20;    // 20 áudios/dia total
+```
+
+Estes valores são conservadores para o beta. Podem ser ajustados depois.
+
+---
+
+## Resultado Esperado
+
+| Cenário | Mensagem Atual | Mensagem Nova |
+|---------|---------------|---------------|
+| Quota excedida | "Áudio baixo/ruído" ❌ | "Modo beta indisponível, envie texto" ✅ |
+| Rate limit API | "Áudio baixo/ruído" ❌ | "Modo beta indisponível, envie texto" ✅ |
+| Limite diário usuário | N/A | "Limite beta atingido, envie texto" ✅ |
+| Áudio realmente ruim | "Áudio baixo/ruído" | "Áudio baixo/ruído" (mantém) |
+| Transcrição OK | Feedback genérico | "Eu ouvi: ..." + correção + frase |
+
