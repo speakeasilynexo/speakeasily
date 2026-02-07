@@ -22,7 +22,7 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-background/90 border-b border-border">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+        <div className="container mx-auto px-3 sm:px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-10 h-10 rounded-xl gradient-hero flex items-center justify-center">
               <MessageCircle className="w-5 h-5 text-primary-foreground" />
@@ -40,7 +40,7 @@ const Index = () => {
               Prueba Gratis
             </a>
           </nav>
-          <Button className="gradient-hero" asChild>
+          <Button className="gradient-hero text-xs sm:text-sm px-3 sm:px-4" asChild>
             <a href={whatsappLink}>
               Empieza Ahora
             </a>
@@ -58,7 +58,7 @@ const Index = () => {
                 <span>Aprende inglés sin descargar apps</span>
               </div>
 
-              <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6 leading-tight">
+              <h1 className="font-display text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6 leading-tight">
                 Aprende inglés{" "}
                 <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
                   directamente desde WhatsApp
@@ -70,7 +70,7 @@ const Index = () => {
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4">
-                <Button size="lg" className="gradient-hero text-lg px-8 py-6 shadow-elevated" asChild>
+                <Button size="lg" className="gradient-hero text-base sm:text-lg px-4 sm:px-8 py-6 shadow-elevated w-full sm:w-auto whitespace-normal text-center" asChild>
                   <a href={whatsappLink}>
                     <MessageCircle className="w-5 h-5 mr-2" />
                     Empieza Gratis por WhatsApp
@@ -85,7 +85,7 @@ const Index = () => {
 
             {/* Phone Mockup */}
             <div className="relative max-w-sm mx-auto lg:mx-0 lg:ml-auto">
-              <div className="absolute inset-0 gradient-hero opacity-20 blur-3xl rounded-full" />
+              <div className="absolute inset-0 gradient-hero opacity-20 blur-3xl rounded-full hidden sm:block" />
               <div className="relative bg-card rounded-3xl shadow-elevated border border-border p-4">
                 <div className="bg-muted rounded-2xl p-4 space-y-3">
                   <div className="flex gap-3">
@@ -292,7 +292,7 @@ const Index = () => {
         <div className="container mx-auto max-w-3xl text-center">
           <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">¿Listo para Hablar Inglés?</h2>
           <p className="text-muted-foreground text-lg mb-8">Empieza ahora y verás tu progreso en pocos días.</p>
-          <Button size="lg" className="gradient-hero text-lg px-8 py-6 shadow-elevated" asChild>
+          <Button size="lg" className="gradient-hero text-base sm:text-lg px-4 sm:px-8 py-6 shadow-elevated w-full sm:w-auto whitespace-normal text-center" asChild>
             <a href={whatsappLink}>
               <MessageCircle className="w-5 h-5 mr-2" />
               Iniciar Mi Viaje
