@@ -190,6 +190,78 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// ============== WEBHOOK SIGNATURE VERIFICATION ==============
+
+/**
+ * Verifies the X-Hub-Signature-256 header from Meta webhooks.
+ * Uses HMAC SHA-256 with APP_SECRET to validate payload integrity.
+ * @param request The incoming request (to read header)
+ * @param rawBody The raw body string
+ * @returns true if signature is valid, false otherwise
+ */
+async function verifyMetaSignature(request: Request, rawBody: string): Promise<boolean> {
+  const signature = request.headers.get("x-hub-signature-256");
+  if (!signature) {
+    console.log("[SIGNATURE] Missing x-hub-signature-256 header");
+    return false;
+  }
+
+  const appSecret = Deno.env.get("APP_SECRET");
+  if (!appSecret) {
+    console.error("[SIGNATURE] APP_SECRET not configured");
+    return false;
+  }
+
+  // Expected format: "sha256=HEX"
+  if (!signature.startsWith("sha256=")) {
+    console.log("[SIGNATURE] Invalid signature format, expected 'sha256=...'");
+    return false;
+  }
+
+  const expectedHex = signature.slice(7); // Remove "sha256=" prefix
+
+  try {
+    // Create HMAC SHA-256 key from APP_SECRET
+    const encoder = new TextEncoder();
+    const keyData = encoder.encode(appSecret);
+    const key = await crypto.subtle.importKey(
+      "raw",
+      keyData,
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"]
+    );
+
+    // Calculate HMAC of raw body
+    const bodyData = encoder.encode(rawBody);
+    const signatureBuffer = await crypto.subtle.sign("HMAC", key, bodyData);
+
+    // Convert to hex
+    const signatureArray = new Uint8Array(signatureBuffer);
+    const calculatedHex = Array.from(signatureArray)
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+
+    // Timing-safe comparison (constant time)
+    if (calculatedHex.length !== expectedHex.length) {
+      console.log("[SIGNATURE] Length mismatch");
+      return false;
+    }
+
+    let result = 0;
+    for (let i = 0; i < calculatedHex.length; i++) {
+      result |= calculatedHex.charCodeAt(i) ^ expectedHex.toLowerCase().charCodeAt(i);
+    }
+
+    const isValid = result === 0;
+    console.log(`[SIGNATURE] Verification ${isValid ? "SUCCESS" : "FAILED"}`);
+    return isValid;
+  } catch (err) {
+    console.error("[SIGNATURE] Verification error:", err);
+    return false;
+  }
+}
+
 // ============== I18N DICTIONARY ==============
 
 const I18N: Record<string, Record<Language, string>> = {
@@ -4185,23 +4257,29 @@ serve(async (req: Request) => {
 
   const url = new URL(req.url);
 
-  // ====== VERIFY (GET) ======
+  // ====== VERIFY (GET) - Meta webhook verification ONLY ======
   if (req.method === "GET") {
     console.log("[WEBHOOK] GET request - webhook verification");
     const mode = url.searchParams.get("hub.mode");
     const token = url.searchParams.get("hub.verify_token");
     const challenge = url.searchParams.get("hub.challenge");
 
-    if (mode === "subscribe" && token === Deno.env.get("WHATSAPP_VERIFY_TOKEN")) {
+    // Only allow Meta's webhook verification handshake
+    if (
+      mode === "subscribe" &&
+      token === Deno.env.get("WHATSAPP_VERIFY_TOKEN") &&
+      challenge
+    ) {
       console.log("[WEBHOOK] Verification SUCCESS");
       return new Response(challenge, {
         status: 200,
-        headers: { ...corsHeaders, "Content-Type": "text/plain" },
+        headers: { "Content-Type": "text/plain" },
       });
     }
 
-    console.log("[WEBHOOK] Verification FAILED");
-    return new Response("Forbidden", { status: 403, headers: corsHeaders });
+    // Reject all other GET requests
+    console.log("[WEBHOOK] GET rejected - invalid verification params");
+    return new Response("Method Not Allowed", { status: 405 });
   }
 
   // ====== WEBHOOK (POST) ======
@@ -4215,6 +4293,13 @@ serve(async (req: Request) => {
     } catch (readError) {
       console.error("[WEBHOOK] Failed to read body:", readError);
       return new Response("OK", { status: 200, headers: corsHeaders });
+    }
+
+    // Validate Meta webhook signature before processing
+    const signatureValid = await verifyMetaSignature(req, raw);
+    if (!signatureValid) {
+      console.error("[WEBHOOK] Invalid signature - rejecting request");
+      return new Response("Forbidden", { status: 403 });
     }
 
     let body: WhatsAppWebhookPayload;
