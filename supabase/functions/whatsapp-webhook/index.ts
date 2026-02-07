@@ -1743,6 +1743,38 @@ async function handleAdminCommand(
     return true;
   }
   
+  // NEW: Admin lang command - changes language even if locked
+  if (subcommand === "lang" && arg) {
+    const langChoice = arg.toLowerCase();
+    let newLang: Language | null = null;
+    
+    if (langChoice === "pt" || langChoice === "português") newLang = "pt";
+    else if (langChoice === "es" || langChoice === "español") newLang = "es";
+    else if (langChoice === "en" || langChoice === "english") newLang = "en";
+    
+    if (newLang) {
+      const showTranslations = newLang !== "en";
+      await supabase.from("wa_users").update({
+        preferred_language: newLang,
+        show_translations: showTranslations,
+        ui_language_locked: true,
+      }).eq("wa_id", waId);
+      
+      await trackEvent(supabase, waId, "language_selected", {
+        language: newLang,
+        source: "admin_command",
+        admin_override: true,
+      });
+      
+      const confirmKey = `language_confirm_${newLang}`;
+      await send(waId, `🔧 *Admin:* ${t(newLang, confirmKey)}`);
+      return true;
+    } else {
+      await send(waId, `❌ Idioma inválido: ${arg}\n\n*Válidos:* pt, es, en`);
+      return true;
+    }
+  }
+  
   if (subcommand === "step" && arg) {
     const targetStep = arg.toLowerCase();
     
@@ -1787,9 +1819,9 @@ async function handleAdminCommand(
       : "N/A (admin)";
   
   const currentDay = progress?.current_day || 1;
-  const currentExercise = Math.min((progress?.current_exercise_index || 0) + 1, 4);
   const dayLesson = SEVEN_DAY_PLAN.find(d => d.day === currentDay);
   const totalExercises = dayLesson?.exercises.length || 4;
+  const currentExercise = Math.min((progress?.current_exercise_index || 0) + 1, totalExercises);
   
   await send(waId, t(lang, "admin_status", {
     wa_id_masked: maskWaId(waId),
@@ -2061,7 +2093,7 @@ async function downloadMedia(url: string): Promise<Blob | null> {
 }
 
 /**
- * Transcribe audio using OpenAI Whisper API
+ * Transcribe audio using OpenAI Whisper API with retry for rate limits
  */
 async function transcribeAudio(audioBlob: Blob, mimeType: string): Promise<TranscriptionResult> {
   const openaiKey = Deno.env.get("OPENAI_API_KEY");
@@ -2072,71 +2104,89 @@ async function transcribeAudio(audioBlob: Blob, mimeType: string): Promise<Trans
     return { success: false, transcript: "", error: "missing_api_key", request_id: requestId };
   }
 
-  try {
-    // Determine file extension based on mime type
-    const extMap: Record<string, string> = {
-      "audio/ogg": "ogg",
-      "audio/opus": "opus",
-      "audio/mpeg": "mp3",
-      "audio/mp4": "m4a",
-      "audio/wav": "wav",
-      "audio/webm": "webm",
-    };
-    const ext = extMap[mimeType] || "ogg";
-    
-    const formData = new FormData();
-    formData.append("file", audioBlob, `audio.${ext}`);
-    formData.append("model", "whisper-1");
-    formData.append("language", "en"); // Transcribe to English
-    formData.append("response_format", "verbose_json");
+  // Retry config: 2 retries with backoff (800ms, 1600ms)
+  const maxRetries = 2;
+  const baseDelay = 800;
 
-    const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${openaiKey}`,
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("[AUDIO] Whisper API error:", response.status, errorText);
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      // Determine file extension based on mime type
+      const extMap: Record<string, string> = {
+        "audio/ogg": "ogg",
+        "audio/opus": "opus",
+        "audio/mpeg": "mp3",
+        "audio/mp4": "m4a",
+        "audio/wav": "wav",
+        "audio/webm": "webm",
+      };
+      const ext = extMap[mimeType] || "ogg";
       
-      // Handle rate limit specifically
-      if (response.status === 429) {
+      const formData = new FormData();
+      formData.append("file", audioBlob, `audio.${ext}`);
+      formData.append("model", "whisper-1");
+      formData.append("language", "en"); // Transcribe to English
+      formData.append("response_format", "verbose_json");
+
+      const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${openaiKey}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[AUDIO] Whisper API error (attempt ${attempt + 1}):`, response.status, errorText);
+        
+        // Handle rate limit with retry
+        if (response.status === 429) {
+          if (attempt < maxRetries) {
+            const delay = baseDelay * Math.pow(2, attempt); // 800ms, 1600ms
+            console.log(`[AUDIO] Rate limited, retrying in ${delay}ms...`);
+            await new Promise(r => setTimeout(r, delay));
+            continue;
+          }
+          return { 
+            success: false, 
+            transcript: "", 
+            error: "rate_limit", 
+            request_id: requestId 
+          };
+        }
+        
         return { 
           success: false, 
           transcript: "", 
-          error: "rate_limit", 
+          error: `whisper_error_${response.status}`, 
           request_id: requestId 
         };
       }
-      
-      return { 
-        success: false, 
-        transcript: "", 
-        error: `whisper_error_${response.status}`, 
-        request_id: requestId 
-      };
-    }
 
-    const data = await response.json();
-    const transcript = data.text?.trim() || "";
-    const audioSeconds = data.duration || 0;
-    
-    console.log("[AUDIO] Transcription successful:", transcript.slice(0, 50) + "...");
-    
-    return {
-      success: true,
-      transcript,
-      confidence: data.segments?.[0]?.avg_logprob ? Math.exp(data.segments[0].avg_logprob) : undefined,
-      request_id: requestId,
-      audio_seconds: audioSeconds,
-    };
-  } catch (error) {
-    console.error("[AUDIO] transcribeAudio exception:", error);
-    return { success: false, transcript: "", error: "transcription_exception", request_id: requestId };
+      const data = await response.json();
+      const transcript = data.text?.trim() || "";
+      const audioSeconds = data.duration || 0;
+      
+      console.log("[AUDIO] Transcription successful:", transcript.slice(0, 50) + "...");
+      
+      return {
+        success: true,
+        transcript,
+        confidence: data.segments?.[0]?.avg_logprob ? Math.exp(data.segments[0].avg_logprob) : undefined,
+        request_id: requestId,
+        audio_seconds: audioSeconds,
+      };
+    } catch (error) {
+      console.error(`[AUDIO] transcribeAudio exception (attempt ${attempt + 1}):`, error);
+      if (attempt >= maxRetries) {
+        return { success: false, transcript: "", error: "transcription_exception", request_id: requestId };
+      }
+      const delay = baseDelay * Math.pow(2, attempt);
+      await new Promise(r => setTimeout(r, delay));
+    }
   }
+  
+  return { success: false, transcript: "", error: "transcription_exception", request_id: requestId };
 }
 
 /**
@@ -2209,6 +2259,81 @@ async function processAudioMessage(
   }
 
   return result;
+}
+
+// ============== LEVENSHTEIN SCORING (no libs) ==============
+
+/**
+ * Normalize text for comparison: lowercase, remove punctuation, trim
+ */
+function normalizeForScoring(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[.,!?'";\-:]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Calculate Levenshtein distance between two strings
+ * Classic dynamic programming approach, no external libs
+ */
+function levenshteinDistance(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  
+  // Create a 2D array (m+1) x (n+1)
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+  
+  // Base cases
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  
+  // Fill the matrix
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (a[i - 1] === b[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1];
+      } else {
+        dp[i][j] = 1 + Math.min(
+          dp[i - 1][j],     // deletion
+          dp[i][j - 1],     // insertion
+          dp[i - 1][j - 1]  // substitution
+        );
+      }
+    }
+  }
+  
+  return dp[m][n];
+}
+
+/**
+ * Calculate similarity score (0 to 1) based on Levenshtein distance
+ */
+function calculateAudioScore(expected: string, actual: string): { score: number; label: "correct" | "close" | "incorrect" } {
+  const normExpected = normalizeForScoring(expected);
+  const normActual = normalizeForScoring(actual);
+  
+  if (normExpected.length === 0 && normActual.length === 0) {
+    return { score: 1, label: "correct" };
+  }
+  
+  const distance = levenshteinDistance(normExpected, normActual);
+  const maxLen = Math.max(normExpected.length, normActual.length);
+  
+  const score = maxLen > 0 ? 1 - (distance / maxLen) : 0;
+  
+  // Classify the score
+  let label: "correct" | "close" | "incorrect";
+  if (score >= 0.90) {
+    label = "correct";
+  } else if (score >= 0.75) {
+    label = "close";
+  } else {
+    label = "incorrect";
+  }
+  
+  return { score: Math.round(score * 100) / 100, label };
 }
 
 /**
@@ -2943,6 +3068,7 @@ async function handleExerciseAnswer(
   let transcript = "";
   let pronunciationTip = "";
   let requestId = "";
+  let audioScoreData: { score: number; label: "correct" | "close" | "incorrect" } | null = null;
 
   // Handle audio input
   if (audioData) {
@@ -2965,6 +3091,23 @@ async function handleExerciseAnswer(
 
     transcript = transcriptionResult.transcript;
     requestId = transcriptionResult.request_id || "";
+    
+    // Calculate Levenshtein score for non-MCQ exercises
+    if (exercise.type !== "choose_correct") {
+      audioScoreData = calculateAudioScore(exercise.correct_answer, transcript);
+      
+      // Update audio_received event with score
+      await trackEvent(supabase, waId, "audio_received", {
+        media_id: audioData.media_id,
+        transcript_text: transcript,
+        target_text: exercise.correct_answer,
+        score_numeric: audioScoreData.score,
+        score_label: audioScoreData.label,
+        provider: "openai",
+        request_id: requestId,
+        step_at_time: state.step,
+      });
+    }
     
     // For MCQ, extract letter from transcript
     if (exercise.type === "choose_correct" && exercise.options) {
@@ -3011,6 +3154,8 @@ async function handleExerciseAnswer(
     input_type: audioData ? "audio" : "text",
     transcript: transcript,
     media_id: audioData?.media_id || null,
+    audio_score: audioScoreData?.score || null,
+    audio_score_label: audioScoreData?.label || null,
   });
 
   // Build response for audio input
@@ -3028,13 +3173,20 @@ async function handleExerciseAnswer(
     await send(waId, t(lang, "audio_pronunciation_tip", { tip: pronunciationTip }));
     await new Promise(r => setTimeout(r, 400));
 
-    // Admin debug info
+    // Admin debug info with score
     if (isAdmin) {
-      await send(waId, t(lang, "admin_audio_debug", {
+      let debugMsg = t(lang, "admin_audio_debug", {
         request_id: requestId,
         step: state.step,
         transcript: transcript,
-      }));
+      });
+      
+      // Add score info for admin
+      if (audioScoreData) {
+        debugMsg += `\n📊 Score: ${audioScoreData.score.toFixed(2)} (${audioScoreData.label})`;
+      }
+      
+      await send(waId, debugMsg);
     }
 
     // Show next step prompt
@@ -3371,6 +3523,24 @@ async function handleReviewAnswerWithAudio(
   const transcript = transcriptionResult.transcript;
   const requestId = transcriptionResult.request_id || "";
   let actualAnswer = transcript;
+  let audioScoreData: { score: number; label: "correct" | "close" | "incorrect" } | null = null;
+
+  // Calculate Levenshtein score for non-MCQ exercises
+  if (exercise.type !== "choose_correct") {
+    audioScoreData = calculateAudioScore(exercise.correct_answer, transcript);
+    
+    // Track audio_received with score
+    await trackEvent(supabase, waId, "audio_received", {
+      media_id: audioData.media_id,
+      transcript_text: transcript,
+      target_text: exercise.correct_answer,
+      score_numeric: audioScoreData.score,
+      score_label: audioScoreData.label,
+      provider: "openai",
+      request_id: requestId,
+      step_at_time: state.step,
+    });
+  }
 
   // For MCQ, extract letter
   if (exercise.type === "choose_correct" && exercise.options) {
@@ -3401,13 +3571,19 @@ async function handleReviewAnswerWithAudio(
   await send(waId, t(lang, "audio_pronunciation_tip", { tip }));
   await new Promise(r => setTimeout(r, 400));
 
-  // Admin debug
+  // Admin debug with score
   if (isAdmin) {
-    await send(waId, t(lang, "admin_audio_debug", {
+    let debugMsg = t(lang, "admin_audio_debug", {
       request_id: requestId,
       step: state.step,
       transcript: transcript,
-    }));
+    });
+    
+    if (audioScoreData) {
+      debugMsg += `\n📊 Score: ${audioScoreData.score.toFixed(2)} (${audioScoreData.label})`;
+    }
+    
+    await send(waId, debugMsg);
   }
 
   if (!evaluation.correct) {
@@ -3611,15 +3787,43 @@ async function processMessage(
   const isAdmin = accessStatus.isAdmin;
 
   // ========== LANGUAGE PICKER (PRIORITY FOR NEW USERS) ==========
+  // Se preferred_language é NULL, forçar escolha ANTES de qualquer fluxo
+  // Mesmo que o usuário escreva "hello", se não tiver idioma definido, perguntar primeiro
   
-  if (!user.preferred_language && state.step !== "language_picker") {
-    // New user without language - show picker immediately
-    await updateState(supabase, waId, "language_picker", state.data);
-    await send(waId, t(null, "language_picker"));
-    return;
+  if (!user.preferred_language) {
+    // Tentar parsear se a mensagem atual é uma escolha de idioma
+    const langChoice = parseLanguageChoice(messageText);
+    
+    if (langChoice) {
+      // Usuário escolheu um idioma válido
+      const showTranslations = langChoice !== "en";
+      await updateUserLanguage(supabase, waId, langChoice, showTranslations);
+      
+      await trackEvent(supabase, waId, "language_selected", {
+        language: langChoice,
+        source: "first_message",
+        raw_input: messageText,
+      });
+      
+      lang = langChoice;
+      const confirmKey = `language_confirm_${langChoice}`;
+      await send(waId, t(langChoice, confirmKey));
+      await new Promise(r => setTimeout(r, 600));
+      
+      // Após idioma definido, mostrar welcome
+      await updateState(supabase, waId, "welcome", state.data);
+      await send(waId, t(lang, "welcome", { name: displayName }));
+      await updateState(supabase, waId, "pre_placement", state.data);
+      return;
+    } else {
+      // Não é uma escolha válida - mostrar picker (sempre, independente do que escreveu)
+      await updateState(supabase, waId, "language_picker", state.data);
+      await send(waId, t(null, "language_picker"));
+      return;
+    }
   }
 
-  // Handle language picker responses
+  // Handle language picker responses (para usuários que já estavam no estado language_picker)
   if (state.step === "language_picker") {
     const result = await handleLanguageChange(supabase, waId, messageText, lang);
     if (result.handled) {
