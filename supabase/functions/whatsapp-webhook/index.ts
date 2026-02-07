@@ -59,6 +59,7 @@ interface UserData {
   subscription_plan: string | null;
   preferred_language: Language | null;
   show_translations: boolean;
+  prefers_audio: boolean;
 }
 
 interface MistakeTag {
@@ -160,7 +161,9 @@ type EventType =
   | "language_selected"
   | "subscribe_link_opened"
   | "audio_transcribed"
-  | "audio_transcription_failed";
+  | "audio_transcription_failed"
+  | "audio_received"
+  | "audio_preference_changed";
 
 type SubscriptionPlan = "mensual" | "trimestral" | "semestral";
 
@@ -224,19 +227,19 @@ const I18N: Record<string, Record<Language, string>> = {
   },
   // Placement test
   placement_intro: {
-    pt: "🎓 *Teste de Nível*\n\nVamos descobrir seu nível! São 3 partes curtas:\n\n📝 Parte 1: 3 perguntas rápidas\n✍️ Parte 2: Escreva sobre você\n🎤 Parte 3: Áudio opcional\n\n_Leva só 2-4 minutos!_ ⏱️",
-    es: "🎓 *Placement Test*\n\n¡Vamos a descubrir tu nivel! Son 3 partes cortas:\n\n📝 Parte 1: 3 preguntas rápidas\n✍️ Parte 2: Escribe sobre ti\n🎤 Parte 3: Audio opcional\n\n_¡Tarda solo 2-4 minutos!_ ⏱️",
-    en: "🎓 *Placement Test*\n\nLet's discover your level! It's 3 short parts:\n\n📝 Part 1: 3 quick questions\n✍️ Part 2: Write about yourself\n🎤 Part 3: Optional audio\n\n_Only takes 2-4 minutes!_ ⏱️",
+    pt: "🎓 *Teste de Nível*\n\nVamos descobrir seu nível! São 3 partes curtas:\n\n📝 Parte 1: 3 perguntas rápidas\n✍️ Parte 2: Escreva sobre você\n🎤 Parte 3: Áudio opcional\n\n_Leva só 2-4 minutos!_ ⏱️\n\n💡 Você pode responder por *texto* ou *áudio* a qualquer momento!",
+    es: "🎓 *Placement Test*\n\n¡Vamos a descubrir tu nivel! Son 3 partes cortas:\n\n📝 Parte 1: 3 preguntas rápidas\n✍️ Parte 2: Escribe sobre ti\n🎤 Parte 3: Audio opcional\n\n_¡Tarda solo 2-4 minutos!_ ⏱️\n\n💡 ¡Puedes responder por *texto* o *audio* en cualquier momento!",
+    en: "🎓 *Placement Test*\n\nLet's discover your level! It's 3 short parts:\n\n📝 Part 1: 3 quick questions\n✍️ Part 2: Write about yourself\n🎤 Part 3: Optional audio\n\n_Only takes 2-4 minutes!_ ⏱️\n\n💡 You can answer by *text* or *audio* anytime!",
   },
   answer_abcd: {
-    pt: "Responda com *A*, *B*, *C* ou *D* 📝",
-    es: "Responde con *A*, *B*, *C* o *D* 📝",
-    en: "Reply with *A*, *B*, *C*, or *D* 📝",
+    pt: "Responda com *A*, *B*, *C* ou *D* 📝\n\n💡 Você também pode responder por áudio!",
+    es: "Responde con *A*, *B*, *C* o *D* 📝\n\n💡 ¡También puedes responder por audio!",
+    en: "Reply with *A*, *B*, *C*, or *D* 📝\n\n💡 You can also answer by audio!",
   },
   part1_complete: {
-    pt: "✅ *Parte 1 completada!*\n\n📝 *Parte 2/3 — Produção escrita*\n\nEscreva 2 frases em inglês:\n1. Quem você é e o que faz\n2. Por que quer aprender inglês\n\n_Exemplo: \"I'm Ana, I work as a nurse. I want to learn English because...\"_",
-    es: "✅ *Parte 1 completada!*\n\n📝 *Parte 2/3 — Producción escrita*\n\nEscribe 2 frases en inglés:\n1. Quién eres y a qué te dedicas\n2. Por qué quieres aprender inglés\n\n_Ejemplo: \"I'm Ana, I work as a nurse. I want to learn English because...\"_",
-    en: "✅ *Part 1 complete!*\n\n📝 *Part 2/3 — Written production*\n\nWrite 2 sentences in English:\n1. Who you are and what you do\n2. Why you want to learn English\n\n_Example: \"I'm Ana, I work as a nurse. I want to learn English because...\"_",
+    pt: "✅ *Parte 1 completada!*\n\n📝 *Parte 2/3 — Produção escrita*\n\nEscreva 2 frases em inglês:\n1. Quem você é e o que faz\n2. Por que quer aprender inglês\n\n_Exemplo: \"I'm Ana, I work as a nurse. I want to learn English because...\"_\n\n💡 Pode responder por texto ou áudio!",
+    es: "✅ *Parte 1 completada!*\n\n📝 *Parte 2/3 — Producción escrita*\n\nEscribe 2 frases en inglés:\n1. Quién eres y a qué te dedicas\n2. Por qué quieres aprender inglés\n\n_Ejemplo: \"I'm Ana, I work as a nurse. I want to learn English because...\"_\n\n💡 ¡Puedes responder por texto o audio!",
+    en: "✅ *Part 1 complete!*\n\n📝 *Part 2/3 — Written production*\n\nWrite 2 sentences in English:\n1. Who you are and what you do\n2. Why you want to learn English\n\n_Example: \"I'm Ana, I work as a nurse. I want to learn English because...\"_\n\n💡 You can answer by text or audio!",
   },
   part3_audio: {
     pt: "🎤 *Parte 3/3 — Áudio (opcional)*\n\nGrave um áudio de 10-15 segundos dizendo:\n\n_\"Hi, I'm [nome]. I'm from [país]. I want to learn English because [motivo].\"_\n\n📨 Envie o áudio ou escreva *SKIP* para pular.",
@@ -276,9 +279,9 @@ const I18N: Record<string, Record<Language, string>> = {
   },
   // Day lessons
   day_header: {
-    pt: "📖 *Dia {day}/7 — {title}*\n\n🎯 *Objetivos:*\n{objectives}\n\n⏱️ ~5-8 min | ⏳ {lessons_left} lições restantes",
-    es: "📖 *Día {day}/7 — {title}*\n\n🎯 *Objetivos:*\n{objectives}\n\n⏱️ ~5-8 min | ⏳ {lessons_left} lecciones restantes",
-    en: "📖 *Day {day}/7 — {title}*\n\n🎯 *Objectives:*\n{objectives}\n\n⏱️ ~5-8 min | ⏳ {lessons_left} lessons left",
+    pt: "📖 *Dia {day}/7 — {title}*\n\n🎯 *Objetivos:*\n{objectives}\n\n⏱️ ~5-8 min | ⏳ {lessons_left} lições restantes\n\n💡 Você pode responder por *texto* ou *áudio*!",
+    es: "📖 *Día {day}/7 — {title}*\n\n🎯 *Objetivos:*\n{objectives}\n\n⏱️ ~5-8 min | ⏳ {lessons_left} lecciones restantes\n\n💡 ¡Puedes responder por *texto* o *audio*!",
+    en: "📖 *Day {day}/7 — {title}*\n\n🎯 *Objectives:*\n{objectives}\n\n⏱️ ~5-8 min | ⏳ {lessons_left} lessons left\n\n💡 You can answer by *text* or *audio*!",
   },
   exercise_header: {
     pt: "{emoji} *Exercício {current}/{total}*\n\n{prompt}",
@@ -323,9 +326,9 @@ const I18N: Record<string, Record<Language, string>> = {
   },
   // Review
   review_intro: {
-    pt: "📚 *Modo Revisão*\n\nVamos praticar {count} exercícios baseados nos seus erros mais frequentes.\n\nVamos! 💪",
-    es: "📚 *Modo Repaso*\n\nVamos a practicar {count} ejercicios basados en tus errores más frecuentes.\n\n¡Vamos! 💪",
-    en: "📚 *Review Mode*\n\nLet's practice {count} exercises based on your most frequent mistakes.\n\nLet's go! 💪",
+    pt: "📚 *Modo Revisão*\n\nVamos praticar {count} exercícios baseados nos seus erros mais frequentes.\n\n💡 Você pode responder por texto ou áudio!\n\nVamos! 💪",
+    es: "📚 *Modo Repaso*\n\nVamos a practicar {count} ejercicios basados en tus errores más frecuentes.\n\n💡 ¡Puedes responder por texto o audio!\n\n¡Vamos! 💪",
+    en: "📚 *Review Mode*\n\nLet's practice {count} exercises based on your most frequent mistakes.\n\n💡 You can answer by text or audio!\n\nLet's go! 💪",
   },
   review_header: {
     pt: "📝 *Revisão {current}/{total}*\n\n{prompt}",
@@ -391,9 +394,9 @@ const I18N: Record<string, Record<Language, string>> = {
   },
   // Help
   help: {
-    pt: "📚 *Comandos disponíveis:*\n\n• *NEXT* — Continuar com o plano\n• *PROGRESO* — Ver seu avanço e link\n• *REVIEW* — Revisar erros\n• *IDIOMA* — Mudar idioma\n• *SUSCRIBIRME* — Ver planos\n• *RESTART* — Reiniciar (com confirmação)\n\n💬 Escreva o que precisar!",
-    es: "📚 *Comandos disponibles:*\n\n• *NEXT* — Continuar con el plan\n• *PROGRESO* — Ver tu avance y link\n• *REVIEW* — Repasar errores\n• *IDIOMA* — Cambiar idioma\n• *SUSCRIBIRME* — Ver planes\n• *RESTART* — Reiniciar (con confirmación)\n\n💬 ¡Escribe lo que necesites!",
-    en: "📚 *Available commands:*\n\n• *NEXT* — Continue with the plan\n• *PROGRESS* — View your progress and link\n• *REVIEW* — Review mistakes\n• *LANGUAGE* — Change language\n• *SUBSCRIBE* — View plans\n• *RESTART* — Restart (with confirmation)\n\n💬 Type what you need!",
+    pt: "📚 *Comandos disponíveis:*\n\n• *NEXT* — Continuar com o plano\n• *PROGRESO* — Ver seu avanço e link\n• *REVIEW* — Revisar erros\n• *IDIOMA* — Mudar idioma\n• *AUDIO ON* — Ativar preferência de áudio\n• *AUDIO OFF* — Desativar preferência de áudio\n• *SUSCRIBIRME* — Ver planos\n• *RESTART* — Reiniciar (com confirmação)\n\n💬 Escreva o que precisar!\n\n🎤 *Dica:* Você pode responder por texto ou áudio a qualquer momento!",
+    es: "📚 *Comandos disponibles:*\n\n• *NEXT* — Continuar con el plan\n• *PROGRESO* — Ver tu avance y link\n• *REVIEW* — Repasar errores\n• *IDIOMA* — Cambiar idioma\n• *AUDIO ON* — Activar preferencia de audio\n• *AUDIO OFF* — Desactivar preferencia de audio\n• *SUSCRIBIRME* — Ver planes\n• *RESTART* — Reiniciar (con confirmación)\n\n💬 ¡Escribe lo que necesites!\n\n🎤 *Tip:* ¡Puedes responder por texto o audio en cualquier momento!",
+    en: "📚 *Available commands:*\n\n• *NEXT* — Continue with the plan\n• *PROGRESS* — View your progress and link\n• *REVIEW* — Review mistakes\n• *LANGUAGE* — Change language\n• *AUDIO ON* — Enable audio preference\n• *AUDIO OFF* — Disable audio preference\n• *SUBSCRIBE* — View plans\n• *RESTART* — Restart (with confirmation)\n\n💬 Type what you need!\n\n🎤 *Tip:* You can answer by text or audio anytime!",
   },
   // Restart
   restart_confirm: {
@@ -440,9 +443,9 @@ const I18N: Record<string, Record<Language, string>> = {
   },
   // Audio transcription
   audio_transcript_header: {
-    pt: "📝 *Transcrição:* _{transcript}_",
-    es: "📝 *Transcripción:* _{transcript}_",
-    en: "📝 *Transcript:* _{transcript}_",
+    pt: "📝 *Transcrição (o que eu entendi):* _{transcript}_",
+    es: "📝 *Transcripción (lo que entendí):* _{transcript}_",
+    en: "📝 *Transcript (what I heard):* _{transcript}_",
   },
   audio_pronunciation_tip: {
     pt: "🎧 *Pronúncia:* {tip}",
@@ -464,10 +467,26 @@ const I18N: Record<string, Record<Language, string>> = {
     es: "🎤 No pude entender el audio. Por favor, escribe tu respuesta.",
     en: "🎤 Couldn't understand the audio. Please type your answer.",
   },
+  audio_transcription_rate_limit: {
+    pt: "🎤 Estou sobrecarregado agora. Tente novamente em 30 segundos ou escreva sua resposta.",
+    es: "🎤 Estoy sobrecargado ahora. Inténtalo de nuevo en 30 segundos o escribe tu respuesta.",
+    en: "🎤 I'm overloaded right now. Try again in 30 seconds or type your answer.",
+  },
   audio_download_failed: {
     pt: "🎤 Erro ao processar o áudio. Por favor, escreva sua resposta.",
     es: "🎤 Error al procesar el audio. Por favor, escribe tu respuesta.",
     en: "🎤 Error processing audio. Please type your answer.",
+  },
+  // Audio preference commands
+  audio_on_confirmed: {
+    pt: "🎤 *Preferência de áudio ativada!*\n\nAgora você pode responder todos os exercícios por áudio. Sua pronúncia será avaliada!",
+    es: "🎤 *¡Preferencia de audio activada!*\n\n¡Ahora puedes responder todos los ejercicios por audio. Tu pronunciación será evaluada!",
+    en: "🎤 *Audio preference enabled!*\n\nNow you can answer all exercises by audio. Your pronunciation will be evaluated!",
+  },
+  audio_off_confirmed: {
+    pt: "📝 *Preferência de áudio desativada.*\n\nVocê pode continuar respondendo por texto. Lembre-se que ainda pode enviar áudios quando quiser!",
+    es: "📝 *Preferencia de audio desactivada.*\n\nPuedes continuar respondiendo por texto. ¡Recuerda que aún puedes enviar audios cuando quieras!",
+    en: "📝 *Audio preference disabled.*\n\nYou can continue answering by text. Remember you can still send audio anytime!",
   },
   // Admin commands
   admin_status: {
@@ -499,6 +518,11 @@ const I18N: Record<string, Record<Language, string>> = {
     pt: "🔧 *Comandos Admin*\n\n• /admin ou /admin status - Ver diagnóstico\n• /admin reset - Reiniciar para welcome\n• /admin step [nome] - Ir para step\n\n*Steps válidos:*\n{valid_steps}",
     es: "🔧 *Comandos Admin*\n\n• /admin o /admin status - Ver diagnóstico\n• /admin reset - Reiniciar a welcome\n• /admin step [nombre] - Ir a step\n\n*Steps válidos:*\n{valid_steps}",
     en: "🔧 *Admin Commands*\n\n• /admin or /admin status - View diagnostics\n• /admin reset - Reset to welcome\n• /admin step [name] - Jump to step\n\n*Valid steps:*\n{valid_steps}",
+  },
+  admin_audio_debug: {
+    pt: "\n\n🔍 *Debug Audio (Admin):*\n• request_id: {request_id}\n• step: {step}\n• transcript_completo: {transcript}",
+    es: "\n\n🔍 *Debug Audio (Admin):*\n• request_id: {request_id}\n• step: {step}\n• transcripción_completa: {transcript}",
+    en: "\n\n🔍 *Audio Debug (Admin):*\n• request_id: {request_id}\n• step: {step}\n• full_transcript: {transcript}",
   },
 };
 
@@ -700,175 +724,169 @@ const SEVEN_DAY_PLAN: DayLesson[] = [
       {
         id: "d1_ex4",
         type: "correct_the_mistake",
-        prompt: "Find and correct the error:\n\n*\"My name it is Carlos.\"*\n\n(Write the correct sentence)",
+        prompt: "Correct the mistake:\n\n*\"I am work in a hospital.\"*",
         prompt_translation: {
-          pt: "(Encontre e corrija o erro - Escreva a frase correta)",
-          es: "(Encuentra y corrige el error - Escribe la frase correcta)",
+          pt: "(Corrija o erro: \"I am work in a hospital.\")",
+          es: "(Corrige el error: \"I am work in a hospital.\")",
         },
-        correct_answer: "My name is Carlos",
+        correct_answer: "I work in a hospital",
         hint: {
-          pt: "O 'it' não é necessário aqui.",
-          es: "El 'it' no es necesario aquí.",
-          en: "The 'it' is not needed here.",
+          pt: "Presente simples não usa 'am' com verbos de ação.",
+          es: "El presente simple no usa 'am' con verbos de acción.",
+          en: "Simple present doesn't use 'am' with action verbs.",
         },
-        mistake_tag: "redundant_pronoun"
+        mistake_tag: "be_with_action_verb"
       }
     ],
     production_type: "text",
     production_prompt: {
-      pt: "✍️ *Produção final:*\n\nEscreva 2 frases se apresentando:\n1. Seu nome e de onde você é\n2. O que você faz",
-      es: "✍️ *Producción final:*\n\nEscribe 2 frases presentándote:\n1. Tu nombre y de dónde eres\n2. A qué te dedicas",
-      en: "✍️ *Final production:*\n\nWrite 2 sentences introducing yourself:\n1. Your name and where you're from\n2. What you do",
+      pt: "✍️ *Produção final:*\n\nApresente-se em 2-3 frases em inglês:\n• Seu nome\n• O que você faz\n• De onde você é\n\n💡 Pode responder por texto ou áudio!",
+      es: "✍️ *Producción final:*\n\nPreséntate en 2-3 frases en inglés:\n• Tu nombre\n• A qué te dedicas\n• De dónde eres\n\n💡 ¡Puedes responder por texto o audio!",
+      en: "✍️ *Final production:*\n\nIntroduce yourself in 2-3 sentences in English:\n• Your name\n• What you do\n• Where you're from\n\n💡 You can answer by text or audio!",
     },
   },
   {
     day: 2,
     lesson_id: "day2_present_simple",
-    title: { pt: "Presente Simples - Rotinas", es: "Presente Simple - Rutinas", en: "Present Simple - Routines" },
+    title: { pt: "Presente Simples — Rotinas", es: "Presente Simple — Rutinas", en: "Simple Present — Routines" },
     objectives: {
-      pt: ["Falar de rotinas diárias", "Usar advérbios de frequência"],
-      es: ["Hablar de rutinas diarias", "Usar adverbios de frecuencia"],
-      en: ["Talk about daily routines", "Use frequency adverbs"],
+      pt: ["Descrever rotinas diárias", "Usar corretamente a 3ª pessoa"],
+      es: ["Describir rutinas diarias", "Usar correctamente la 3ª persona"],
+      en: ["Describe daily routines", "Use 3rd person correctly"],
     },
     exercises: [
       {
         id: "d2_ex1",
         type: "choose_correct",
-        prompt: "She ___ coffee every morning.\n\nA) drink\nB) drinks\nC) drinking\nD) is drink",
+        prompt: "She ___ to the gym every day.\n\nA) go\nB) goes\nC) going\nD) is go",
         prompt_translation: {
-          pt: "(Ela ___ café toda manhã.)",
-          es: "(Ella ___ café cada mañana.)",
+          pt: "(Ela ___ à academia todo dia.)",
+          es: "(Ella ___ al gimnasio todos los días.)",
         },
         options: ["A", "B", "C", "D"],
         correct_answer: "B",
         hint: {
-          pt: "Terceira pessoa do singular: he/she/it + verbo+s",
-          es: "Tercera persona singular: he/she/it + verbo+s",
-          en: "Third person singular: he/she/it + verb+s",
+          pt: "Na 3ª pessoa (he/she/it) adicionamos -s ou -es ao verbo.",
+          es: "En 3ª persona (he/she/it) añadimos -s o -es al verbo.",
+          en: "In 3rd person (he/she/it) we add -s or -es to the verb.",
         },
-        mistake_tag: "third_person_s",
-        feedback_correct: {
-          pt: "✅ Correto! 'drinks' porque 'she' é 3ª pessoa no presente.",
-          es: "✅ ¡Correcto! 'drinks' porque 'she' es 3ª persona en presente.",
-          en: "✅ Correct! 'drinks' because 'she' is 3rd person in present.",
-        },
-        feedback_wrong: {
-          pt: "❌ A resposta correta é *B) drinks*. Com she/he/it, adicionamos -s ao verbo.",
-          es: "❌ La respuesta correcta es *B) drinks*. Con she/he/it, añadimos -s al verbo.",
-          en: "❌ The correct answer is *B) drinks*. With she/he/it, we add -s to the verb.",
-        },
+        mistake_tag: "third_person_s"
       },
       {
         id: "d2_ex2",
         type: "fill_in_blank",
-        prompt: "I ___ (not/like) spicy food.\n\n(Write the correct form)",
+        prompt: "My brother ___ (not/like) coffee.\n\n(Write the complete verb form)",
         prompt_translation: {
-          pt: "(Eu ___ (não/gostar de) comida picante. - Escreva a forma correta)",
-          es: "(Yo ___ (no/gustar) comida picante. - Escribe la forma correcta)",
+          pt: "(Meu irmão ___ (não gostar) de café. - Escreva a forma verbal completa)",
+          es: "(Mi hermano ___ (no gustar) el café. - Escribe la forma verbal completa)",
         },
-        correct_answer: "don't like",
+        correct_answer: "doesn't like",
         hint: {
-          pt: "Negativo no presente simples: don't/doesn't + verbo base",
-          es: "Negativo en presente simple: don't/doesn't + verbo base",
-          en: "Negative in present simple: don't/doesn't + base verb",
+          pt: "Para negar na 3ª pessoa: doesn't + verbo base",
+          es: "Para negar en 3ª persona: doesn't + verbo base",
+          en: "To negate in 3rd person: doesn't + base verb",
         },
-        mistake_tag: "present_negative"
+        mistake_tag: "doesnt_like"
       },
       {
         id: "d2_ex3",
         type: "reorder_words",
-        prompt: "Reorder:\n\n*usually / I / at / wake up / 7 AM*",
+        prompt: "Reorder:\n\n*usually / I / breakfast / at / have / 8 AM*",
         prompt_translation: {
-          pt: "(Ordene: usually / I / at / wake up / 7 AM)",
-          es: "(Ordena: usually / I / at / wake up / 7 AM)",
+          pt: "(Ordene: usually / I / breakfast / at / have / 8 AM)",
+          es: "(Ordena: usually / I / breakfast / at / have / 8 AM)",
         },
-        correct_answer: "I usually wake up at 7 AM",
+        correct_answer: "I usually have breakfast at 8 AM",
         hint: {
-          pt: "Os advérbios de frequência vão antes do verbo principal.",
-          es: "Los adverbios de frecuencia van antes del verbo principal.",
-          en: "Frequency adverbs go before the main verb.",
+          pt: "Advérbios de frequência vão ANTES do verbo principal.",
+          es: "Los adverbios de frecuencia van ANTES del verbo principal.",
+          en: "Frequency adverbs go BEFORE the main verb.",
         },
         mistake_tag: "adverb_position"
       },
       {
         id: "d2_ex4",
         type: "correct_the_mistake",
-        prompt: "Correct:\n\n*\"He don't work on Saturdays.\"*",
+        prompt: "Correct:\n\n*\"He don't work on weekends.\"*",
         prompt_translation: {
-          pt: "(Corrija: \"He don't work on Saturdays.\")",
-          es: "(Corrige: \"He don't work on Saturdays.\")",
+          pt: "(Corrija: \"He don't work on weekends.\")",
+          es: "(Corrige: \"He don't work on weekends.\")",
         },
-        correct_answer: "He doesn't work on Saturdays",
+        correct_answer: "He doesn't work on weekends",
         hint: {
-          pt: "He/She/It → doesn't (não don't)",
-          es: "He/She/It → doesn't (no don't)",
-          en: "He/She/It → doesn't (not don't)",
+          pt: "Com he/she/it usamos DOESN'T, não DON'T.",
+          es: "Con he/she/it usamos DOESN'T, no DON'T.",
+          en: "With he/she/it we use DOESN'T, not DON'T.",
         },
         mistake_tag: "doesnt_vs_dont"
       }
     ],
     production_type: "text",
     production_prompt: {
-      pt: "✍️ *Produção final:*\n\nDescreva sua rotina matinal em 3 frases usando presente simples.",
-      es: "✍️ *Producción final:*\n\nDescribe tu rutina matutina en 3 frases usando presente simple.",
-      en: "✍️ *Final production:*\n\nDescribe your morning routine in 3 sentences using present simple.",
+      pt: "✍️ *Produção final:*\n\nDescreva sua rotina matinal em 3 frases usando presente simples.\n\n💡 Pode responder por texto ou áudio!",
+      es: "✍️ *Producción final:*\n\nDescribe tu rutina matinal en 3 frases usando presente simple.\n\n💡 ¡Puedes responder por texto o audio!",
+      en: "✍️ *Final production:*\n\nDescribe your morning routine in 3 sentences using simple present.\n\n💡 You can answer by text or audio!",
     },
   },
   {
     day: 3,
     lesson_id: "day3_past_simple",
-    title: { pt: "Passado Simples - Ontem", es: "Pasado Simple - Ayer", en: "Past Simple - Yesterday" },
+    title: { pt: "Passado Simples — Eventos", es: "Pasado Simple — Eventos", en: "Simple Past — Events" },
     objectives: {
-      pt: ["Narrar eventos passados", "Usar verbos irregulares comuns"],
-      es: ["Narrar eventos pasados", "Usar verbos irregulares comunes"],
-      en: ["Narrate past events", "Use common irregular verbs"],
+      pt: ["Falar sobre eventos passados", "Usar verbos regulares e irregulares"],
+      es: ["Hablar sobre eventos pasados", "Usar verbos regulares e irregulares"],
+      en: ["Talk about past events", "Use regular and irregular verbs"],
     },
     exercises: [
       {
         id: "d3_ex1",
         type: "choose_correct",
-        prompt: "Yesterday I ___ to the supermarket.\n\nA) go\nB) went\nC) gone\nD) going",
+        prompt: "Yesterday I ___ a great movie.\n\nA) watch\nB) watched\nC) was watch\nD) watching",
         prompt_translation: {
-          pt: "(Ontem eu ___ ao supermercado.)",
-          es: "(Ayer ___ al supermercado.)",
+          pt: "(Ontem eu ___ um ótimo filme.)",
+          es: "(Ayer ___ una película genial.)",
         },
         options: ["A", "B", "C", "D"],
         correct_answer: "B",
-        hint: { pt: "go → went (irregular)", es: "go → went (irregular)", en: "go → went (irregular)" },
-        mistake_tag: "past_irregular_go"
+        hint: {
+          pt: "Com 'yesterday' usamos passado simples. Verbos regulares terminam em -ed.",
+          es: "Con 'yesterday' usamos pasado simple. Los verbos regulares terminan en -ed.",
+          en: "With 'yesterday' we use simple past. Regular verbs end in -ed.",
+        },
+        mistake_tag: "past_simple_regular"
       },
       {
         id: "d3_ex2",
         type: "fill_in_blank",
-        prompt: "She ___ (not/call) me last night.\n\n(Write the correct form)",
+        prompt: "She ___ (go) to Paris last summer.\n\n(Write the past form)",
         prompt_translation: {
-          pt: "(Ela ___ (não/ligar) para mim ontem à noite.)",
-          es: "(Ella ___ (no/llamar) me anoche.)",
+          pt: "(Ela ___ (ir) para Paris no verão passado. - Escreva a forma no passado)",
+          es: "(Ella ___ (ir) a París el verano pasado. - Escribe la forma en pasado)",
         },
-        correct_answer: "didn't call",
+        correct_answer: "went",
         hint: {
-          pt: "Negativo: didn't + verbo base",
-          es: "Negativo: didn't + verbo base",
-          en: "Negative: didn't + base verb",
+          pt: "Go é irregular: go → went",
+          es: "Go es irregular: go → went",
+          en: "Go is irregular: go → went",
         },
-        mistake_tag: "past_negative"
+        mistake_tag: "went_irregular"
       },
       {
         id: "d3_ex3",
         type: "choose_correct",
-        prompt: "___ you see the movie?\n\nA) Do\nB) Did\nC) Does\nD) Was",
+        prompt: "___ you see the game last night?\n\nA) Do\nB) Did\nC) Was\nD) Were",
         prompt_translation: {
-          pt: "(___ você viu o filme?)",
-          es: "(___ viste la película?)",
+          pt: "(___ você viu o jogo ontem à noite?)",
+          es: "(¿___ el partido anoche?)",
         },
         options: ["A", "B", "C", "D"],
         correct_answer: "B",
         hint: {
-          pt: "Pergunta no passado: Did + sujeito + verbo base",
-          es: "Pregunta en pasado: Did + sujeto + verbo base",
-          en: "Past question: Did + subject + base verb",
+          pt: "Para perguntas no passado: Did + sujeito + verbo base",
+          es: "Para preguntas en pasado: Did + sujeto + verbo base",
+          en: "For past questions: Did + subject + base verb",
         },
-        mistake_tag: "past_question"
+        mistake_tag: "did_question"
       },
       {
         id: "d3_ex4",
@@ -880,120 +898,121 @@ const SEVEN_DAY_PLAN: DayLesson[] = [
         },
         correct_answer: "I didn't go to the party",
         hint: {
-          pt: "Depois de didn't usamos verbo base, não passado.",
-          es: "Después de didn't usamos verbo base, no pasado.",
-          en: "After didn't we use base verb, not past.",
+          pt: "Depois de DIDN'T usamos o verbo BASE, não o passado.",
+          es: "Después de DIDN'T usamos el verbo BASE, no el pasado.",
+          en: "After DIDN'T we use the BASE verb, not the past.",
         },
         mistake_tag: "didnt_base_verb"
       }
     ],
     production_type: "text",
     production_prompt: {
-      pt: "✍️ *Produção final:*\n\nConte o que você fez ontem depois do trabalho/aulas. Use pelo menos 3 verbos no passado.",
-      es: "✍️ *Producción final:*\n\nCuenta qué hiciste ayer después del trabajo/clases. Usa al menos 3 verbos en pasado.",
-      en: "✍️ *Final production:*\n\nTell what you did yesterday after work/classes. Use at least 3 past tense verbs.",
+      pt: "✍️ *Produção final:*\n\nConte algo interessante que você fez no último fim de semana (2-3 frases).\n\n💡 Pode responder por texto ou áudio!",
+      es: "✍️ *Producción final:*\n\nCuenta algo interesante que hiciste el último fin de semana (2-3 frases).\n\n💡 ¡Puedes responder por texto o audio!",
+      en: "✍️ *Final production:*\n\nTell something interesting you did last weekend (2-3 sentences).\n\n💡 You can answer by text or audio!",
     },
   },
   {
     day: 4,
-    lesson_id: "day4_questions",
-    title: { pt: "Perguntas e Respostas", es: "Preguntas y Respuestas", en: "Questions and Answers" },
+    lesson_id: "day4_present_continuous",
+    title: { pt: "Presente Contínuo — Agora", es: "Presente Continuo — Ahora", en: "Present Continuous — Now" },
     objectives: {
-      pt: ["Formar perguntas corretamente", "Responder de forma natural"],
-      es: ["Formar preguntas correctamente", "Responder de forma natural"],
-      en: ["Form questions correctly", "Answer naturally"],
+      pt: ["Descrever ações em progresso", "Diferenciar de presente simples"],
+      es: ["Describir acciones en progreso", "Diferenciar del presente simple"],
+      en: ["Describe actions in progress", "Differentiate from simple present"],
     },
     exercises: [
       {
         id: "d4_ex1",
-        type: "reorder_words",
-        prompt: "Form a question:\n\n*do / where / live / you / ?*",
+        type: "choose_correct",
+        prompt: "Look! She ___ the piano right now.\n\nA) plays\nB) play\nC) is playing\nD) playing",
         prompt_translation: {
-          pt: "(Forme uma pergunta: do / where / live / you / ?)",
-          es: "(Forma una pregunta: do / where / live / you / ?)",
+          pt: "(Olha! Ela ___ piano agora.)",
+          es: "(¡Mira! Ella ___ el piano ahora mismo.)",
         },
-        correct_answer: "Where do you live?",
+        options: ["A", "B", "C", "D"],
+        correct_answer: "C",
         hint: {
-          pt: "Wh-word + auxiliar + sujeito + verbo",
-          es: "Wh-word + auxiliar + sujeto + verbo",
-          en: "Wh-word + auxiliary + subject + verb",
+          pt: "Para ações acontecendo AGORA: am/is/are + verbo-ing",
+          es: "Para acciones que pasan AHORA: am/is/are + verbo-ing",
+          en: "For actions happening NOW: am/is/are + verb-ing",
         },
-        mistake_tag: "wh_question_order"
+        mistake_tag: "present_continuous"
       },
       {
         id: "d4_ex2",
-        type: "choose_correct",
-        prompt: "___  your brother work?\n\nA) Where do\nB) Where does\nC) Where is\nD) Where",
+        type: "fill_in_blank",
+        prompt: "I ___ (study) English at the moment.\n\n(Write: am/is/are + verb-ing)",
         prompt_translation: {
-          pt: "(___ seu irmão trabalha?)",
-          es: "(___ trabaja tu hermano?)",
+          pt: "(Eu ___ (estudar) inglês no momento. - Escreva: am/is/are + verbo-ing)",
+          es: "(Yo ___ (estudiar) inglés en este momento. - Escribe: am/is/are + verbo-ing)",
+        },
+        correct_answer: "am studying",
+        hint: {
+          pt: "I + am + verb-ing",
+          es: "I + am + verb-ing",
+          en: "I + am + verb-ing",
+        },
+        mistake_tag: "am_verbing"
+      },
+      {
+        id: "d4_ex3",
+        type: "choose_correct",
+        prompt: "They ___ TV every evening. (routine)\n\nA) are watching\nB) watch\nC) watches\nD) is watching",
+        prompt_translation: {
+          pt: "(Eles ___ TV toda noite. (rotina))",
+          es: "(Ellos ___ TV todas las noches. (rutina))",
         },
         options: ["A", "B", "C", "D"],
         correct_answer: "B",
         hint: {
-          pt: "brother = he → does",
-          es: "brother = he → does",
-          en: "brother = he → does",
+          pt: "Para ROTINAS usamos presente simples, não contínuo.",
+          es: "Para RUTINAS usamos presente simple, no continuo.",
+          en: "For ROUTINES we use simple present, not continuous.",
         },
-        mistake_tag: "question_auxiliar"
-      },
-      {
-        id: "d4_ex3",
-        type: "fill_in_blank",
-        prompt: "___ is your favorite color?\n\n(Write the question word)",
-        prompt_translation: {
-          pt: "(___ é sua cor favorita? - Escreva a palavra interrogativa)",
-          es: "(___ es tu color favorito? - Escribe la palabra interrogativa)",
-        },
-        correct_answer: "What",
-        hint: {
-          pt: "Para perguntar sobre coisas usamos What.",
-          es: "Para preguntar sobre cosas usamos What.",
-          en: "To ask about things we use What.",
-        },
-        mistake_tag: "wh_words"
+        mistake_tag: "simple_vs_continuous"
       },
       {
         id: "d4_ex4",
         type: "correct_the_mistake",
-        prompt: "Correct:\n\n*\"What means this word?\"*",
+        prompt: "Correct:\n\n*\"She is work from home today.\"*",
         prompt_translation: {
-          pt: "(Corrija: \"What means this word?\")",
-          es: "(Corrige: \"What means this word?\")",
+          pt: "(Corrija: \"She is work from home today.\")",
+          es: "(Corrige: \"She is work from home today.\")",
         },
-        correct_answer: "What does this word mean?",
+        correct_answer: "She is working from home today",
         hint: {
-          pt: "Em perguntas: What + does + sujeito + verbo base",
-          es: "En preguntas: What + does + sujeto + verbo base",
-          en: "In questions: What + does + subject + base verb",
+          pt: "Presente contínuo: is + verb-ING (não verbo base)",
+          es: "Presente continuo: is + verb-ING (no verbo base)",
+          en: "Present continuous: is + verb-ING (not base verb)",
         },
-        mistake_tag: "question_structure"
+        mistake_tag: "is_verbing"
       }
     ],
     production_type: "text",
     production_prompt: {
-      pt: "✍️ *Produção final:*\n\nEscreva 3 perguntas que você faria a um novo colega de trabalho.",
-      es: "✍️ *Producción final:*\n\nEscribe 3 preguntas que le harías a un nuevo compañero de trabajo.",
-      en: "✍️ *Final production:*\n\nWrite 3 questions you would ask a new colleague at work.",
+      pt: "✍️ *Produção final:*\n\nDescreva 3 coisas que estão acontecendo ao seu redor agora.\n\n💡 Pode responder por texto ou áudio!",
+      es: "✍️ *Producción final:*\n\nDescribe 3 cosas que están pasando a tu alrededor ahora.\n\n💡 ¡Puedes responder por texto o audio!",
+      en: "✍️ *Final production:*\n\nDescribe 3 things that are happening around you now.\n\n💡 You can answer by text or audio!",
     },
   },
   {
     day: 5,
-    lesson_id: "day5_future",
-    title: { pt: "Planos Futuros", es: "Planes Futuros", en: "Future Plans" },
+    lesson_id: "day5_future_going",
+    title: { pt: "Futuro com Going To", es: "Futuro con Going To", en: "Future with Going To" },
     objectives: {
-      pt: ["Expressar planos com 'going to'", "Usar 'will' para decisões"],
-      es: ["Expresar planes con 'going to'", "Usar 'will' para decisiones"],
-      en: ["Express plans with 'going to'", "Use 'will' for decisions"],
+      pt: ["Falar sobre planos futuros", "Usar going to corretamente"],
+      es: ["Hablar sobre planes futuros", "Usar going to correctamente"],
+      en: ["Talk about future plans", "Use going to correctly"],
     },
     exercises: [
       {
         id: "d5_ex1",
         type: "choose_correct",
-        prompt: "I ___ visit my parents next weekend.\n\nA) going to\nB) am going to\nC) will going\nD) go to",
+        prompt: "I ___ visit my parents this weekend.\n\nA) going to\nB) am going to\nC) will going\nD) go to",
         prompt_translation: {
-          pt: "(Eu ___ visitar meus pais no próximo fim de semana.)",
-          es: "(Voy a ___ visitar a mis padres el próximo fin de semana.)",
+          pt: "(Eu ___ visitar meus pais neste fim de semana.)",
+          es: "(Yo ___ visitar a mis padres este fin de semana.)",
         },
         options: ["A", "B", "C", "D"],
         correct_answer: "B",
@@ -1056,9 +1075,9 @@ const SEVEN_DAY_PLAN: DayLesson[] = [
     ],
     production_type: "text",
     production_prompt: {
-      pt: "✍️ *Produção final:*\n\nDescreva 3 planos que você tem para este fim de semana usando 'going to'.",
-      es: "✍️ *Producción final:*\n\nDescribe 3 planes que tienes para este fin de semana usando 'going to'.",
-      en: "✍️ *Final production:*\n\nDescribe 3 plans you have for this weekend using 'going to'.",
+      pt: "✍️ *Produção final:*\n\nDescreva 3 planos que você tem para este fim de semana usando 'going to'.\n\n💡 Pode responder por texto ou áudio!",
+      es: "✍️ *Producción final:*\n\nDescribe 3 planes que tienes para este fin de semana usando 'going to'.\n\n💡 ¡Puedes responder por texto o audio!",
+      en: "✍️ *Final production:*\n\nDescribe 3 plans you have for this weekend using 'going to'.\n\n💡 You can answer by text or audio!",
     },
   },
   {
@@ -1337,7 +1356,7 @@ async function getOrCreateUser(
   
   const { data: existing } = await supabase
     .from("wa_users")
-    .select("wa_id, name, level, subscription_status, trial_started_at, trial_expires_at, trial_completed, is_subscribed, subscription_plan, preferred_language, show_translations")
+    .select("wa_id, name, level, subscription_status, trial_started_at, trial_expires_at, trial_completed, is_subscribed, subscription_plan, preferred_language, show_translations, prefers_audio")
     .eq("wa_id", waId)
     .maybeSingle();
 
@@ -1357,6 +1376,7 @@ async function getOrCreateUser(
         subscription_plan: existing.subscription_plan as string | null,
         preferred_language: existing.preferred_language as Language | null,
         show_translations: existing.show_translations as boolean ?? true,
+        prefers_audio: existing.prefers_audio as boolean ?? false,
       };
     }
 
@@ -1396,6 +1416,7 @@ async function getOrCreateUser(
         subscription_plan: existing.subscription_plan as string | null,
         preferred_language: existing.preferred_language as Language | null,
         show_translations: existing.show_translations as boolean ?? true,
+        prefers_audio: existing.prefers_audio as boolean ?? false,
       };
     }
 
@@ -1411,6 +1432,7 @@ async function getOrCreateUser(
       subscription_plan: existing.subscription_plan as string | null,
       preferred_language: existing.preferred_language as Language | null,
       show_translations: existing.show_translations as boolean ?? true,
+      prefers_audio: existing.prefers_audio as boolean ?? false,
     };
   }
 
@@ -1431,8 +1453,9 @@ async function getOrCreateUser(
         is_subscribed: false,
         preferred_language: null,
         show_translations: true,
+        prefers_audio: false,
       })
-      .select("wa_id, name, level, subscription_status, trial_started_at, trial_expires_at, trial_completed, is_subscribed, subscription_plan, preferred_language, show_translations")
+      .select("wa_id, name, level, subscription_status, trial_started_at, trial_expires_at, trial_completed, is_subscribed, subscription_plan, preferred_language, show_translations, prefers_audio")
       .single();
 
     if (error) {
@@ -1449,15 +1472,16 @@ async function getOrCreateUser(
       subscription_status: newUser.subscription_status as string,
       trial_started_at: newUser.trial_started_at as string | null,
       trial_expires_at: newUser.trial_expires_at as string | null,
-      trial_completed: newUser.trial_completed as boolean,
-      is_subscribed: newUser.is_subscribed as boolean,
+      trial_completed: newUser.trial_completed as boolean ?? false,
+      is_subscribed: newUser.is_subscribed as boolean ?? false,
       subscription_plan: newUser.subscription_plan as string | null,
       preferred_language: newUser.preferred_language as Language | null,
       show_translations: newUser.show_translations as boolean ?? true,
+      prefers_audio: newUser.prefers_audio as boolean ?? false,
     };
   }
 
-  // Regular user: start trial
+  // Regular user with trial
   const trialExpiresAt = new Date(now.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
 
   const { data: newUser, error } = await supabase
@@ -1465,15 +1489,16 @@ async function getOrCreateUser(
     .insert({ 
       wa_id: waId, 
       name, 
-      subscription_status: "trial",
       trial_started_at: now.toISOString(),
       trial_expires_at: trialExpiresAt.toISOString(),
       trial_completed: false,
       is_subscribed: false,
+      subscription_status: "trial",
       preferred_language: null,
       show_translations: true,
+      prefers_audio: false,
     })
-    .select("wa_id, name, level, subscription_status, trial_started_at, trial_expires_at, trial_completed, is_subscribed, subscription_plan, preferred_language, show_translations")
+    .select("wa_id, name, level, subscription_status, trial_started_at, trial_expires_at, trial_completed, is_subscribed, subscription_plan, preferred_language, show_translations, prefers_audio")
     .single();
 
   if (error) {
@@ -1485,7 +1510,10 @@ async function getOrCreateUser(
   await trackEvent(supabase, waId, "trial_started", {
     trial_started_at: now.toISOString(),
     trial_expires_at: trialExpiresAt.toISOString(),
+    new_user: true,
   });
+
+  console.log("[DB] New user created:", waId.slice(0, 4) + "****");
 
   return {
     wa_id: newUser.wa_id as string,
@@ -1494,50 +1522,18 @@ async function getOrCreateUser(
     subscription_status: newUser.subscription_status as string,
     trial_started_at: newUser.trial_started_at as string | null,
     trial_expires_at: newUser.trial_expires_at as string | null,
-    trial_completed: newUser.trial_completed as boolean,
-    is_subscribed: newUser.is_subscribed as boolean,
+    trial_completed: newUser.trial_completed as boolean ?? false,
+    is_subscribed: newUser.is_subscribed as boolean ?? false,
     subscription_plan: newUser.subscription_plan as string | null,
     preferred_language: newUser.preferred_language as Language | null,
     show_translations: newUser.show_translations as boolean ?? true,
+    prefers_audio: newUser.prefers_audio as boolean ?? false,
   };
-}
-
-async function getOrCreateState(
-  supabase: SupabaseClientType,
-  waId: string,
-): Promise<{ step: string; data: StateData } | null> {
-  const { data: existing } = await supabase.from("wa_state").select("step, data").eq("wa_id", waId).maybeSingle();
-
-  if (existing) {
-    return {
-      step: existing.step as string,
-      data: (existing.data || {}) as StateData,
-    };
-  }
-
-  const { data: newState, error } = await supabase
-    .from("wa_state")
-    .insert({ wa_id: waId, step: "welcome", data: {} })
-    .select("step, data")
-    .single();
-
-  if (error) {
-    console.error("[DB] Error:", error);
-    return null;
-  }
-
-  return {
-    step: newState.step as string,
-    data: (newState.data || {}) as StateData,
-  };
-}
-
-async function updateState(supabase: SupabaseClientType, waId: string, step: string, data: StateData): Promise<void> {
-  await supabase.from("wa_state").update({ step, data }).eq("wa_id", waId);
 }
 
 async function updateUserLevel(supabase: SupabaseClientType, waId: string, level: EnglishLevel): Promise<void> {
   await supabase.from("wa_users").update({ level }).eq("wa_id", waId);
+  await trackEvent(supabase, waId, "level_assessed", { level });
 }
 
 async function updateUserLanguage(
@@ -1549,7 +1545,55 @@ async function updateUserLanguage(
   await supabase.from("wa_users").update({ 
     preferred_language: language,
     show_translations: showTranslations,
+    ui_language_locked: true,
   }).eq("wa_id", waId);
+}
+
+async function updateUserAudioPreference(
+  supabase: SupabaseClientType,
+  waId: string,
+  prefersAudio: boolean
+): Promise<void> {
+  await supabase.from("wa_users").update({ 
+    prefers_audio: prefersAudio,
+  }).eq("wa_id", waId);
+  
+  await trackEvent(supabase, waId, "audio_preference_changed", {
+    prefers_audio: prefersAudio,
+  });
+}
+
+async function getOrCreateState(
+  supabase: SupabaseClientType,
+  waId: string,
+): Promise<{ step: string; data: StateData }> {
+  const { data: existing } = await supabase
+    .from("wa_state")
+    .select("step, data")
+    .eq("wa_id", waId)
+    .maybeSingle();
+
+  if (existing) {
+    return {
+      step: existing.step as string,
+      data: (existing.data || {}) as StateData,
+    };
+  }
+
+  await supabase.from("wa_state").insert({ wa_id: waId, step: "welcome", data: {} });
+  return { step: "welcome", data: {} };
+}
+
+async function updateState(
+  supabase: SupabaseClientType,
+  waId: string,
+  step: string,
+  data: StateData,
+): Promise<void> {
+  await supabase
+    .from("wa_state")
+    .update({ step, data, updated_at: new Date().toISOString() })
+    .eq("wa_id", waId);
 }
 
 // ============== TRIAL SYSTEM ==============
@@ -1562,39 +1606,28 @@ function initTrial(): TrialInfo {
   };
 }
 
-function getTrialProgress(trial: TrialInfo): { lessonsLeft: number; daysLeft: number } {
-  const startDate = new Date(trial.trial_started_at);
+function getTrialProgress(trial: TrialInfo): { daysLeft: number; lessonsLeft: number } {
+  const started = new Date(trial.trial_started_at);
   const now = new Date();
-  const daysDiff = Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-
-  return {
-    lessonsLeft: Math.max(0, TRIAL_LESSONS - trial.lessons_completed),
-    daysLeft: Math.max(0, TRIAL_DAYS - daysDiff),
-  };
+  const elapsed = Math.floor((now.getTime() - started.getTime()) / (1000 * 60 * 60 * 24));
+  const daysLeft = Math.max(0, TRIAL_DAYS - elapsed);
+  const lessonsLeft = Math.max(0, TRIAL_LESSONS - trial.lessons_completed);
+  return { daysLeft, lessonsLeft };
 }
 
-// ============== ADMIN & ACCESS CONTROL ==============
+// ============== ACCESS CONTROL ==============
 
-function getAccessStatus(
-  waUser: UserData,
-  waId: string,
-  reqHeaders?: Headers
-): AccessStatus {
+function getAccessStatus(waUser: UserData, waId: string): AccessStatus {
   const adminWaId = Deno.env.get("ADMIN_WA_ID");
-  const adminKey = Deno.env.get("ADMIN_KEY");
-  const headerAdminKey = reqHeaders?.get("x-admin-key");
-
-  // Check if admin
-  const isAdminById = adminWaId && waId === adminWaId;
-  const isAdminByKey = adminKey && headerAdminKey && headerAdminKey === adminKey;
-  const isAdmin = !!(isAdminById || isAdminByKey);
-
-  if (isAdmin) {
+  
+  // Check if admin by wa_id
+  if (adminWaId && waId === adminWaId) {
+    console.log(`[ACCESS] Admin bypass for wa_id: ${waId.slice(0, 4)}****`);
     return {
       isAdmin: true,
       isSubscribed: true,
-      plan: (waUser.subscription_plan as SubscriptionPlan) || "trimestral",
-      trialActive: false,
+      plan: "trimestral",
+      trialActive: true,
       trialExpired: false,
     };
   }
@@ -1754,7 +1787,7 @@ async function handleAdminCommand(
       : "N/A (admin)";
   
   const currentDay = progress?.current_day || 1;
-  const currentExercise = (progress?.current_exercise_index || 0) + 1;
+  const currentExercise = Math.min((progress?.current_exercise_index || 0) + 1, 4);
   const dayLesson = SEVEN_DAY_PLAN.find(d => d.day === currentDay);
   const totalExercises = dayLesson?.exercises.length || 4;
   
@@ -1945,6 +1978,8 @@ interface TranscriptionResult {
   transcript: string;
   confidence?: number;
   error?: string;
+  request_id?: string;
+  audio_seconds?: number;
 }
 
 interface MediaUrlResponse {
@@ -2030,10 +2065,11 @@ async function downloadMedia(url: string): Promise<Blob | null> {
  */
 async function transcribeAudio(audioBlob: Blob, mimeType: string): Promise<TranscriptionResult> {
   const openaiKey = Deno.env.get("OPENAI_API_KEY");
+  const requestId = crypto.randomUUID();
   
   if (!openaiKey) {
     console.error("[AUDIO] Missing OPENAI_API_KEY");
-    return { success: false, transcript: "", error: "missing_api_key" };
+    return { success: false, transcript: "", error: "missing_api_key", request_id: requestId };
   }
 
   try {
@@ -2065,11 +2101,28 @@ async function transcribeAudio(audioBlob: Blob, mimeType: string): Promise<Trans
     if (!response.ok) {
       const errorText = await response.text();
       console.error("[AUDIO] Whisper API error:", response.status, errorText);
-      return { success: false, transcript: "", error: `whisper_error_${response.status}` };
+      
+      // Handle rate limit specifically
+      if (response.status === 429) {
+        return { 
+          success: false, 
+          transcript: "", 
+          error: "rate_limit", 
+          request_id: requestId 
+        };
+      }
+      
+      return { 
+        success: false, 
+        transcript: "", 
+        error: `whisper_error_${response.status}`, 
+        request_id: requestId 
+      };
     }
 
     const data = await response.json();
     const transcript = data.text?.trim() || "";
+    const audioSeconds = data.duration || 0;
     
     console.log("[AUDIO] Transcription successful:", transcript.slice(0, 50) + "...");
     
@@ -2077,10 +2130,12 @@ async function transcribeAudio(audioBlob: Blob, mimeType: string): Promise<Trans
       success: true,
       transcript,
       confidence: data.segments?.[0]?.avg_logprob ? Math.exp(data.segments[0].avg_logprob) : undefined,
+      request_id: requestId,
+      audio_seconds: audioSeconds,
     };
   } catch (error) {
     console.error("[AUDIO] transcribeAudio exception:", error);
-    return { success: false, transcript: "", error: "transcription_exception" };
+    return { success: false, transcript: "", error: "transcription_exception", request_id: requestId };
   }
 }
 
@@ -2091,9 +2146,12 @@ async function processAudioMessage(
   supabase: SupabaseClientType,
   waId: string,
   mediaId: string,
-  mimeType?: string
+  mimeType?: string,
+  stepAtTime?: string
 ): Promise<TranscriptionResult> {
   console.log("[AUDIO] Starting audio processing for media:", mediaId);
+  
+  const requestId = crypto.randomUUID();
   
   // Step 1: Get media URL
   const mediaInfo = await fetchMediaUrl(mediaId);
@@ -2101,8 +2159,10 @@ async function processAudioMessage(
     await trackEvent(supabase, waId, "audio_transcription_failed", {
       media_id: mediaId,
       error: "fetch_url_failed",
+      request_id: requestId,
+      step_at_time: stepAtTime,
     });
-    return { success: false, transcript: "", error: "fetch_url_failed" };
+    return { success: false, transcript: "", error: "fetch_url_failed", request_id: requestId };
   }
 
   // Step 2: Download media
@@ -2111,24 +2171,40 @@ async function processAudioMessage(
     await trackEvent(supabase, waId, "audio_transcription_failed", {
       media_id: mediaId,
       error: "download_failed",
+      request_id: requestId,
+      step_at_time: stepAtTime,
     });
-    return { success: false, transcript: "", error: "download_failed" };
+    return { success: false, transcript: "", error: "download_failed", request_id: requestId };
   }
 
   // Step 3: Transcribe
   const result = await transcribeAudio(audioBlob, mimeType || mediaInfo.mimeType);
   
   if (result.success) {
+    // Track audio_received with full metadata
+    await trackEvent(supabase, waId, "audio_received", {
+      media_id: mediaId,
+      transcript_text: result.transcript,
+      audio_seconds: result.audio_seconds,
+      provider: "openai",
+      request_id: result.request_id,
+      step_at_time: stepAtTime,
+      confidence: result.confidence,
+    });
+    
     await trackEvent(supabase, waId, "audio_transcribed", {
       media_id: mediaId,
       transcript: result.transcript.slice(0, 500),
       confidence: result.confidence,
       mime_type: mimeType || mediaInfo.mimeType,
+      request_id: result.request_id,
     });
   } else {
     await trackEvent(supabase, waId, "audio_transcription_failed", {
       media_id: mediaId,
       error: result.error,
+      request_id: result.request_id,
+      step_at_time: stepAtTime,
     });
   }
 
@@ -2181,23 +2257,27 @@ function extractMCQFromTranscript(transcript: string): string | null {
     return lower.charAt(0).toUpperCase();
   }
   
-  // Contains option letter clearly
-  const letterMatch = lower.match(/\b(option\s+)?([abcd])\b/i);
-  if (letterMatch) {
-    return letterMatch[2].toUpperCase();
-  }
+  // Match at start or end
+  const startMatch = lower.match(/^([abcd])\b/i);
+  if (startMatch) return startMatch[1].toUpperCase();
   
-  // Spoken letters
+  const endMatch = lower.match(/\b([abcd])$/i);
+  if (endMatch) return endMatch[1].toUpperCase();
+  
+  // Look for spoken versions
   const spokenMap: Record<string, string> = {
-    "a": "A", "ay": "A", "ei": "A",
-    "b": "B", "be": "B", "bee": "B", "bi": "B",
-    "c": "C", "see": "C", "si": "C", "ce": "C",
-    "d": "D", "de": "D", "dee": "D", "di": "D",
+    "a": "A", "be": "B", "bee": "B", "b": "B",
+    "see": "C", "sea": "C", "c": "C",
+    "dee": "D", "d": "D",
+    "letter a": "A", "letter b": "B", "letter c": "C", "letter d": "D",
+    "option a": "A", "option b": "B", "option c": "C", "option d": "D",
+    "answer a": "A", "answer b": "B", "answer c": "C", "answer d": "D",
+    "opción a": "A", "opción b": "B", "opción c": "C", "opción d": "D",
+    "opcion a": "A", "opcion b": "B", "opcion c": "C", "opcion d": "D",
   };
   
-  const words = lower.split(/\s+/);
-  for (const word of words) {
-    if (spokenMap[word]) {
+  for (const [word, letter] of Object.entries(spokenMap)) {
+    if (lower.includes(word)) {
       return spokenMap[word];
     }
   }
@@ -2377,6 +2457,31 @@ async function handleLanguageChange(
   return { handled: false };
 }
 
+// ============== AUDIO PREFERENCE COMMANDS ==============
+
+async function handleAudioPreferenceCommand(
+  supabase: SupabaseClientType,
+  waId: string,
+  input: string,
+  lang: Language
+): Promise<boolean> {
+  const lower = input.toLowerCase().trim();
+  
+  if (lower === "audio on") {
+    await updateUserAudioPreference(supabase, waId, true);
+    await send(waId, t(lang, "audio_on_confirmed"));
+    return true;
+  }
+  
+  if (lower === "audio off") {
+    await updateUserAudioPreference(supabase, waId, false);
+    await send(waId, t(lang, "audio_off_confirmed"));
+    return true;
+  }
+  
+  return false;
+}
+
 // ============== PLACEMENT TEST FLOW (MVP1) ==============
 
 async function startPlacement(supabase: SupabaseClientType, waId: string, data: StateData, lang: Language): Promise<void> {
@@ -2401,12 +2506,66 @@ async function handlePlacementQuestion(
   waId: string,
   answer: string,
   state: { step: string; data: StateData },
-  lang: Language
+  lang: Language,
+  audioData?: { media_id: string; mime_type?: string },
+  isAdmin: boolean = false
 ): Promise<void> {
   const placement = state.data.placement!;
   const qIndex = placement.question_index;
   const question = PLACEMENT_QUESTIONS[qIndex];
-  const normalized = answer.toUpperCase().trim();
+  
+  let actualAnswer = answer;
+  let transcript = "";
+  let requestId = "";
+  
+  // Handle audio input
+  if (audioData) {
+    const transcriptionResult = await processAudioMessage(
+      supabase,
+      waId,
+      audioData.media_id,
+      audioData.mime_type,
+      state.step
+    );
+    
+    if (!transcriptionResult.success) {
+      // Handle rate limit specially
+      if (transcriptionResult.error === "rate_limit") {
+        await send(waId, t(lang, "audio_transcription_rate_limit"));
+      } else {
+        await send(waId, t(lang, "audio_transcription_failed"));
+      }
+      return;
+    }
+    
+    transcript = transcriptionResult.transcript;
+    requestId = transcriptionResult.request_id || "";
+    
+    // Show transcript
+    await send(waId, t(lang, "audio_transcript_header", { transcript }));
+    await new Promise(r => setTimeout(r, 400));
+    
+    // Extract MCQ answer from transcript
+    const mcqAnswer = extractMCQFromTranscript(transcript);
+    if (mcqAnswer) {
+      actualAnswer = mcqAnswer;
+    } else {
+      // Couldn't extract a clear letter - show prompt again
+      await send(waId, t(lang, "answer_abcd"));
+      
+      // Admin debug info
+      if (isAdmin) {
+        await send(waId, t(lang, "admin_audio_debug", {
+          request_id: requestId,
+          step: state.step,
+          transcript: transcript,
+        }));
+      }
+      return;
+    }
+  }
+  
+  const normalized = actualAnswer.toUpperCase().trim();
 
   if (!["A", "B", "C", "D"].includes(normalized)) {
     await send(waId, t(lang, "answer_abcd"));
@@ -2429,7 +2588,9 @@ async function handlePlacementQuestion(
     q_id: question.id,
     answer: normalized,
     correct: isCorrect,
-    feedback: isCorrect ? question.feedback_correct[lang] : question.feedback_wrong[lang]
+    feedback: isCorrect ? question.feedback_correct[lang] : question.feedback_wrong[lang],
+    input_type: audioData ? "audio" : "text",
+    transcript: transcript || null,
   });
 
   // Give immediate feedback
@@ -2454,20 +2615,65 @@ async function handlePlacementWritten(
   waId: string,
   text: string,
   state: { step: string; data: StateData },
-  lang: Language
+  lang: Language,
+  audioData?: { media_id: string; mime_type?: string },
+  isAdmin: boolean = false
 ): Promise<void> {
   const placement = state.data.placement!;
   
-  // Evaluate text
-  const evaluation = await evaluateWrittenProduction(text, lang);
+  let actualText = text;
+  let transcript = "";
+  let requestId = "";
   
-  placement.written_text = text;
+  // Handle audio input
+  if (audioData) {
+    const transcriptionResult = await processAudioMessage(
+      supabase,
+      waId,
+      audioData.media_id,
+      audioData.mime_type,
+      state.step
+    );
+    
+    if (!transcriptionResult.success) {
+      if (transcriptionResult.error === "rate_limit") {
+        await send(waId, t(lang, "audio_transcription_rate_limit"));
+      } else {
+        await send(waId, t(lang, "audio_transcription_failed"));
+      }
+      return;
+    }
+    
+    transcript = transcriptionResult.transcript;
+    requestId = transcriptionResult.request_id || "";
+    actualText = transcript;
+    
+    // Show transcript
+    await send(waId, t(lang, "audio_transcript_header", { transcript }));
+    await new Promise(r => setTimeout(r, 400));
+    
+    // Admin debug
+    if (isAdmin) {
+      await send(waId, t(lang, "admin_audio_debug", {
+        request_id: requestId,
+        step: state.step,
+        transcript: transcript,
+      }));
+    }
+  }
+  
+  // Evaluate text
+  const evaluation = await evaluateWrittenProduction(actualText, lang);
+  
+  placement.written_text = actualText;
   placement.written_score = evaluation.score;
 
   await trackEvent(supabase, waId, "placement_written_submitted", {
-    text: text.slice(0, 1000),
+    text: actualText.slice(0, 1000),
     score: evaluation.score,
-    notes: evaluation.notes
+    notes: evaluation.notes,
+    input_type: audioData ? "audio" : "text",
+    transcript: transcript || null,
   });
 
   await send(waId, `✅ ${evaluation.notes}`);
@@ -2584,7 +2790,7 @@ async function finishPlacement(
     day_attempts: 0,
     exercises_completed: 0,
     total_lessons_completed: 0,
-    goal: "general",
+    goal: "general" as LearningGoal,
     onboarding_complete: false,
     trial: initTrial(),
     mistake_tags: []
@@ -2721,7 +2927,8 @@ async function handleExerciseAnswer(
   answer: string,
   state: { step: string; data: StateData },
   lang: Language,
-  audioData?: { media_id: string; mime_type?: string }
+  audioData?: { media_id: string; mime_type?: string },
+  isAdmin: boolean = false
 ): Promise<void> {
   const progress = state.data.progress!;
   const day = SEVEN_DAY_PLAN.find(l => l.day === progress.current_day)!;
@@ -2733,71 +2940,73 @@ async function handleExerciseAnswer(
   }
 
   let actualAnswer = answer;
-  let transcript: string | null = null;
-  let pronunciationTip: string | null = null;
+  let transcript = "";
+  let pronunciationTip = "";
+  let requestId = "";
 
-  // If audio was sent, transcribe it first
+  // Handle audio input
   if (audioData) {
     const transcriptionResult = await processAudioMessage(
       supabase,
       waId,
       audioData.media_id,
-      audioData.mime_type
+      audioData.mime_type,
+      state.step
     );
-
-    if (!transcriptionResult.success || !transcriptionResult.transcript.trim()) {
-      // Transcription failed - ask user to type answer instead
-      await send(waId, t(lang, "audio_transcription_failed"));
-      return; // Don't advance exercise, let user retry with text
+    
+    if (!transcriptionResult.success) {
+      if (transcriptionResult.error === "rate_limit") {
+        await send(waId, t(lang, "audio_transcription_rate_limit"));
+      } else {
+        await send(waId, t(lang, "audio_transcription_failed"));
+      }
+      return;
     }
 
     transcript = transcriptionResult.transcript;
-    console.log("[EXERCISE] Audio transcript:", transcript);
-
-    // For MCQ exercises, extract the letter from transcript
+    requestId = transcriptionResult.request_id || "";
+    
+    // For MCQ, extract letter from transcript
     if (exercise.type === "choose_correct" && exercise.options) {
       const mcqAnswer = extractMCQFromTranscript(transcript);
       if (mcqAnswer) {
         actualAnswer = mcqAnswer;
       } else {
-        // Couldn't extract MCQ answer from audio
         actualAnswer = transcript;
       }
     } else {
-      // For other exercise types, use the full transcript
       actualAnswer = transcript;
     }
   }
 
+  // Evaluate answer
   const evaluation = await evaluateExerciseAnswer(exercise, actualAnswer, lang);
-  progress.day_attempts++;
 
+  // Update progress
+  progress.day_attempts++;
   if (evaluation.correct) {
     progress.day_score++;
     progress.exercises_completed++;
   } else {
-    // Record mistake_tag
-    progress.mistake_tags = progress.mistake_tags || [];
-    const existingTag = progress.mistake_tags.find(t => t.tag === exercise.mistake_tag);
+    // Track mistake
+    const existingTag = progress.mistake_tags?.find(m => m.tag === exercise.mistake_tag);
     if (existingTag) {
       existingTag.count++;
-      existingTag.last_seen = new Date().toISOString();
+      existingTag.last_seen = new Date().toISOString().slice(0, 10);
     } else {
+      progress.mistake_tags = progress.mistake_tags || [];
       progress.mistake_tags.push({
         tag: exercise.mistake_tag,
         count: 1,
-        last_seen: new Date().toISOString()
+        last_seen: new Date().toISOString().slice(0, 10)
       });
     }
   }
 
-  // Track with transcript info if audio was used
   await trackEvent(supabase, waId, "exercise_answered", {
-    lesson_id: day.lesson_id,
-    ex_id: exercise.id,
-    user_answer: actualAnswer,
+    exercise_id: exercise.id,
+    answer: actualAnswer,
     correct: evaluation.correct,
-    feedback: evaluation.feedback,
     mistake_tag: evaluation.correct ? null : exercise.mistake_tag,
     input_type: audioData ? "audio" : "text",
     transcript: transcript,
@@ -2818,6 +3027,15 @@ async function handleExerciseAnswer(
     pronunciationTip = await generatePronunciationTip(exercise.correct_answer, transcript, lang);
     await send(waId, t(lang, "audio_pronunciation_tip", { tip: pronunciationTip }));
     await new Promise(r => setTimeout(r, 400));
+
+    // Admin debug info
+    if (isAdmin) {
+      await send(waId, t(lang, "admin_audio_debug", {
+        request_id: requestId,
+        step: state.step,
+        transcript: transcript,
+      }));
+    }
 
     // Show next step prompt
     if (evaluation.correct) {
@@ -3124,7 +3342,8 @@ async function handleReviewAnswerWithAudio(
   waId: string,
   state: { step: string; data: StateData },
   lang: Language,
-  audioData: { media_id: string; mime_type?: string }
+  audioData: { media_id: string; mime_type?: string },
+  isAdmin: boolean = false
 ): Promise<void> {
   const progress = state.data.progress!;
   const exercises = progress.review_exercises!;
@@ -3136,15 +3355,21 @@ async function handleReviewAnswerWithAudio(
     supabase,
     waId,
     audioData.media_id,
-    audioData.mime_type
+    audioData.mime_type,
+    state.step
   );
 
   if (!transcriptionResult.success || !transcriptionResult.transcript.trim()) {
-    await send(waId, t(lang, "audio_transcription_failed"));
+    if (transcriptionResult.error === "rate_limit") {
+      await send(waId, t(lang, "audio_transcription_rate_limit"));
+    } else {
+      await send(waId, t(lang, "audio_transcription_failed"));
+    }
     return;
   }
 
   const transcript = transcriptionResult.transcript;
+  const requestId = transcriptionResult.request_id || "";
   let actualAnswer = transcript;
 
   // For MCQ, extract letter
@@ -3175,6 +3400,15 @@ async function handleReviewAnswerWithAudio(
   const tip = await generatePronunciationTip(exercise.correct_answer, transcript, lang);
   await send(waId, t(lang, "audio_pronunciation_tip", { tip }));
   await new Promise(r => setTimeout(r, 400));
+
+  // Admin debug
+  if (isAdmin) {
+    await send(waId, t(lang, "admin_audio_debug", {
+      request_id: requestId,
+      step: state.step,
+      transcript: transcript,
+    }));
+  }
 
   if (!evaluation.correct) {
     await send(waId, t(lang, "audio_repeat"));
@@ -3207,7 +3441,8 @@ async function handleDayProductionWithTranscription(
   state: { step: string; data: StateData },
   user: UserData,
   lang: Language,
-  audioData: { media_id: string; mime_type?: string }
+  audioData: { media_id: string; mime_type?: string },
+  isAdmin: boolean = false
 ): Promise<void> {
   const progress = state.data.progress!;
   const day = SEVEN_DAY_PLAN.find(l => l.day === progress.current_day)!;
@@ -3217,7 +3452,8 @@ async function handleDayProductionWithTranscription(
     supabase,
     waId,
     audioData.media_id,
-    audioData.mime_type
+    audioData.mime_type,
+    state.step
   );
 
   let transcript = "";
@@ -3225,6 +3461,7 @@ async function handleDayProductionWithTranscription(
   let notes = lang === "pt" ? "Excelente prática de áudio! 🎤" : 
               lang === "es" ? "¡Excelente práctica de audio! 🎤" : 
               "Excellent audio practice! 🎤";
+  const requestId = transcriptionResult.request_id || "";
 
   if (transcriptionResult.success && transcriptionResult.transcript.trim()) {
     transcript = transcriptionResult.transcript;
@@ -3237,6 +3474,15 @@ async function handleDayProductionWithTranscription(
     // Show transcript
     await send(waId, t(lang, "audio_transcript_header", { transcript }));
     await new Promise(r => setTimeout(r, 400));
+    
+    // Admin debug
+    if (isAdmin) {
+      await send(waId, t(lang, "admin_audio_debug", {
+        request_id: requestId,
+        step: state.step,
+        transcript: transcript,
+      }));
+    }
   } else {
     // Couldn't transcribe but still received audio
     await send(waId, t(lang, "audio_received"));
@@ -3250,6 +3496,7 @@ async function handleDayProductionWithTranscription(
     score,
     notes,
     transcription_success: transcriptionResult.success,
+    request_id: requestId,
   });
 
   const scoreLabel = lang === "pt" ? "Pontuação" : lang === "es" ? "Puntuación" : "Score";
@@ -3329,74 +3576,69 @@ async function handleRestartCommand(
   state: { step: string; data: StateData },
   lang: Language
 ): Promise<void> {
-  if (state.step !== "confirm_restart") {
-    await updateState(supabase, waId, "confirm_restart", state.data);
-    await send(waId, t(lang, "restart_confirm"));
-    return;
-  }
+  await updateState(supabase, waId, "confirm_restart", state.data);
+  await send(waId, t(lang, "restart_confirm"));
 }
 
-// ============== MAIN MESSAGE PROCESSOR ==============
+// ============== MAIN FLOW ==============
 
 async function processMessage(
   supabase: SupabaseClientType,
   waId: string,
   userName: string | null,
   messageText: string,
-  audioData?: { media_id: string; mime_type?: string }
+  audioData?: { media_id: string; mime_type?: string },
 ): Promise<void> {
+  console.log(`[BOT] Processing message from: ${maskWaId(waId)}, text: "${messageText.slice(0, 50)}...", audio: ${!!audioData}`);
+
+  // Get or create user and state
   const user = await getOrCreateUser(supabase, waId, userName);
-  if (!user) return;
+  if (!user) {
+    console.error("[BOT] Failed to get/create user");
+    return;
+  }
 
   const state = await getOrCreateState(supabase, waId);
-  if (!state) return;
-
-  const displayName = userName?.split(" ")[0] || "friend";
-  const normalized = messageText.trim().toUpperCase();
+  const displayName = user.name || userName || "amigo";
+  const normalized = messageText.toUpperCase().trim();
   const lower = messageText.toLowerCase().trim();
-  
-  // Get user's preferred language (default to Spanish for initial picker message)
-  let lang: Language = user.preferred_language || "es";
 
-  // ========== LANGUAGE PICKER (MANDATORY FOR NEW USERS) ==========
+  // Determine language (use user's preference or default to Spanish)
+  let lang: Language = user.preferred_language || "es";
   
-  // If user has no preferred_language, show language picker first
-  if (!user.preferred_language) {
-    // Check if this is a language selection response
-    const selectedLang = parseLanguageChoice(messageText);
-    
-    if (selectedLang) {
-      // User selected a language
-      const showTranslations = selectedLang !== "en";
-      await updateUserLanguage(supabase, waId, selectedLang, showTranslations);
-      
-      await trackEvent(supabase, waId, "language_selected", {
-        language: selectedLang,
-        source: "picker",
-        raw_input: messageText,
-      });
-      
-      // Update user object locally
-      lang = selectedLang;
-      
-      const confirmKey = `language_confirm_${selectedLang}`;
-      await send(waId, t(selectedLang, confirmKey));
-      
-      await new Promise(r => setTimeout(r, 500));
-      
-      // Now continue with welcome flow
-      await send(waId, t(lang, "welcome", { name: displayName }));
-      await updateState(supabase, waId, "pre_placement", state.data);
+  // Get access status for admin check
+  const accessStatus = getAccessStatus(user, waId);
+  const isAdmin = accessStatus.isAdmin;
+
+  // ========== LANGUAGE PICKER (PRIORITY FOR NEW USERS) ==========
+  
+  if (!user.preferred_language && state.step !== "language_picker") {
+    // New user without language - show picker immediately
+    await updateState(supabase, waId, "language_picker", state.data);
+    await send(waId, t(null, "language_picker"));
+    return;
+  }
+
+  // Handle language picker responses
+  if (state.step === "language_picker") {
+    const result = await handleLanguageChange(supabase, waId, messageText, lang);
+    if (result.handled) {
+      if (result.newLang) {
+        lang = result.newLang;
+        // After language is set, move to welcome
+        await updateState(supabase, waId, "welcome", state.data);
+        await send(waId, t(lang, "welcome", { name: displayName }));
+        await updateState(supabase, waId, "pre_placement", state.data);
+      }
       return;
     } else {
-      // Show language picker (using neutral/bilingual message)
-      await send(waId, I18N.language_picker.es); // Use Spanish as default for picker
+      // Invalid language selection
+      await send(waId, t(null, "invalid_language"));
       return;
     }
   }
 
-  // ========== LANGUAGE CHANGE COMMAND (ANYTIME) ==========
-  
+  // Handle IDIOMA/LANGUAGE command at any time
   if (isLanguageCommand(messageText)) {
     const result = await handleLanguageChange(supabase, waId, messageText, lang);
     if (result.handled) {
@@ -3430,6 +3672,13 @@ async function processMessage(
   
   const adminHandled = await handleAdminCommand(supabase, waId, messageText, state, user, lang);
   if (adminHandled) {
+    return;
+  }
+
+  // ========== AUDIO PREFERENCE COMMANDS ==========
+  
+  const audioPreferenceHandled = await handleAudioPreferenceCommand(supabase, waId, messageText, lang);
+  if (audioPreferenceHandled) {
     return;
   }
 
@@ -3477,9 +3726,6 @@ async function processMessage(
 
   if (lower === "review" || lower === "repaso" || lower === "repasar" || lower === "revisão" || lower === "revisar") {
     if (progress) {
-      // Use getAccessStatus for paywall check
-      const accessStatus = getAccessStatus(user, waId);
-      
       // Admin bypass for REVIEW
       if (accessStatus.isAdmin) {
         await trackAdminBypass(supabase, waId, "ADMIN_WA_ID", accessStatus.plan);
@@ -3523,12 +3769,12 @@ async function processMessage(
     case "placement_q1":
     case "placement_q2":
     case "placement_q3": {
-      await handlePlacementQuestion(supabase, waId, messageText, state, lang);
+      await handlePlacementQuestion(supabase, waId, messageText, state, lang, audioData, isAdmin);
       break;
     }
 
     case "placement_written": {
-      await handlePlacementWritten(supabase, waId, messageText, state, lang);
+      await handlePlacementWritten(supabase, waId, messageText, state, lang, audioData, isAdmin);
       break;
     }
 
@@ -3571,9 +3817,6 @@ async function processMessage(
     case "day_complete":
     case "day_failed": {
       if (["NEXT", "SIGUIENTE", "PRÓXIMO", "OK", "CONTINUAR"].includes(normalized)) {
-        // Use getAccessStatus for paywall check
-        const accessStatus = getAccessStatus(user, waId);
-        
         // Admin bypass for NEXT/LESSON
         if (accessStatus.isAdmin) {
           await trackAdminBypass(supabase, waId, "ADMIN_WA_ID", accessStatus.plan);
@@ -3602,16 +3845,16 @@ async function processMessage(
         await handleExerciseAnswer(supabase, waId, messageText, state, lang, {
           media_id: audioData.media_id,
           mime_type: audioData.mime_type,
-        });
+        }, isAdmin);
       } else {
-        await handleExerciseAnswer(supabase, waId, messageText, state, lang);
+        await handleExerciseAnswer(supabase, waId, messageText, state, lang, undefined, isAdmin);
       }
       break;
     }
 
     case "day_production": {
       if (audioData) {
-        await handleDayProductionWithTranscription(supabase, waId, state, user, lang, audioData);
+        await handleDayProductionWithTranscription(supabase, waId, state, user, lang, audioData, isAdmin);
       } else {
         await handleDayProduction(supabase, waId, messageText, state, user, lang);
       }
@@ -3621,7 +3864,7 @@ async function processMessage(
     case "review_exercise": {
       // Pass audioData if present for audio transcription
       if (audioData) {
-        await handleReviewAnswerWithAudio(supabase, waId, state, lang, audioData);
+        await handleReviewAnswerWithAudio(supabase, waId, state, lang, audioData, isAdmin);
       } else {
         await handleReviewAnswer(supabase, waId, messageText, state, lang);
       }

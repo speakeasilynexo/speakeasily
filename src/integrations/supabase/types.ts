@@ -81,6 +81,7 @@ export type Database = {
           level: Database["public"]["Enums"]["english_level"] | null
           name: string | null
           preferred_language: string | null
+          prefers_audio: boolean | null
           show_translations: boolean | null
           subscription_plan: string | null
           subscription_status: string
@@ -98,6 +99,7 @@ export type Database = {
           level?: Database["public"]["Enums"]["english_level"] | null
           name?: string | null
           preferred_language?: string | null
+          prefers_audio?: boolean | null
           show_translations?: boolean | null
           subscription_plan?: string | null
           subscription_status?: string
@@ -115,6 +117,7 @@ export type Database = {
           level?: Database["public"]["Enums"]["english_level"] | null
           name?: string | null
           preferred_language?: string | null
+          prefers_audio?: boolean | null
           show_translations?: boolean | null
           subscription_plan?: string | null
           subscription_status?: string
