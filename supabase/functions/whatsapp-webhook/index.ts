@@ -130,7 +130,12 @@ interface StateData {
   // Audio practice state: tracks the current target sentence for repetition
   audio_practice?: {
     target_sentence: string;
+    target_translation: string;
     attempts: number;
+  };
+  last_target?: {
+    en: string;
+    translation: string;
   };
 }
 
@@ -3034,6 +3039,7 @@ async function handleConversationalAudio(
       // Increment attempts
       state.data.audio_practice = {
         target_sentence: audioPractice.target_sentence,
+        target_translation: audioPractice.target_translation || "",
         attempts: (audioPractice.attempts || 0) + 1,
       };
       await updateState(supabase, waId, state.step, state.data);
@@ -3077,8 +3083,8 @@ async function handleConversationalAudio(
     if (isAlreadyCorrect && fixesList.length === 0) {
       // User's English was already perfect - confirm and give next target with translation
       const perfectMsg = feedbackLang === "pt"
-        ? `✅ *Está perfeito!* 🌟\n\n🔁 Agora repete (pronúncia):\n🇺🇸 *"${targetSentence}"*\n🇧🇷 _${feedback.translation_target || ""}_`
-        : `✅ *¡Está perfecto!* 🌟\n\n🔁 Ahora repite (pronunciación):\n🇺🇸 *"${targetSentence}"*\n🇪🇸 _${feedback.translation_target || ""}_`;
+        ? `✅ *Está perfeito!* 🌟\n\n🔁 Agora repete (pronúncia):\n🇺🇸 *"${targetSentence}"*\n🇧🇷 _${feedback.translation_target || ""}_\n\n↩️ _Ver tradução_`
+        : `✅ *¡Está perfecto!* 🌟\n\n🔁 Ahora repite (pronunciación):\n🇺🇸 *"${targetSentence}"*\n🇪🇸 _${feedback.translation_target || ""}_\n\n↩️ _Ver traducción_`;
       await send(waId, perfectMsg);
     } else {
       // Build fixes - ensure at least 2 when errors exist
@@ -3100,17 +3106,22 @@ async function handleConversationalAudio(
         : "";
       
       const repeatBlock = feedbackLang === "pt"
-        ? `\n\n🔁 *Repete:*\n🇺🇸 *"${targetSentence}"*\n🇧🇷 _${feedback.translation_target || ""}_`
-        : `\n\n🔁 *Repite:*\n🇺🇸 *"${targetSentence}"*\n🇪🇸 _${feedback.translation_target || ""}_`;
+        ? `\n\n🔁 *Repete:*\n🇺🇸 *"${targetSentence}"*\n🇧🇷 _${feedback.translation_target || ""}_\n\n↩️ _Ver tradução_`
+        : `\n\n🔁 *Repite:*\n🇺🇸 *"${targetSentence}"*\n🇪🇸 _${feedback.translation_target || ""}_\n\n↩️ _Ver traducción_`;
       
       const fullMsg = `${correctionBlock}${naturalBlock}${fixesBlock}${repeatBlock}`;
       await send(waId, fullMsg);
     }
     
-    // Save the target sentence for next audio check
+    // Save the target sentence for next audio check and for "Ver tradução"
     state.data.audio_practice = {
       target_sentence: targetSentence,
+      target_translation: feedback.translation_target || "",
       attempts: 0,
+    };
+    state.data.last_target = {
+      en: targetSentence,
+      translation: feedback.translation_target || "",
     };
     await updateState(supabase, waId, state.step, state.data);
   } else {
@@ -3752,12 +3763,27 @@ async function sendExercise(
     lang,
   });
 
+  // Add "Ver tradução" CTA for PT/ES users
+  const translateCta = showTranslations 
+    ? (lang === "pt" ? "\n\n↩️ _Ver tradução_" : "\n\n↩️ _Ver traducción_")
+    : "";
+
+  // Save last_target for "Ver tradução" command
+  if (exercise.correct_answer) {
+    const exerciseTranslation = exercise.prompt_translation?.[lang as "pt" | "es"] || "";
+    state.data.last_target = {
+      en: exercise.correct_answer,
+      translation: exerciseTranslation,
+    };
+    await updateState(supabase, waId, "lesson_exercise", state.data);
+  }
+
   await send(waId, t(lang, "exercise_header", {
     emoji: emoji[exercise.type] || "📝",
     current: String(current),
     total: String(total),
     prompt: fullPrompt,
-  }));
+  }) + translateCta);
 }
 
 async function handleExerciseAnswer(
@@ -4642,7 +4668,22 @@ async function processMessage(
     return;
   }
 
-  if (lower === "review" || lower === "repaso" || lower === "repasar" || lower === "revisão" || lower === "revisar") {
+   // ========== VER TRADUÇÃO / VER TRADUCCIÓN COMMAND ==========
+   if (lower === "ver tradução" || lower === "ver traducao" || lower === "ver traducción" || lower === "ver traduccion") {
+    const lastTarget = state.data.last_target;
+    if (lastTarget && lastTarget.en) {
+      const flag = lang === "pt" ? "🇧🇷" : "🇪🇸";
+      await send(waId, `🇺🇸 ${lastTarget.en}\n${flag} ${lastTarget.translation}`);
+    } else {
+      const noTargetMsg = lang === "pt" 
+        ? "Ainda não há frase alvo para traduzir. Continue o exercício!" 
+        : "Aún no hay frase objetivo para traducir. ¡Continúa el ejercicio!";
+      await send(waId, noTargetMsg);
+    }
+    return;
+  }
+
+   if (lower === "review" || lower === "repaso" || lower === "repasar" || lower === "revisão" || lower === "revisar") {
     if (progress) {
       // Admin bypass for REVIEW
       if (accessStatus.isAdmin) {
