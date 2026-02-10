@@ -1,5 +1,6 @@
 import { MessageCircle, CheckCircle, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
 const WHATSAPP_LINK = "https://wa.me/34657100100?text=Hello";
 
@@ -87,10 +88,17 @@ const Pricing = () => (
               variant={plan.highlight ? "default" : "outline"}
               asChild
             >
-              <a href={WHATSAPP_LINK}>
-                <MessageCircle className="w-4 h-4 mr-2" />
-                {plan.cta}
-              </a>
+              {plan.highlight ? (
+                <Link to="/subscribe">
+                  <MessageCircle className="w-4 h-4 mr-2" />
+                  {plan.cta}
+                </Link>
+              ) : (
+                <a href={WHATSAPP_LINK}>
+                  <MessageCircle className="w-4 h-4 mr-2" />
+                  {plan.cta}
+                </a>
+              )}
             </Button>
           </div>
         ))}
