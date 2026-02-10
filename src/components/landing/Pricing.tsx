@@ -1,6 +1,5 @@
 import { MessageCircle, CheckCircle, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
 
 const WHATSAPP_LINK = "https://wa.me/34657100100?text=Hello";
 
@@ -11,17 +10,12 @@ const plans = [
     period: "7 días",
     badge: null,
     highlight: false,
-    features: [
-      "20 lecciones completas",
-      "Feedback IA ilimitado",
-      "Correcciones detalladas",
-      "Sin tarjeta de crédito",
-    ],
+    features: ["20 lecciones completas", "Feedback IA ilimitado", "Correcciones detalladas", "Sin tarjeta de crédito"],
     cta: "Empezar Gratis",
   },
   {
     name: "Premium",
-    price: "€9",
+    price: "€12,99",
     period: "/mes",
     badge: "Popular",
     highlight: true,
@@ -47,9 +41,7 @@ const Pricing = () => (
         <h2 className="font-display text-3xl md:text-4xl font-bold mb-4 tracking-tight">
           Empieza Gratis, Crece a Tu Ritmo
         </h2>
-        <p className="text-muted-foreground text-lg max-w-xl mx-auto">
-          Sin compromisos. Cancela cuando quieras.
-        </p>
+        <p className="text-muted-foreground text-lg max-w-xl mx-auto">Sin compromisos. Cancela cuando quieras.</p>
       </div>
 
       <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
@@ -57,9 +49,7 @@ const Pricing = () => (
           <div
             key={plan.name}
             className={`relative rounded-2xl border p-7 flex flex-col ${
-              plan.highlight
-                ? "border-primary/30 bg-card shadow-elevated"
-                : "border-border/50 bg-card shadow-soft"
+              plan.highlight ? "border-primary/30 bg-card shadow-elevated" : "border-border/50 bg-card shadow-soft"
             }`}
           >
             {plan.badge && (
@@ -88,17 +78,10 @@ const Pricing = () => (
               variant={plan.highlight ? "default" : "outline"}
               asChild
             >
-              {plan.highlight ? (
-                <Link to="/subscribe">
-                  <MessageCircle className="w-4 h-4 mr-2" />
-                  {plan.cta}
-                </Link>
-              ) : (
-                <a href={WHATSAPP_LINK}>
-                  <MessageCircle className="w-4 h-4 mr-2" />
-                  {plan.cta}
-                </a>
-              )}
+              <a href={WHATSAPP_LINK}>
+                <MessageCircle className="w-4 h-4 mr-2" />
+                {plan.cta}
+              </a>
             </Button>
           </div>
         ))}
