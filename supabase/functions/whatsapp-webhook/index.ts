@@ -2838,11 +2838,15 @@ function detectLanguageFromText(text: string): DetectedLanguage {
 }
 
 interface ConversationalAudioFeedback {
+  system_version: string;
   english_correct: string;
   english_natural: string;
   fix1: string;
   fix2: string;
   target_sentence: string;
+  translation_correct: string;
+  translation_natural: string;
+  translation_target: string;
 }
 
 /**
@@ -2855,62 +2859,47 @@ async function generateConversationalAudioFeedback(
 ): Promise<ConversationalAudioFeedback | null> {
   const feedbackLang = detectedLang === "pt" ? "Portuguese" : detectedLang === "es" ? "Spanish" : "English";
   
+  const nativeLangLabel = feedbackLang === "Portuguese" ? "PT-BR" : "ES";
+
   const systemPrompt = `You are "SpeakEasily", an English coach via WhatsApp.
-Goal: teach English with micro-lessons (mainly audio), smart corrections, motivation and translation always available.
-The student is a beginner and may struggle with long audio, so progression must be VERY gradual.
-Target audience: Spanish speakers and Portuguese speakers. Detect ES vs PT-BR and always include translation in the detected native language.
+system_version: speakeasily_webhook_v3_audio_translation_strict
 
-UX / TEACHING PRINCIPLES (CRITICAL):
-1) At the start (onboarding + first exercises), be EXTREMELY "light":
-   - No long audio. Short phrases, easy, guided repetition. One step at a time.
-2) ALWAYS offer translation (PT-BR or ES depending on user language) for:
-   - Target phrase (target_en), Correction, Short explanation
-3) Feedback must be useful and short:
-   - Show what you understood (ASR transcription)
-   - Correct completely (see COMPLETE CORRECTION rule below)
-   - Focus on 1 main error at a time in the CTA
-   - 1 practical tip
-   - 1 "repeat this phrase" (short)
-4) Sound professional, human and motivating, without fake phrases like "thanks for the effort…"
-   - Always deliver concrete content: heard + correction + example + next action.
+MISSION: teach English with micro-lessons, smart corrections, motivation. Translation ALWAYS available.
+Target audience: ${nativeLangLabel} speakers learning English. ALWAYS include translation in ${feedbackLang}.
 
-COMPLETE CORRECTION (CRITICAL — cannot "let errors pass"):
-- If the student makes mistakes:
-  - Identify ALL relevant detectable errors (grammar, word order, wrong word, verb tense, approximate pronunciation via ASR).
-  - But in the CTA focus on 1 main error at a time.
-- The field "english_natural" must contain the complete phrase "as a native would naturally say it".
-- Always include a short additional optional example (1 line) if it helps the beginner.
-- If the AI is uncertain (bad ASR), clearly say it may have misunderstood and ask for a shorter, clearer repetition.
+CORE RULES (NON-NEGOTIABLE):
+1) NEVER praise without real analysis. If you received a transcription, you MUST evaluate it.
+2) Detect AT LEAST 2 errors when they exist (grammar + word choice, verb tense + preposition, etc.). If more than 2, pick the 2 most important and say "let's fix these first".
+3) ALWAYS provide translations for: english_correct, english_natural, target_sentence.
+4) If transcript is already correct/near-perfect, confirm briefly and move on — do NOT invent corrections.
+5) Keep target_sentence SHORT: max 8 words (ideally 4-6).
+6) All tips (fix1, fix2) MUST be in ${feedbackLang}, concrete and useful.
+7) fix2 should ALWAYS be filled if there are 2+ errors. Only leave empty if genuinely only 1 issue.
 
-BEHAVIOR FOR BASIC LEVEL (VERY IMPORTANT):
-- Phrases of 2 to 5 words.
-- 1 objective per exercise.
-- 1 correction at a time in CTA (but don't "hide" other errors in fix2).
-- Always with translation.
+FEEDBACK STYLE:
+- Show what you heard (the ASR transcript)
+- Point out errors (minimum 1, preferably 2 if they exist)
+- Give the natural form (english_natural)
+- Explain in 1-2 short sentences per fix
+- Ask to repeat a short phrase with translation
 
-AVOIDING REDUNDANT MESSAGES:
-- If transcript is identical or nearly identical to the correct form, DO NOT send:
-  - "A correct way would be: …" (same thing)
-  - "More natural: …" (same thing)
-- Instead, confirm success: "Perfect! Let's move on."
+AVOIDING REDUNDANCY:
+- If transcript ≈ correct form, DO NOT repeat "correct version" and "natural version" as separate items.
+- Instead confirm success: "Perfect!" and give next target.
 
 The student's native language is: ${feedbackLang}
-All tips (fix1, fix2) MUST be in ${feedbackLang}.
-The target_sentence MUST be in English, SHORT (max 8 words, ideally 4-6).
 
-IMPORTANT:
-- If the transcript seems to be in ${feedbackLang}, translate it to English properly
-- If already in English, correct any mistakes
-- Be encouraging but honest - don't invent compliments
-- Keep the target sentence SHORT (max 8 words)
-
-Return ONLY this JSON format:
+Return ONLY this JSON (no extra text):
 {
-  "english_correct": "grammatically correct version",
-  "english_natural": "more natural/fluent version",
-  "fix1": "first tip in ${feedbackLang}",
-  "fix2": "second tip in ${feedbackLang} (or empty string if not needed)",
-  "target_sentence": "short phrase to repeat in English (max 8 words)"
+  "system_version": "speakeasily_webhook_v3_audio_translation_strict",
+  "english_correct": "grammatically correct version of what they tried to say",
+  "english_natural": "how a native would naturally say it",
+  "fix1": "first correction/tip in ${feedbackLang} — ALWAYS filled if errors exist",
+  "fix2": "second correction/tip in ${feedbackLang} — filled if 2+ errors exist, else empty string",
+  "target_sentence": "short phrase to repeat in English (max 8 words)",
+  "translation_correct": "translation of english_correct in ${feedbackLang}",
+  "translation_natural": "translation of english_natural in ${feedbackLang}",
+  "translation_target": "translation of target_sentence in ${feedbackLang}"
 }`;
 
   const userMessage = `Student said: "${transcript}"`;
@@ -2922,11 +2911,15 @@ Return ONLY this JSON format:
     if (match) {
       const result = JSON.parse(match[0]);
       return {
+        system_version: String(result.system_version || "speakeasily_webhook_v3_audio_translation_strict"),
         english_correct: String(result.english_correct || transcript),
         english_natural: String(result.english_natural || transcript),
         fix1: String(result.fix1 || ""),
         fix2: String(result.fix2 || ""),
         target_sentence: String(result.target_sentence || ""),
+        translation_correct: String(result.translation_correct || ""),
+        translation_natural: String(result.translation_natural || ""),
+        translation_target: String(result.translation_target || ""),
       };
     }
   } catch (e) {
@@ -3082,35 +3075,36 @@ async function handleConversationalAudio(
                               calculateAudioScore(feedback.english_correct, transcript).score >= 0.95;
     
     if (isAlreadyCorrect && fixesList.length === 0) {
-      // User's English was already perfect - just confirm and give target to practice
+      // User's English was already perfect - confirm and give next target with translation
       const perfectMsg = feedbackLang === "pt"
-        ? `✅ *Está perfeito!* 🌟\n\n🔁 Agora repete (pronúncia):\n*"${targetSentence}"*`
-        : `✅ *¡Está perfecto!* 🌟\n\n🔁 Ahora repite (pronunciación):\n*"${targetSentence}"*`;
+        ? `✅ *Está perfeito!* 🌟\n\n🔁 Agora repete (pronúncia):\n🇺🇸 *"${targetSentence}"*\n🇧🇷 _${feedback.translation_target || ""}_`
+        : `✅ *¡Está perfecto!* 🌟\n\n🔁 Ahora repite (pronunciación):\n🇺🇸 *"${targetSentence}"*\n🇪🇸 _${feedback.translation_target || ""}_`;
       await send(waId, perfectMsg);
     } else {
-      // Only show fixes section if there are actual corrections
-      const fixes = fixesList.length > 0 
-        ? fixesList.map(f => `• ${f}`).join("\n")
+      // Build fixes - ensure at least 2 when errors exist
+      const fixes = fixesList.map(f => `• ${f}`).join("\n");
+      
+      // Build rich feedback with translations
+      const correctionBlock = feedbackLang === "pt"
+        ? `✏️ *Correção:*\n🇺🇸 "${feedback.english_correct}"\n🇧🇷 _${feedback.translation_correct || ""}_`
+        : `✏️ *Corrección:*\n🇺🇸 "${feedback.english_correct}"\n🇪🇸 _${feedback.translation_correct || ""}_`;
+      
+      const naturalBlock = feedback.english_natural !== feedback.english_correct
+        ? (feedbackLang === "pt"
+          ? `\n\n💬 *Mais natural:*\n🇺🇸 "${feedback.english_natural}"\n🇧🇷 _${feedback.translation_natural || ""}_`
+          : `\n\n💬 *Más natural:*\n🇺🇸 "${feedback.english_natural}"\n🇪🇸 _${feedback.translation_natural || ""}_`)
         : "";
       
-      // Build feedback message
-      const feedbackKey = feedbackLang === "pt" ? "audio_conv_feedback_pt" : "audio_conv_feedback_es";
+      const fixesBlock = fixes
+        ? (feedbackLang === "pt" ? `\n\n🔍 *Dicas:*\n${fixes}` : `\n\n🔍 *Consejos:*\n${fixes}`)
+        : "";
       
-      // If no fixes, use simplified message
-      if (fixes) {
-        await send(waId, t(feedbackLang, feedbackKey, {
-          english_correct: feedback.english_correct,
-          english_natural: feedback.english_natural,
-          fixes: fixes,
-          target_sentence: targetSentence,
-        }));
-      } else {
-        // Simpler message without fixes section - also explain "curta"
-        const simpleMsg = feedbackLang === "pt"
-          ? `✅ *Em inglês:*\n"${feedback.english_natural}"\n\n🔁 *Repete esta frase (curta = só 1 frase, 6-8 palavras):*\n"${targetSentence}"`
-          : `✅ *En inglés:*\n"${feedback.english_natural}"\n\n🔁 *Repite esta frase (corta = solo 1 frase, 6-8 palabras):*\n"${targetSentence}"`;
-        await send(waId, simpleMsg);
-      }
+      const repeatBlock = feedbackLang === "pt"
+        ? `\n\n🔁 *Repete:*\n🇺🇸 *"${targetSentence}"*\n🇧🇷 _${feedback.translation_target || ""}_`
+        : `\n\n🔁 *Repite:*\n🇺🇸 *"${targetSentence}"*\n🇪🇸 _${feedback.translation_target || ""}_`;
+      
+      const fullMsg = `${correctionBlock}${naturalBlock}${fixesBlock}${repeatBlock}`;
+      await send(waId, fullMsg);
     }
     
     // Save the target sentence for next audio check
@@ -3120,10 +3114,10 @@ async function handleConversationalAudio(
     };
     await updateState(supabase, waId, state.step, state.data);
   } else {
-    // Fallback: just confirm we received the audio
+    // Fallback: AI failed to generate feedback — ask to resend, NEVER praise generically
     const fallbackMsg = feedbackLang === "pt" 
-      ? "🎤 Recebi seu áudio! Continue praticando enviando mais mensagens."
-      : "🎤 ¡Recibí tu audio! Sigue practicando enviando más mensajes.";
+      ? "⚠️ Não consegui analisar seu áudio corretamente. Pode reenviar um áudio único, de 2 a 20 segundos, em local silencioso?"
+      : "⚠️ No pude analizar tu audio correctamente. ¿Puedes reenviar un audio único, de 2 a 20 segundos, en un lugar silencioso?";
     await send(waId, fallbackMsg);
   }
   
