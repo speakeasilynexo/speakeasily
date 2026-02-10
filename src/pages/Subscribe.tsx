@@ -2,9 +2,8 @@ import { useState, useEffect } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MessageCircle, Check, ArrowLeft, Sparkles } from "lucide-react";
+import { MessageCircle, Check, ArrowLeft, CheckCircle, Gift } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 type PlanType = "mensual" | "trimestral" | "semestral";
@@ -162,7 +161,7 @@ const SUPABASE_FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v
 
 function getLangFromParam(param: string | null): Language {
   if (param === "pt" || param === "es" || param === "en") return param;
-  return "es"; // Default to Spanish
+  return "es";
 }
 
 export default function Subscribe() {
@@ -193,7 +192,7 @@ export default function Subscribe() {
         console.error("Error tracking page view:", error);
       }
     };
-    
+
     trackPageView();
   }, [waId, source, lang]);
 
@@ -206,16 +205,12 @@ export default function Subscribe() {
 
   const handlePlanSelect = async (planId: PlanType) => {
     setSelectedPlan(planId);
-    
+
     try {
       await supabase.from("wa_events").insert({
         wa_id: waId || "web_visitor",
         event_type: "plan_selected",
-        metadata: {
-          plan: planId,
-          source,
-          lang,
-        },
+        metadata: { plan: planId, source, lang },
       });
     } catch (error) {
       console.error("Error tracking plan selection:", error);
@@ -258,7 +253,6 @@ export default function Subscribe() {
         title: I18N.success_title[lang],
         description: I18N.success_msg[lang].replace("{plan}", planName),
       });
-
     } catch (error) {
       console.error("Error activating subscription:", error);
       toast({
@@ -275,54 +269,69 @@ export default function Subscribe() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link to="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
-              <ArrowLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">{I18N.back[lang]}</span>
-            </Link>
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              <span className="font-semibold">SpeakEasily</span>
+      {/* Header — matches landing */}
+      <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-xl bg-background/80 border-b border-border/50">
+        <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+          <Link
+            to="/"
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span className="hidden sm:inline">{I18N.back[lang]}</span>
+          </Link>
+
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl gradient-hero flex items-center justify-center shadow-soft">
+              <MessageCircle className="w-4 h-4 text-primary-foreground" />
             </div>
-            {/* Language Selector */}
-            <div className="flex gap-1">
-              {(["pt", "es", "en"] as Language[]).map((l) => (
-                <button
-                  key={l}
-                  onClick={() => handleLanguageChange(l)}
-                  className={`px-2 py-1 text-xs rounded-md transition-colors ${
-                    lang === l
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground hover:bg-muted/80"
-                  }`}
-                >
-                  {l === "pt" ? "🇧🇷 PT" : l === "es" ? "🇪🇸 ES" : "🇺🇸 EN"}
-                </button>
-              ))}
-            </div>
+            <span className="font-display font-bold text-lg tracking-tight">SpeakEasily</span>
+          </div>
+
+          {/* Language Selector */}
+          <div className="flex gap-1">
+            {(["pt", "es", "en"] as Language[]).map((l) => (
+              <button
+                key={l}
+                onClick={() => handleLanguageChange(l)}
+                className={`px-2.5 py-1.5 text-xs rounded-lg font-medium transition-colors ${
+                  lang === l
+                    ? "gradient-hero text-primary-foreground shadow-soft"
+                    : "bg-muted text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {l.toUpperCase()}
+              </button>
+            ))}
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-4xl">
+      <main className="container mx-auto px-4 pt-28 pb-16 max-w-4xl">
         {/* Hero */}
-        <section className="text-center mb-12">
-          <h1 className="text-3xl md:text-4xl font-bold mb-4">{I18N.headline[lang]}</h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">{I18N.subheadline[lang]}</p>
+        <section className="text-center mb-16">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-accent/30 bg-accent/10 text-accent-foreground text-sm font-medium mb-6">
+            <Gift className="w-3.5 h-3.5" />
+            <span>{I18N.choose_plan[lang]}</span>
+          </div>
+          <h1 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold mb-4 tracking-tight text-balance">
+            {I18N.headline[lang]}
+          </h1>
+          <p className="text-muted-foreground text-lg max-w-2xl mx-auto leading-relaxed">
+            {I18N.subheadline[lang]}
+          </p>
         </section>
 
         {/* Benefits */}
-        <section className="mb-12">
-          <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 md:p-8">
-            <h2 className="text-lg font-semibold mb-4 text-center">{I18N.benefits_title[lang]}</h2>
-            <ul className="space-y-3 max-w-md mx-auto">
-              {BENEFITS[lang].map((benefit, index) => (
-                <li key={index} className="flex items-start gap-3">
-                  <Check className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                  <span>✅ {benefit}</span>
+        <section className="mb-16">
+          <div className="rounded-2xl border border-primary/20 bg-card p-7 md:p-10 shadow-soft">
+            <h2 className="font-display text-lg md:text-xl font-semibold mb-6 text-center">
+              {I18N.benefits_title[lang]}
+            </h2>
+            <ul className="space-y-3.5 max-w-lg mx-auto">
+              {BENEFITS[lang].map((benefit) => (
+                <li key={benefit} className="flex items-start gap-2.5 text-sm">
+                  <CheckCircle className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                  <span>{benefit}</span>
                 </li>
               ))}
             </ul>
@@ -330,51 +339,77 @@ export default function Subscribe() {
         </section>
 
         {/* Plans */}
-        <section className="mb-8">
-          <h2 className="text-xl font-semibold mb-6 text-center">{I18N.choose_plan[lang]}</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <section className="mb-10">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 max-w-3xl mx-auto">
             {PLANS.map((plan) => (
-              <Card
+              <div
                 key={plan.id}
-                className={`relative cursor-pointer transition-all hover:shadow-md ${
-                  selectedPlan === plan.id ? "ring-2 ring-primary border-primary" : "hover:border-primary/50"
-                }`}
                 onClick={() => handlePlanSelect(plan.id)}
+                className={`relative rounded-2xl border p-6 flex flex-col cursor-pointer transition-all ${
+                  plan.recommended
+                    ? "border-primary/30 bg-card shadow-elevated"
+                    : "border-border/50 bg-card shadow-soft"
+                } ${
+                  selectedPlan === plan.id
+                    ? "ring-2 ring-primary border-primary"
+                    : "hover:border-primary/40"
+                }`}
               >
                 {plan.recommended && (
-                  <Badge className="absolute -top-3 left-1/2 -translate-x-1/2">{I18N.recommended[lang]}</Badge>
-                )}
-                <CardHeader className="text-center pb-2">
-                  <CardTitle className="text-lg">{plan.name[lang]}</CardTitle>
-                  <CardDescription>{plan.subtitle[lang]}</CardDescription>
-                </CardHeader>
-                <CardContent className="text-center">
-                  <div className="mb-4">
-                    <span className="text-3xl font-bold">{plan.price}</span>
-                    <span className="text-muted-foreground">{plan.period[lang]}</span>
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full gradient-hero text-primary-foreground text-xs font-semibold whitespace-nowrap">
+                    {I18N.recommended[lang]}
                   </div>
+                )}
+
+                <p className="text-muted-foreground text-xs font-medium mb-1">{plan.subtitle[lang]}</p>
+                <h3 className="font-display text-base font-semibold mb-3">{plan.name[lang]}</h3>
+
+                <div className="flex items-baseline gap-1 mb-5">
+                  <span className="font-display text-3xl font-bold">{plan.price}</span>
+                  <span className="text-muted-foreground text-sm">{plan.period[lang]}</span>
+                </div>
+
+                <div className="mt-auto flex justify-center">
                   <div
-                    className={`w-5 h-5 rounded-full border-2 mx-auto ${
-                      selectedPlan === plan.id ? "border-primary bg-primary" : "border-muted-foreground"
+                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                      selectedPlan === plan.id
+                        ? "border-primary bg-primary"
+                        : "border-muted-foreground/40"
                     }`}
                   >
-                    {selectedPlan === plan.id && <Check className="h-4 w-4 text-primary-foreground m-auto" />}
+                    {selectedPlan === plan.id && (
+                      <Check className="h-3 w-3 text-primary-foreground" />
+                    )}
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             ))}
           </div>
         </section>
 
-        <p className="text-center text-muted-foreground text-sm mb-8">{I18N.cancel_anytime[lang]}</p>
+        <p className="text-center text-muted-foreground text-sm mb-10">
+          {I18N.cancel_anytime[lang]}
+        </p>
 
-        {/* CTA Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-          <Button size="lg" className="w-full sm:w-auto gap-2 px-8" onClick={handleSubscribe} disabled={isLoading}>
-            {isLoading ? I18N.processing[lang] : `${I18N.choose_btn[lang]} ${selectedPlanInfo.name[lang]} — ${selectedPlanInfo.price}`}
+        {/* CTA */}
+        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
+          <Button
+            size="lg"
+            className="w-full sm:w-auto gap-2 px-8 py-5 gradient-hero shadow-soft text-base font-semibold whitespace-normal"
+            onClick={handleSubscribe}
+            disabled={isLoading}
+          >
+            {isLoading
+              ? I18N.processing[lang]
+              : `${I18N.choose_btn[lang]} ${selectedPlanInfo.name[lang]} — ${selectedPlanInfo.price}`}
           </Button>
-          
-          <Button variant="outline" size="lg" className="w-full sm:w-auto gap-2" asChild>
+
+          <Button
+            variant="outline"
+            size="lg"
+            className="w-full sm:w-auto gap-2 py-5"
+            asChild
+          >
             <a href={WHATSAPP_LINK}>
               <MessageCircle className="h-4 w-4" />
               {I18N.back_whatsapp[lang]}
@@ -387,9 +422,20 @@ export default function Subscribe() {
         </section>
       </main>
 
-      <footer className="border-t bg-card mt-auto">
-        <div className="container mx-auto px-4 py-6 text-center text-sm text-muted-foreground">
-          {I18N.footer[lang]}
+      {/* Footer — matches landing */}
+      <footer className="py-10 px-4 border-t border-border/40 bg-card">
+        <div className="container mx-auto max-w-5xl">
+          <div className="flex flex-col items-center text-center gap-3">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg gradient-hero flex items-center justify-center">
+                <MessageCircle className="w-3.5 h-3.5 text-primary-foreground" />
+              </div>
+              <span className="font-display font-semibold text-sm">SpeakEasily</span>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {I18N.footer[lang]}
+            </div>
+          </div>
         </div>
       </footer>
     </div>
