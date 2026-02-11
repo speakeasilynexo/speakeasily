@@ -124,6 +124,17 @@ interface LessonProgress {
   review_count_today?: ReviewCountToday;
 }
 
+interface TranslationPayload {
+  target_en: string;
+  translation_native: string;
+  corrected_en?: string;
+  corrected_native?: string;
+  natural_en?: string;
+  natural_native?: string;
+  explanation?: string;
+  tip?: string;
+}
+
 interface StateData {
   placement?: PlacementState;
   progress?: LessonProgress;
@@ -137,6 +148,8 @@ interface StateData {
     en: string;
     translation: string;
   };
+  // Rich translation payload for "TRADUCAO" command
+  last_translation_payload?: TranslationPayload;
 }
 
 type EventType =
@@ -2848,10 +2861,12 @@ interface ConversationalAudioFeedback {
   english_natural: string;
   fix1: string;
   fix2: string;
+  fix3?: string;
   target_sentence: string;
   translation_correct: string;
   translation_natural: string;
   translation_target: string;
+  explanation_native?: string;
 }
 
 /**
@@ -2866,45 +2881,54 @@ async function generateConversationalAudioFeedback(
   
   const nativeLangLabel = feedbackLang === "Portuguese" ? "PT-BR" : "ES";
 
-  const systemPrompt = `You are "SpeakEasily", an English coach via WhatsApp.
-system_version: speakeasily_webhook_v3_audio_translation_strict
+  const systemPrompt = `You are "SpeakEasily", a premium English coach via WhatsApp (like BeConfident).
+system_version: speakeasily_webhook_v4_strict_corrections
 
-MISSION: teach English with micro-lessons, smart corrections, motivation. Translation ALWAYS available.
+MISSION: teach English with micro-lessons, REAL corrections, motivation. Translation always available but hidden.
 Target audience: ${nativeLangLabel} speakers learning English. ALWAYS include translation in ${feedbackLang}.
 
-CORE RULES (NON-NEGOTIABLE):
-1) NEVER praise without real analysis. If you received a transcription, you MUST evaluate it.
-2) Detect AT LEAST 2 errors when they exist (grammar + word choice, verb tense + preposition, etc.). If more than 2, pick the 2 most important and say "let's fix these first".
+ABSOLUTE RULES (NON-NEGOTIABLE):
+1) NEVER respond generically ("bom esforço", "good try") without analyzing the transcription. You MUST evaluate every word.
+2) If there are errors, detect and list AT LEAST 2 (grammar + vocabulary, verb tense + preposition, word order + article, etc.). 
+   - If only 1 real error exists, that's OK — but you MUST explicitly confirm you checked for more.
+   - If 3+ errors exist, pick the 2-3 most important.
 3) ALWAYS provide translations for: english_correct, english_natural, target_sentence.
-4) If transcript is already correct/near-perfect, confirm briefly and move on — do NOT invent corrections.
-5) Keep target_sentence SHORT: max 8 words (ideally 4-6).
-6) All tips (fix1, fix2) MUST be in ${feedbackLang}, concrete and useful.
-7) fix2 should ALWAYS be filled if there are 2+ errors. Only leave empty if genuinely only 1 issue.
+4) If transcript is already correct/near-perfect (similarity >= 0.95), confirm briefly — do NOT invent fake corrections.
+5) Keep target_sentence SHORT: max 8 words (ideally 4-6). This is for repetition practice.
+6) fix1 and fix2 MUST be in ${feedbackLang}, concrete, actionable. Example: "Você disse 'I am work' — o correto é 'I work'. Presente simples não usa 'am' com verbos de ação."
+7) fix2 MUST be filled if 2+ errors exist. Only empty if genuinely only 1 issue.
+8) NEVER skip to "next" without showing: corrected form + natural form + at least 1 error detail.
+9) explanation_native: give a 1-line grammar/vocab tip in ${feedbackLang} to help the student understand WHY.
 
-FEEDBACK STYLE:
-- Show what you heard (the ASR transcript)
-- Point out errors (minimum 1, preferably 2 if they exist)
-- Give the natural form (english_natural)
-- Explain in 1-2 short sentences per fix
-- Ask to repeat a short phrase with translation
+FEEDBACK STYLE (BeConfident-like):
+- Short blocks, well formatted
+- Subtle emojis (not excessive)
+- Clear CTA at end
+- Never wall-of-text
+- Always invite to respond (text or audio) with a target phrase
 
-AVOIDING REDUNDANCY:
-- If transcript ≈ correct form, DO NOT repeat "correct version" and "natural version" as separate items.
-- Instead confirm success: "Perfect!" and give next target.
+ERROR ANALYSIS PROCESS:
+1. Read the transcript carefully
+2. Compare with what the student likely meant to say
+3. List ALL errors you find (grammar, vocabulary, word order, articles, prepositions, verb forms)
+4. Select the 2 most impactful for fix1 and fix2
+5. Provide corrected and natural versions
 
 The student's native language is: ${feedbackLang}
 
 Return ONLY this JSON (no extra text):
 {
-  "system_version": "speakeasily_webhook_v3_audio_translation_strict",
+  "system_version": "speakeasily_webhook_v4_strict_corrections",
   "english_correct": "grammatically correct version of what they tried to say",
   "english_natural": "how a native would naturally say it",
-  "fix1": "first correction/tip in ${feedbackLang} — ALWAYS filled if errors exist",
-  "fix2": "second correction/tip in ${feedbackLang} — filled if 2+ errors exist, else empty string",
+  "fix1": "first correction in ${feedbackLang} — MUST explain the error clearly",
+  "fix2": "second correction in ${feedbackLang} — MUST be filled if 2+ errors, else empty string",
+  "fix3": "third correction if 3+ errors exist, else empty string",
   "target_sentence": "short phrase to repeat in English (max 8 words)",
   "translation_correct": "translation of english_correct in ${feedbackLang}",
   "translation_natural": "translation of english_natural in ${feedbackLang}",
-  "translation_target": "translation of target_sentence in ${feedbackLang}"
+  "translation_target": "translation of target_sentence in ${feedbackLang}",
+  "explanation_native": "1-line grammar tip in ${feedbackLang} explaining the main error"
 }`;
 
   const userMessage = `Student said: "${transcript}"`;
@@ -2916,15 +2940,17 @@ Return ONLY this JSON (no extra text):
     if (match) {
       const result = JSON.parse(match[0]);
       return {
-        system_version: String(result.system_version || "speakeasily_webhook_v3_audio_translation_strict"),
+        system_version: String(result.system_version || "speakeasily_webhook_v4_strict_corrections"),
         english_correct: String(result.english_correct || transcript),
         english_natural: String(result.english_natural || transcript),
         fix1: String(result.fix1 || ""),
         fix2: String(result.fix2 || ""),
+        fix3: result.fix3 ? String(result.fix3) : undefined,
         target_sentence: String(result.target_sentence || ""),
         translation_correct: String(result.translation_correct || ""),
         translation_natural: String(result.translation_natural || ""),
         translation_target: String(result.translation_target || ""),
+        explanation_native: result.explanation_native ? String(result.explanation_native) : undefined,
       };
     }
   } catch (e) {
@@ -3064,12 +3090,24 @@ async function handleConversationalAudio(
   const feedback = await generateConversationalAudioFeedback(transcript, feedbackLang);
   
   if (feedback) {
-    // Build fixes string - only include non-empty fixes
-    const fixesList = [feedback.fix1, feedback.fix2]
-      .filter(f => f && f.trim().length > 0);
+    // Build fixes string - include up to 3 fixes
+    const fixesList = [feedback.fix1, feedback.fix2, feedback.fix3]
+      .filter((f): f is string => !!f && f.trim().length > 0);
     
     // Determine target sentence
     const targetSentence = feedback.target_sentence || feedback.english_natural.split(".")[0].trim();
+    
+    // Store rich translation payload for TRADUCAO command
+    state.data.last_translation_payload = {
+      target_en: targetSentence,
+      translation_native: feedback.translation_target || "",
+      corrected_en: feedback.english_correct,
+      corrected_native: feedback.translation_correct || "",
+      natural_en: feedback.english_natural,
+      natural_native: feedback.translation_natural || "",
+      explanation: feedback.explanation_native || "",
+      tip: fixesList[0] || "",
+    };
     
     // Check if transcript is already correct/natural (avoid redundant feedback)
     const normalizedTranscript = normalizeForScoring(transcript);
@@ -3080,36 +3118,45 @@ async function handleConversationalAudio(
                               normalizedTranscript === normalizedNatural ||
                               calculateAudioScore(feedback.english_correct, transcript).score >= 0.95;
     
+    // Translation CTA
+    const traducaoCta = feedbackLang === "pt"
+      ? "\n\n📖 _Digite TRADUCAO para ver tradução_"
+      : "\n\n📖 _Escribe TRADUCCION para ver traducción_";
+    
     if (isAlreadyCorrect && fixesList.length === 0) {
-      // User's English was already perfect - confirm and give next target with translation
+      // User's English was already perfect - confirm and give next target
       const perfectMsg = feedbackLang === "pt"
-        ? `✅ *Está perfeito!* 🌟\n\n🔁 Agora repete (pronúncia):\n🇺🇸 *"${targetSentence}"*\n🇧🇷 _${feedback.translation_target || ""}_\n\n↩️ _Ver tradução_`
-        : `✅ *¡Está perfecto!* 🌟\n\n🔁 Ahora repite (pronunciación):\n🇺🇸 *"${targetSentence}"*\n🇪🇸 _${feedback.translation_target || ""}_\n\n↩️ _Ver traducción_`;
+        ? `✅ *Perfeito!* 🌟\n\n🔁 Agora repete:\n*"${targetSentence}"*${traducaoCta}`
+        : `✅ *¡Perfecto!* 🌟\n\n🔁 Ahora repite:\n*"${targetSentence}"*${traducaoCta}`;
       await send(waId, perfectMsg);
     } else {
-      // Build fixes - ensure at least 2 when errors exist
+      // Build fixes
       const fixes = fixesList.map(f => `• ${f}`).join("\n");
       
-      // Build rich feedback with translations
+      // Build rich feedback - shorter, more professional (BeConfident-style)
       const correctionBlock = feedbackLang === "pt"
-        ? `✏️ *Correção:*\n🇺🇸 "${feedback.english_correct}"\n🇧🇷 _${feedback.translation_correct || ""}_`
-        : `✏️ *Corrección:*\n🇺🇸 "${feedback.english_correct}"\n🇪🇸 _${feedback.translation_correct || ""}_`;
+        ? `✏️ *Correção:*\n🇺🇸 "${feedback.english_correct}"`
+        : `✏️ *Corrección:*\n🇺🇸 "${feedback.english_correct}"`;
       
       const naturalBlock = feedback.english_natural !== feedback.english_correct
         ? (feedbackLang === "pt"
-          ? `\n\n💬 *Mais natural:*\n🇺🇸 "${feedback.english_natural}"\n🇧🇷 _${feedback.translation_natural || ""}_`
-          : `\n\n💬 *Más natural:*\n🇺🇸 "${feedback.english_natural}"\n🇪🇸 _${feedback.translation_natural || ""}_`)
+          ? `\n\n💬 *Mais natural:*\n🇺🇸 "${feedback.english_natural}"`
+          : `\n\n💬 *Más natural:*\n🇺🇸 "${feedback.english_natural}"`)
         : "";
       
       const fixesBlock = fixes
-        ? (feedbackLang === "pt" ? `\n\n🔍 *Dicas:*\n${fixes}` : `\n\n🔍 *Consejos:*\n${fixes}`)
+        ? (feedbackLang === "pt" ? `\n\n🔍 *Correções:*\n${fixes}` : `\n\n🔍 *Correcciones:*\n${fixes}`)
+        : "";
+
+      const explanationBlock = feedback.explanation_native
+        ? `\n\n💡 ${feedback.explanation_native}`
         : "";
       
       const repeatBlock = feedbackLang === "pt"
-        ? `\n\n🔁 *Repete:*\n🇺🇸 *"${targetSentence}"*\n🇧🇷 _${feedback.translation_target || ""}_\n\n↩️ _Ver tradução_`
-        : `\n\n🔁 *Repite:*\n🇺🇸 *"${targetSentence}"*\n🇪🇸 _${feedback.translation_target || ""}_\n\n↩️ _Ver traducción_`;
+        ? `\n\n🔁 *Repete:*\n*"${targetSentence}"*`
+        : `\n\n🔁 *Repite:*\n*"${targetSentence}"*`;
       
-      const fullMsg = `${correctionBlock}${naturalBlock}${fixesBlock}${repeatBlock}`;
+      const fullMsg = `${correctionBlock}${naturalBlock}${fixesBlock}${explanationBlock}${repeatBlock}${traducaoCta}`;
       await send(waId, fullMsg);
     }
     
@@ -3127,8 +3174,8 @@ async function handleConversationalAudio(
   } else {
     // Fallback: AI failed to generate feedback — ask to resend, NEVER praise generically
     const fallbackMsg = feedbackLang === "pt" 
-      ? "⚠️ Não consegui analisar seu áudio corretamente. Pode reenviar um áudio único, de 2 a 20 segundos, em local silencioso?"
-      : "⚠️ No pude analizar tu audio correctamente. ¿Puedes reenviar un audio único, de 2 a 20 segundos, en un lugar silencioso?";
+      ? "⚠️ Não consegui analisar seu áudio. Reenvie um áudio de 2-15 segundos em local silencioso."
+      : "⚠️ No pude analizar tu audio. Reenvía un audio de 2-15 segundos en un lugar silencioso.";
     await send(waId, fallbackMsg);
   }
   
@@ -3218,14 +3265,19 @@ async function evaluateExerciseAnswer(
 
   // Try with AI for more complex answers
   const feedbackLang = lang === "en" ? "English" : lang === "pt" ? "Portuguese" : "Spanish";
-  const systemPrompt = `Evaluate if the student's answer is acceptable.
+  const systemPrompt = `Evaluate if the student's answer is acceptable. Be a thorough coach.
 
 EXERCISE: ${exercise.prompt}
 EXPECTED ANSWER: ${exercise.correct_answer}
 STUDENT'S ANSWER: ${userAnswer}
 
-Be flexible with minor spelling errors.
-Return ONLY JSON: {"correct": true/false, "feedback": "1 line in ${feedbackLang}"}`;
+RULES:
+- Be flexible with minor spelling errors
+- If the answer is wrong, explain WHY in 1 clear sentence (in ${feedbackLang})
+- Include the correct answer in your feedback
+- If there are multiple errors, mention at least 2
+
+Return ONLY JSON: {"correct": true/false, "feedback": "1-2 lines in ${feedbackLang}, include correct answer if wrong"}`;
 
   const response = await callAI(systemPrompt, userAnswer);
 
@@ -3763,17 +3815,22 @@ async function sendExercise(
     lang,
   });
 
-  // Add "Ver tradução" CTA for PT/ES users
+  // Add "TRADUCAO" CTA for PT/ES users
   const translateCta = showTranslations 
-    ? (lang === "pt" ? "\n\n↩️ _Ver tradução_" : "\n\n↩️ _Ver traducción_")
+    ? (lang === "pt" ? "\n\n📖 _Digite TRADUCAO para ver tradução_" : "\n\n📖 _Escribe TRADUCCION para ver traducción_")
     : "";
 
-  // Save last_target for "Ver tradução" command
+  // Save last_target and translation payload for "TRADUCAO" command
   if (exercise.correct_answer) {
     const exerciseTranslation = exercise.prompt_translation?.[lang as "pt" | "es"] || "";
     state.data.last_target = {
       en: exercise.correct_answer,
       translation: exerciseTranslation,
+    };
+    state.data.last_translation_payload = {
+      target_en: exercise.correct_answer,
+      translation_native: exerciseTranslation,
+      explanation: exercise.hint?.[lang] || "",
     };
     await updateState(supabase, waId, "lesson_exercise", state.data);
   }
@@ -3898,14 +3955,33 @@ async function handleExerciseAnswer(
     audio_score_label: audioScoreData?.label || null,
   });
 
+  // Store translation payload for TRADUCAO command
+  const exerciseTranslation = exercise.prompt_translation?.[lang as "pt" | "es"] || "";
+  state.data.last_translation_payload = {
+    target_en: exercise.correct_answer,
+    translation_native: exerciseTranslation,
+    explanation: exercise.hint?.[lang] || "",
+  };
+  state.data.last_target = {
+    en: exercise.correct_answer,
+    translation: exerciseTranslation,
+  };
+
+  // Translation CTA
+  const traducaoCta = lang === "pt"
+    ? "\n\n📖 _Digite TRADUCAO para ver tradução_"
+    : lang === "es"
+      ? "\n\n📖 _Escribe TRADUCCION para ver traducción_"
+      : "";
+
   // Build response for audio input
   if (audioData && transcript) {
     // Show transcription first
     await send(waId, t(lang, "audio_transcript_header", { transcript }));
     await new Promise(r => setTimeout(r, 400));
 
-    // Show correction
-    await send(waId, evaluation.feedback);
+    // Show correction + translation CTA
+    await send(waId, evaluation.feedback + traducaoCta);
     await new Promise(r => setTimeout(r, 400));
 
     // Generate and show pronunciation tip
@@ -3934,11 +4010,12 @@ async function handleExerciseAnswer(
       await send(waId, t(lang, "audio_next"));
     } else {
       await send(waId, t(lang, "audio_repeat"));
+      await updateState(supabase, waId, state.step, state.data);
       return; // Don't advance to next exercise on audio error - let them retry
     }
   } else {
-    // Regular text feedback
-    await send(waId, evaluation.feedback);
+    // Regular text feedback + translation CTA
+    await send(waId, evaluation.feedback + traducaoCta);
   }
 
   await new Promise(r => setTimeout(r, 600));
@@ -4668,16 +4745,40 @@ async function processMessage(
     return;
   }
 
-   // ========== VER TRADUÇÃO / VER TRADUCCIÓN COMMAND ==========
-   if (lower === "ver tradução" || lower === "ver traducao" || lower === "ver traducción" || lower === "ver traduccion") {
+   // ========== VER TRADUÇÃO / TRADUCAO / TRANSLATE COMMAND ==========
+   const isTranslateCmd = [
+     "ver tradução", "ver traducao", "ver traducción", "ver traduccion",
+     "traducao", "tradução", "translate", "traduccion", "traducción",
+     "traduzir", "traducir",
+   ].includes(lower);
+
+   if (isTranslateCmd) {
+    const payload = state.data.last_translation_payload;
     const lastTarget = state.data.last_target;
-    if (lastTarget && lastTarget.en) {
+
+    if (payload) {
+      // Rich translation response
+      const flag = lang === "pt" ? "🇧🇷" : "🇪🇸";
+      let msg = `📖 *Tradução:*\n\n🇺🇸 "${payload.target_en}"\n${flag} _${payload.translation_native}_`;
+
+      if (payload.corrected_en && payload.corrected_native) {
+        msg += `\n\n✏️ *Correção:*\n🇺🇸 "${payload.corrected_en}"\n${flag} _${payload.corrected_native}_`;
+      }
+      if (payload.natural_en && payload.natural_native) {
+        msg += `\n\n💬 *Mais natural:*\n🇺🇸 "${payload.natural_en}"\n${flag} _${payload.natural_native}_`;
+      }
+      if (payload.tip) {
+        msg += `\n\n💡 ${payload.tip}`;
+      }
+
+      await send(waId, msg);
+    } else if (lastTarget && lastTarget.en) {
       const flag = lang === "pt" ? "🇧🇷" : "🇪🇸";
       await send(waId, `🇺🇸 ${lastTarget.en}\n${flag} ${lastTarget.translation}`);
     } else {
       const noTargetMsg = lang === "pt" 
-        ? "Ainda não há frase alvo para traduzir. Continue o exercício!" 
-        : "Aún no hay frase objetivo para traducir. ¡Continúa el ejercicio!";
+        ? "Ainda não há frase para traduzir. Continue o exercício!" 
+        : "¡Aún no hay frase para traducir. Continúa el ejercicio!";
       await send(waId, noTargetMsg);
     }
     return;
