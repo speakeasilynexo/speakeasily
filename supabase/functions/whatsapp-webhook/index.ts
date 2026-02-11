@@ -216,12 +216,14 @@ const corsHeaders = {
 // ============== AUDIO ASSETS (PRE-RECORDED) ==============
 
 const AUDIO_ASSETS = {
-  AUDIO_COACH_YOUR_TURN: "coach/your-turn.ogg",
-  AUDIO_COACH_REPEAT_AFTER_ME: "coach/repeat-after-me.ogg",
-  AUDIO_COACH_GREAT_JOB: "coach/great-job.ogg",
-  AUDIO_PHRASE_NICE_TO_MEET_YOU: "phrases/nice-to-meet-you.ogg",
-  AUDIO_PHRASE_HOW_ARE_YOU: "phrases/how-are-you.ogg",
-  AUDIO_PHRASE_IM_FINE: "phrases/im-fine.ogg",
+  AUDIO_COACH_YOUR_TURN: "coach/AUDIO_COACH_YOUR_TURN.ogg",
+  AUDIO_COACH_REPEAT_AFTER_ME: "coach/AUDIO_COACH_REPEAT_AFTER_ME.ogg",
+  AUDIO_COACH_GREAT_JOB: "coach/AUDIO_COACH_GREAT_JOB.ogg",
+  AUDIO_COACH_TRY_AGAIN_SLOW: "coach/AUDIO_COACH_TRY_AGAIN_SLOW.ogg",
+  AUDIO_PHRASE_NICE_TO_MEET_YOU: "phrases/AUDIO_PHRASE_NICE_TO_MEET_YOU.ogg",
+  AUDIO_PHRASE_HOW_ARE_YOU: "phrases/AUDIO_PHRASE_HOW_ARE_YOU.ogg",
+  AUDIO_PHRASE_IM_FINE: "phrases/AUDIO_PHRASE_IM_FINE.ogg",
+  AUDIO_PHRASE_HELLO: "phrases/AUDIO_PHRASE_HELLO.ogg",
 } as const;
 
 type AudioAssetKey = keyof typeof AUDIO_ASSETS;
