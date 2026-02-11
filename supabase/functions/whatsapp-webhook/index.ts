@@ -1581,27 +1581,53 @@ async function sendWhatsAppAudio(to: string, audioUrl: string): Promise<{ succes
   }
 }
 
+interface BotAudioResult {
+  ok: boolean;
+  reason?: "unknown_asset" | "missing_config" | "storage_404" | "send_failed";
+  bucket?: string;
+  path?: string;
+  asset_id?: string;
+}
+
 /**
  * Send a pre-recorded audio asset to a user via WhatsApp.
- * Resolves the asset key to a public Storage URL and sends it.
- * Returns true if audio was sent successfully.
+ * Resolves the asset key to a public Storage URL, checks existence, and sends it.
+ * Returns a structured result with diagnostics on failure.
  */
-async function sendBotAudio(to: string, assetKey: AudioAssetKey): Promise<boolean> {
-  const path = AUDIO_ASSETS[assetKey];
-  if (!path) {
+async function sendBotAudio(to: string, assetKey: AudioAssetKey): Promise<BotAudioResult> {
+  const objectPath = AUDIO_ASSETS[assetKey];
+  if (!objectPath) {
     console.warn(`[AUDIO] Unknown asset key: ${assetKey}`);
-    return false;
+    return { ok: false, reason: "unknown_asset", asset_id: assetKey };
+  }
+
+  // Validate .ogg extension
+  if (!objectPath.endsWith(".ogg")) {
+    console.error(`[AUDIO] Asset path does not end with .ogg: ${objectPath} (asset_id=${assetKey})`);
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   if (!supabaseUrl) {
     console.error("[AUDIO] Missing SUPABASE_URL for asset resolution");
-    return false;
+    return { ok: false, reason: "missing_config", bucket: AUDIO_BUCKET, path: objectPath, asset_id: assetKey };
   }
 
   // Build public URL for the asset
-  const publicUrl = `${supabaseUrl}/storage/v1/object/public/${AUDIO_BUCKET}/${path}`;
-  console.log(`[AUDIO] Sending bot audio: ${assetKey} -> ${publicUrl}`);
+  const publicUrl = `${supabaseUrl}/storage/v1/object/public/${AUDIO_BUCKET}/${objectPath}`;
+  console.log(`[AUDIO] Resolving asset — bucket_id=${AUDIO_BUCKET} object_path=${objectPath} asset_id=${assetKey}`);
+  console.log(`[AUDIO] Public URL: ${publicUrl}`);
+
+  // HEAD check to detect 404 before sending to WhatsApp
+  try {
+    const headResp = await fetch(publicUrl, { method: "HEAD" });
+    if (!headResp.ok) {
+      console.error(`[AUDIO] Storage returned ${headResp.status} for ${objectPath} (bucket=${AUDIO_BUCKET}, asset_id=${assetKey})`);
+      return { ok: false, reason: "storage_404", bucket: AUDIO_BUCKET, path: objectPath, asset_id: assetKey };
+    }
+  } catch (headErr) {
+    console.error(`[AUDIO] HEAD request failed for ${objectPath}:`, headErr);
+    return { ok: false, reason: "storage_404", bucket: AUDIO_BUCKET, path: objectPath, asset_id: assetKey };
+  }
 
   const result = await sendWhatsAppAudio(to, publicUrl);
 
@@ -1614,7 +1640,11 @@ async function sendBotAudio(to: string, assetKey: AudioAssetKey): Promise<boolea
     });
   }
 
-  return result.success;
+  if (!result.success) {
+    return { ok: false, reason: "send_failed", bucket: AUDIO_BUCKET, path: objectPath, asset_id: assetKey };
+  }
+
+  return { ok: true };
 }
 
 async function send(to: string, msg1: string, msg2?: string): Promise<void> {
@@ -3948,9 +3978,12 @@ async function sendExercise(
   // Only for first few exercises and onboarding-related days
   if (current === 1 && progress.current_day <= 3) {
     // Send "repeat after me" coach instruction audio
-    const audioSent = await sendBotAudio(waId, "AUDIO_COACH_REPEAT_AFTER_ME");
-    if (audioSent) {
+    const audioResult = await sendBotAudio(waId, "AUDIO_COACH_REPEAT_AFTER_ME");
+    if (audioResult.ok) {
       await new Promise(r => setTimeout(r, 400));
+    } else if (audioResult.reason === "storage_404") {
+      console.warn(`[AUDIO] Asset missing in storage — bucket=${audioResult.bucket} path=${audioResult.path} asset_id=${audioResult.asset_id}`);
+      await send(waId, "⚠️ Áudio indisponível no momento (asset faltando).");
     }
   }
 
@@ -3960,19 +3993,6 @@ async function sendExercise(
     total: String(total),
     prompt: fullPrompt,
   }) + translateCta);
-
-  // If there's no audio asset for the target phrase, show "coming soon" hint
-  // This is a placeholder for future TTS integration
-  if (showTranslations && !ENABLE_TTS && current === 1 && progress.current_day <= 3) {
-    const comingSoonCta = lang === "pt"
-      ? "\n🔊 _Áudio da frase: em breve!_"
-      : lang === "es"
-        ? "\n🔊 _Audio de la frase: ¡próximamente!_"
-        : "";
-    if (comingSoonCta) {
-      await send(waId, comingSoonCta);
-    }
-  }
 }
 
 async function handleExerciseAnswer(
