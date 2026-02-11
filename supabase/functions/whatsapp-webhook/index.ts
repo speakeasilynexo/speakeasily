@@ -2121,6 +2121,44 @@ async function handleAdminCommand(
     return true;
   }
   
+  if (subcommand === "test_audio") {
+    const availableKeys = Object.keys(AUDIO_ASSETS);
+    
+    if (!arg) {
+      // List all available audio assets
+      const list = availableKeys.map(k => `• ${k} → ${AUDIO_ASSETS[k as AudioAssetKey]}`).join("\n");
+      await send(waId, `🔧 *Audio Assets disponíveis:*\n\n${list}\n\nUso: /admin test_audio ASSET_KEY`);
+      return true;
+    }
+    
+    const assetKey = arg.toUpperCase();
+    if (!availableKeys.includes(assetKey)) {
+      const list = availableKeys.join("\n• ");
+      await send(waId, `❌ Asset inválido: ${assetKey}\n\n*Assets válidos:*\n• ${list}`);
+      return true;
+    }
+    
+    const result = await sendBotAudio(waId, assetKey as AudioAssetKey);
+    
+    const diagnostic = [
+      `🔧 *test_audio result:*`,
+      `• asset_id: ${result.asset_id || assetKey}`,
+      `• ok: ${result.ok}`,
+      `• bucket: ${result.bucket || "N/A"}`,
+      `• path: ${result.path || "N/A"}`,
+      result.reason ? `• reason: ${result.reason}` : null,
+    ].filter(Boolean).join("\n");
+    
+    if (!result.ok) {
+      await send(waId, `${diagnostic}\n\n⚠️ Áudio não enviado. Verifique se o arquivo existe no bucket.`);
+    } else {
+      // Audio was sent to WhatsApp, also send diagnostic
+      await send(waId, diagnostic);
+    }
+    
+    return true;
+  }
+  
   if (subcommand === "help") {
     await send(waId, t(lang, "admin_help", {
       valid_steps: VALID_STEPS.join("\n• "),
