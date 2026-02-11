@@ -213,6 +213,33 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// ============== AUDIO ASSETS (PRE-RECORDED) ==============
+
+const AUDIO_ASSETS = {
+  AUDIO_COACH_YOUR_TURN: "coach/your-turn.ogg",
+  AUDIO_COACH_REPEAT_AFTER_ME: "coach/repeat-after-me.ogg",
+  AUDIO_COACH_GREAT_JOB: "coach/great-job.ogg",
+  AUDIO_PHRASE_NICE_TO_MEET_YOU: "phrases/nice-to-meet-you.ogg",
+  AUDIO_PHRASE_HOW_ARE_YOU: "phrases/how-are-you.ogg",
+  AUDIO_PHRASE_IM_FINE: "phrases/im-fine.ogg",
+} as const;
+
+type AudioAssetKey = keyof typeof AUDIO_ASSETS;
+
+const AUDIO_BUCKET = "speak-easily-audio";
+
+// TTS flag — disabled by default, enable via env
+const ENABLE_TTS = Deno.env.get("ENABLE_TTS") === "true";
+
+// TODO: Integrate TTS provider (e.g. ElevenLabs) when ENABLE_TTS is true
+async function ttsToAudioUrl(_text: string): Promise<string> {
+  if (!ENABLE_TTS) {
+    throw new Error("TTS disabled — set ENABLE_TTS=true to enable");
+  }
+  // TODO: Implement TTS integration here
+  throw new Error("TTS not implemented yet");
+}
+
 // ============== WEBHOOK SIGNATURE VERIFICATION ==============
 
 /**
@@ -1506,6 +1533,88 @@ async function sendWhatsAppText(to: string, body: string): Promise<{ success: bo
     console.error("[WhatsApp] ❌ Exception:", error);
     return { success: false };
   }
+}
+
+/**
+ * Send an audio message via WhatsApp Cloud API using a public audio URL.
+ */
+async function sendWhatsAppAudio(to: string, audioUrl: string): Promise<{ success: boolean; messageId?: string }> {
+  const accessToken = Deno.env.get("WHATSAPP_ACCESS_TOKEN");
+  const phoneNumberId = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID");
+
+  if (!accessToken || !phoneNumberId) {
+    console.error("[WhatsApp] Missing credentials for audio send");
+    return { success: false };
+  }
+
+  try {
+    const url = `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`;
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to,
+        type: "audio",
+        audio: { link: audioUrl },
+      }),
+    });
+
+    const result = await response.json();
+
+    if (response.ok) {
+      const messageId = result.messages?.[0]?.id;
+      console.log("[WhatsApp] ✅ Audio sent to:", to.slice(0, 4) + "****");
+      return { success: true, messageId };
+    } else {
+      console.error("[WhatsApp] ❌ Audio send error:", result);
+      return { success: false };
+    }
+  } catch (error) {
+    console.error("[WhatsApp] ❌ Audio send exception:", error);
+    return { success: false };
+  }
+}
+
+/**
+ * Send a pre-recorded audio asset to a user via WhatsApp.
+ * Resolves the asset key to a public Storage URL and sends it.
+ * Returns true if audio was sent successfully.
+ */
+async function sendBotAudio(to: string, assetKey: AudioAssetKey): Promise<boolean> {
+  const path = AUDIO_ASSETS[assetKey];
+  if (!path) {
+    console.warn(`[AUDIO] Unknown asset key: ${assetKey}`);
+    return false;
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  if (!supabaseUrl) {
+    console.error("[AUDIO] Missing SUPABASE_URL for asset resolution");
+    return false;
+  }
+
+  // Build public URL for the asset
+  const publicUrl = `${supabaseUrl}/storage/v1/object/public/${AUDIO_BUCKET}/${path}`;
+  console.log(`[AUDIO] Sending bot audio: ${assetKey} -> ${publicUrl}`);
+
+  const result = await sendWhatsAppAudio(to, publicUrl);
+
+  if (globalSupabase && result.success) {
+    await trackEvent(globalSupabase, to, "message_sent", {
+      type: "audio",
+      asset_key: assetKey,
+      audio_url: publicUrl,
+      message_id: result.messageId || null,
+    });
+  }
+
+  return result.success;
 }
 
 async function send(to: string, msg1: string, msg2?: string): Promise<void> {
@@ -3835,12 +3944,35 @@ async function sendExercise(
     await updateState(supabase, waId, "lesson_exercise", state.data);
   }
 
+  // Send coach audio before exercise (if asset exists)
+  // Only for first few exercises and onboarding-related days
+  if (current === 1 && progress.current_day <= 3) {
+    // Send "repeat after me" coach instruction audio
+    const audioSent = await sendBotAudio(waId, "AUDIO_COACH_REPEAT_AFTER_ME");
+    if (audioSent) {
+      await new Promise(r => setTimeout(r, 400));
+    }
+  }
+
   await send(waId, t(lang, "exercise_header", {
     emoji: emoji[exercise.type] || "📝",
     current: String(current),
     total: String(total),
     prompt: fullPrompt,
   }) + translateCta);
+
+  // If there's no audio asset for the target phrase, show "coming soon" hint
+  // This is a placeholder for future TTS integration
+  if (showTranslations && !ENABLE_TTS && current === 1 && progress.current_day <= 3) {
+    const comingSoonCta = lang === "pt"
+      ? "\n🔊 _Áudio da frase: em breve!_"
+      : lang === "es"
+        ? "\n🔊 _Audio de la frase: ¡próximamente!_"
+        : "";
+    if (comingSoonCta) {
+      await send(waId, comingSoonCta);
+    }
+  }
 }
 
 async function handleExerciseAnswer(
