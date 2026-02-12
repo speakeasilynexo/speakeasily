@@ -4923,7 +4923,7 @@ async function processMessage(
       await new Promise(r => setTimeout(r, 600));
       
       // Send welcome audio for immediate impact
-      const welcomeAudioResult = await sendBotAudio(waId, "AUDIO_PHRASE_HELLO");
+      const welcomeAudioResult = await sendBotAudio(waId, "AUDIO_PHRASE_NICE_TO_MEET_YOU");
       if (welcomeAudioResult.ok) {
         await new Promise(r => setTimeout(r, 800));
       } else {
@@ -4950,7 +4950,7 @@ async function processMessage(
       if (result.newLang) {
         lang = result.newLang;
         // Send welcome audio for immediate impact
-        const lpAudio = await sendBotAudio(waId, "AUDIO_PHRASE_HELLO");
+        const lpAudio = await sendBotAudio(waId, "AUDIO_PHRASE_NICE_TO_MEET_YOU");
         if (lpAudio.ok) {
           await new Promise(r => setTimeout(r, 800));
         }
@@ -5125,7 +5125,7 @@ async function processMessage(
   switch (state.step) {
     case "welcome": {
       // Send welcome audio for immediate impact (silent fallback)
-      const welcomeAudio = await sendBotAudio(waId, "AUDIO_PHRASE_HELLO");
+      const welcomeAudio = await sendBotAudio(waId, "AUDIO_PHRASE_NICE_TO_MEET_YOU");
       if (welcomeAudio.ok) {
         await new Promise(r => setTimeout(r, 800));
       } else {
