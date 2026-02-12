@@ -1,58 +1,37 @@
 
 
-## Plano: Botao Interativo de Traducao + Audio de Boas-Vindas
+## Correcoes: Audio de Boas-Vindas + Botao de Traducao
 
-### Problema atual
+### Problema 1: Audio com conteudo errado
 
-1. **Traducao**: O usuario precisa digitar "TRADUCAO" manualmente. Nao existe botao clicavel. Para um publico que nao sabe ingles, isso e uma barreira.
-2. **Audio no primeiro contato**: O bot so envia texto na boas-vindas. Nenhum audio e enviado para causar impacto imediato.
+O arquivo `phrases/AUDIO_PHRASE_HELLO.ogg` armazenado no bucket contem uma mensagem sobre "apertar botao para traduzir" em vez de uma saudacao. O codigo esta correto — o problema e o conteudo do arquivo de audio.
 
----
+**Solucao:** Trocar o asset usado no welcome para `AUDIO_PHRASE_NICE_TO_MEET_YOU` (que existe no bucket e provavelmente contem uma saudacao adequada como "Hello! Nice to meet you!"). Se o conteudo desse arquivo tambem nao for ideal, voce precisara regravar/substituir o arquivo `.ogg` no storage.
 
-### O que sera implementado
-
-#### 1. Botao interativo de traducao (WhatsApp Interactive Message)
-
-A API do WhatsApp suporta mensagens do tipo `interactive` com botoes clicaveis (maximo 3 botoes). Em vez de enviar texto pedindo para digitar "TRADUCAO", o bot enviara uma mensagem interativa com um botao que, ao ser clicado, revela a traducao.
-
-**Como funciona:**
-- Apos cada exercicio/frase-alvo, o bot envia uma mensagem interativa com o botao "Ver Traducao"
-- O usuario clica no botao (sem digitar nada)
-- O webhook recebe o click como um `interactive.button_reply` com um `id` especifico (ex: `btn_translate`)
-- O bot responde com a traducao completa (igual ao fluxo atual do comando TRADUCAO)
-
-**Mudancas tecnicas:**
+**Mudancas no codigo:**
 - Arquivo: `supabase/functions/whatsapp-webhook/index.ts`
-- Nova funcao `sendInteractiveTranslation(waId, bodyText, lang)` que usa o endpoint de mensagens interativas do WhatsApp
-- Formato da mensagem: `type: "interactive"`, `interactive.type: "button"`, com botao "Ver Traducao" / "Ver Traduccion"
-- Novo handler no fluxo principal para detectar `interactive.button_reply` com `id === "btn_translate"` e executar a mesma logica do comando TRADUCAO
-- Substituir as CTAs de texto `"Digite TRADUCAO..."` por chamadas a `sendInteractiveTranslation` nos pontos onde a traducao e oferecida (feedback de exercicios, correcoes)
+- Substituir `"AUDIO_PHRASE_HELLO"` por `"AUDIO_PHRASE_NICE_TO_MEET_YOU"` nos 3 pontos onde o audio de welcome e enviado:
+  1. Primeira deteccao de idioma (~linha 4926)
+  2. Handler do language_picker (~linha 4953)
+  3. Case "welcome" no switch (~linha 5128)
 
-#### 2. Audio de boas-vindas no primeiro contato
+### Problema 2: Botao de traducao
 
-Enviar o audio `AUDIO_PHRASE_HELLO` (ou outro asset de saudacao) logo no step `welcome`, antes ou depois da mensagem de texto de boas-vindas. Isso causa impacto imediato e mostra o diferencial do produto.
+O botao interativo "Ver Traducao" esta implementado corretamente no codigo e so aparece apos exercicios (nao no welcome, o que e esperado). Se ele nao esta aparecendo durante exercicios, pode ser que:
+- O `sendInteractiveButton` esta falhando e caindo no fallback de texto
+- O fallback de texto ("Digite TRADUCAO") tambem pode nao estar visivel
 
-**Mudancas tecnicas:**
-- Arquivo: `supabase/functions/whatsapp-webhook/index.ts`
-- No case `"welcome"` (linha ~5010), adicionar chamada `sendBotAudio(waId, "AUDIO_PHRASE_HELLO")` antes de enviar a mensagem de texto
-- Tambem adicionar no handler de `language_picker` (quando o idioma e definido e o bot move para welcome), para que o audio toque logo apos a selecao de idioma
-- Fallback silencioso: se o audio falhar (404), o fluxo continua normalmente so com texto
+**Verificacao:** Apos corrigir o audio, testar fazendo o fluxo completo ate chegar a um exercicio para confirmar que o botao aparece. Se nao aparecer, verificar os logs da edge function buscando por erros no envio da mensagem interativa.
 
----
+### Resumo
 
-### Resumo das mudancas
-
-| Mudanca | Arquivo | Descricao |
-|---------|---------|-----------|
-| Nova funcao `sendInteractiveButton` | whatsapp-webhook/index.ts | Envia mensagem interativa do WhatsApp com botoes |
-| Handler de `button_reply` | whatsapp-webhook/index.ts | Detecta cliques em botoes interativos no webhook |
-| Substituir CTAs de texto por botoes | whatsapp-webhook/index.ts | Trocar "Digite TRADUCAO..." por botao clicavel |
-| Audio no welcome | whatsapp-webhook/index.ts | Enviar `AUDIO_PHRASE_HELLO` no primeiro contato |
+| Mudanca | Descricao |
+|---------|-----------|
+| Trocar asset de welcome | `AUDIO_PHRASE_HELLO` → `AUDIO_PHRASE_NICE_TO_MEET_YOU` em 3 pontos |
+| Testar botao de traducao | Verificar nos logs se `sendInteractiveButton` esta retornando sucesso nos exercicios |
 
 ### Resultado esperado
 
-- Usuario recebe um audio de saudacao logo no primeiro contato (impacto imediato)
-- Apos cada exercicio, aparece um botao clicavel "Ver Traducao" em vez de texto pedindo para digitar
-- O usuario clica e ve a traducao instantaneamente
-- Zero barreiras para quem nao sabe ingles
+- O usuario ouve "Hello! Nice to meet you!" (ou similar) logo no primeiro contato
+- O botao "Ver Traducao" aparece clicavel apos cada exercicio
 
