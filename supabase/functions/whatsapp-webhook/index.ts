@@ -10,6 +10,11 @@ interface WhatsAppMessage {
   type: string;
   text?: { body: string };
   audio?: { id: string; mime_type: string };
+  interactive?: {
+    type: string;
+    button_reply?: { id: string; title: string };
+    list_reply?: { id: string; title: string };
+  };
 }
 
 interface WhatsAppContact {
@@ -1672,6 +1677,98 @@ async function send(to: string, msg1: string, msg2?: string): Promise<void> {
   }
 }
 
+/**
+ * Send a WhatsApp interactive message with buttons.
+ * Max 3 buttons, each with id and title (max 20 chars).
+ */
+async function sendInteractiveButton(
+  to: string,
+  bodyText: string,
+  buttons: Array<{ id: string; title: string }>,
+): Promise<{ success: boolean; messageId?: string }> {
+  const accessToken = Deno.env.get("WHATSAPP_ACCESS_TOKEN");
+  const phoneNumberId = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID");
+
+  if (!accessToken || !phoneNumberId) {
+    console.error("[WhatsApp] Missing credentials for interactive send");
+    return { success: false };
+  }
+
+  try {
+    const url = `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`;
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to,
+        type: "interactive",
+        interactive: {
+          type: "button",
+          body: { text: bodyText },
+          action: {
+            buttons: buttons.slice(0, 3).map(b => ({
+              type: "reply",
+              reply: { id: b.id, title: b.title.slice(0, 20) },
+            })),
+          },
+        },
+      }),
+    });
+
+    const result = await response.json();
+
+    if (response.ok) {
+      const messageId = result.messages?.[0]?.id;
+      console.log("[WhatsApp] ✅ Interactive sent to:", to.slice(0, 4) + "****");
+      return { success: true, messageId };
+    } else {
+      console.error("[WhatsApp] ❌ Interactive send error:", result);
+      return { success: false };
+    }
+  } catch (error) {
+    console.error("[WhatsApp] ❌ Interactive send exception:", error);
+    return { success: false };
+  }
+}
+
+/**
+ * Send a "Ver Tradução" interactive button after exercise feedback.
+ * Falls back to text CTA if interactive send fails.
+ */
+async function sendTranslationButton(waId: string, lang: Language): Promise<void> {
+  if (lang === "en") return; // No translation button for EN users
+
+  const bodyText = lang === "pt" 
+    ? "📖 Quer ver a tradução?" 
+    : "📖 ¿Quieres ver la traducción?";
+  const buttonTitle = lang === "pt" ? "Ver Tradução" : "Ver Traducción";
+
+  const result = await sendInteractiveButton(waId, bodyText, [
+    { id: "btn_translate", title: buttonTitle },
+  ]);
+
+  if (!result.success) {
+    // Fallback to text CTA
+    const fallbackCta = lang === "pt"
+      ? "📖 _Digite TRADUCAO para ver tradução_"
+      : "📖 _Escribe TRADUCCION para ver traducción_";
+    await send(waId, fallbackCta);
+  }
+
+  if (globalSupabase && result.success) {
+    await trackEvent(globalSupabase, waId, "message_sent", {
+      type: "interactive_button",
+      button_id: "btn_translate",
+    });
+  }
+}
+
 // ============== DATABASE FUNCTIONS ==============
 
 function isAdminWaId(waId: string): boolean {
@@ -3297,16 +3394,11 @@ async function handleConversationalAudio(
                               normalizedTranscript === normalizedNatural ||
                               calculateAudioScore(feedback.english_correct, transcript).score >= 0.95;
     
-    // Translation CTA
-    const traducaoCta = feedbackLang === "pt"
-      ? "\n\n📖 _Digite TRADUCAO para ver tradução_"
-      : "\n\n📖 _Escribe TRADUCCION para ver traducción_";
-    
     if (isAlreadyCorrect && fixesList.length === 0) {
       // User's English was already perfect - confirm and give next target
       const perfectMsg = feedbackLang === "pt"
-        ? `✅ *Perfeito!* 🌟\n\n🔁 Agora repete:\n*"${targetSentence}"*${traducaoCta}`
-        : `✅ *¡Perfecto!* 🌟\n\n🔁 Ahora repite:\n*"${targetSentence}"*${traducaoCta}`;
+        ? `✅ *Perfeito!* 🌟\n\n🔁 Agora repete:\n*"${targetSentence}"*`
+        : `✅ *¡Perfecto!* 🌟\n\n🔁 Ahora repite:\n*"${targetSentence}"*`;
       await send(waId, perfectMsg);
     } else {
       // Build fixes
@@ -3335,8 +3427,14 @@ async function handleConversationalAudio(
         ? `\n\n🔁 *Repete:*\n*"${targetSentence}"*`
         : `\n\n🔁 *Repite:*\n*"${targetSentence}"*`;
       
-      const fullMsg = `${correctionBlock}${naturalBlock}${fixesBlock}${explanationBlock}${repeatBlock}${traducaoCta}`;
+      const fullMsg = `${correctionBlock}${naturalBlock}${fixesBlock}${explanationBlock}${repeatBlock}`;
       await send(waId, fullMsg);
+    }
+    
+    // Send interactive translation button
+    if (feedbackLang !== "en") {
+      await new Promise(r => setTimeout(r, 300));
+      await sendTranslationButton(waId, feedbackLang as Language);
     }
     
     // Save the target sentence for next audio check and for "Ver tradução"
@@ -3994,11 +4092,6 @@ async function sendExercise(
     lang,
   });
 
-  // Add "TRADUCAO" CTA for PT/ES users
-  const translateCta = showTranslations 
-    ? (lang === "pt" ? "\n\n📖 _Digite TRADUCAO para ver tradução_" : "\n\n📖 _Escribe TRADUCCION para ver traducción_")
-    : "";
-
   // Save last_target and translation payload for "TRADUCAO" command
   if (exercise.correct_answer) {
     const exerciseTranslation = exercise.prompt_translation?.[lang as "pt" | "es"] || "";
@@ -4032,7 +4125,13 @@ async function sendExercise(
     current: String(current),
     total: String(total),
     prompt: fullPrompt,
-  }) + translateCta);
+  }));
+
+  // Send interactive translation button (replaces text CTA)
+  if (showTranslations) {
+    await new Promise(r => setTimeout(r, 300));
+    await sendTranslationButton(waId, lang);
+  }
 }
 
 async function handleExerciseAnswer(
@@ -4159,21 +4258,14 @@ async function handleExerciseAnswer(
     translation: exerciseTranslation,
   };
 
-  // Translation CTA
-  const traducaoCta = lang === "pt"
-    ? "\n\n📖 _Digite TRADUCAO para ver tradução_"
-    : lang === "es"
-      ? "\n\n📖 _Escribe TRADUCCION para ver traducción_"
-      : "";
-
   // Build response for audio input
   if (audioData && transcript) {
     // Show transcription first
     await send(waId, t(lang, "audio_transcript_header", { transcript }));
     await new Promise(r => setTimeout(r, 400));
 
-    // Show correction + translation CTA
-    await send(waId, evaluation.feedback + traducaoCta);
+    // Show correction
+    await send(waId, evaluation.feedback);
     await new Promise(r => setTimeout(r, 400));
 
     // Generate and show pronunciation tip
@@ -4197,6 +4289,11 @@ async function handleExerciseAnswer(
       await send(waId, debugMsg);
     }
 
+    // Send interactive translation button
+    if (lang !== "en") {
+      await sendTranslationButton(waId, lang);
+    }
+
     // Show next step prompt
     if (evaluation.correct) {
       await send(waId, t(lang, "audio_next"));
@@ -4206,8 +4303,14 @@ async function handleExerciseAnswer(
       return; // Don't advance to next exercise on audio error - let them retry
     }
   } else {
-    // Regular text feedback + translation CTA
-    await send(waId, evaluation.feedback + traducaoCta);
+    // Regular text feedback
+    await send(waId, evaluation.feedback);
+    
+    // Send interactive translation button
+    if (lang !== "en") {
+      await new Promise(r => setTimeout(r, 300));
+      await sendTranslationButton(waId, lang);
+    }
   }
 
   await new Promise(r => setTimeout(r, 600));
@@ -4819,6 +4922,14 @@ async function processMessage(
       await send(waId, t(langChoice, confirmKey));
       await new Promise(r => setTimeout(r, 600));
       
+      // Send welcome audio for immediate impact
+      const welcomeAudioResult = await sendBotAudio(waId, "AUDIO_PHRASE_HELLO");
+      if (welcomeAudioResult.ok) {
+        await new Promise(r => setTimeout(r, 800));
+      } else {
+        console.warn(`[AUDIO] Welcome audio failed: ${welcomeAudioResult.reason}`);
+      }
+      
       // Após idioma definido, mostrar welcome
       await updateState(supabase, waId, "welcome", state.data);
       await send(waId, t(lang, "welcome", { name: displayName }));
@@ -4838,6 +4949,11 @@ async function processMessage(
     if (result.handled) {
       if (result.newLang) {
         lang = result.newLang;
+        // Send welcome audio for immediate impact
+        const lpAudio = await sendBotAudio(waId, "AUDIO_PHRASE_HELLO");
+        if (lpAudio.ok) {
+          await new Promise(r => setTimeout(r, 800));
+        }
         // After language is set, move to welcome
         await updateState(supabase, waId, "welcome", state.data);
         await send(waId, t(lang, "welcome", { name: displayName }));
@@ -5008,6 +5124,14 @@ async function processMessage(
 
   switch (state.step) {
     case "welcome": {
+      // Send welcome audio for immediate impact (silent fallback)
+      const welcomeAudio = await sendBotAudio(waId, "AUDIO_PHRASE_HELLO");
+      if (welcomeAudio.ok) {
+        await new Promise(r => setTimeout(r, 800));
+      } else {
+        console.warn(`[AUDIO] Welcome audio failed: ${welcomeAudio.reason}`);
+      }
+      
       await send(waId, t(lang, "welcome", { name: displayName }));
       await updateState(supabase, waId, "pre_placement", { ...state.data, progress });
       break;
@@ -5210,6 +5334,25 @@ async function processWebhookPayload(
             console.log("[WEBHOOK] processMessage completed for:", maskWaId(waId));
           } catch (processError) {
             console.error("[WEBHOOK] Error in processMessage for:", maskWaId(waId), processError);
+          }
+        }
+        // Process interactive button replies
+        else if (message.type === "interactive" && message.interactive?.button_reply) {
+          const buttonId = message.interactive.button_reply.id;
+          const buttonTitle = message.interactive.button_reply.title;
+          console.log("[WEBHOOK] Button reply from:", maskWaId(waId), "button:", buttonId);
+
+          try {
+            if (buttonId === "btn_translate") {
+              // Handle translation button click - same as typing TRADUCAO
+              await processMessage(supabase, waId, contact?.profile?.name ?? null, "TRADUCAO");
+            } else {
+              // Unknown button - treat as text
+              await processMessage(supabase, waId, contact?.profile?.name ?? null, buttonTitle);
+            }
+            console.log("[WEBHOOK] Button reply processMessage completed for:", maskWaId(waId));
+          } catch (processError) {
+            console.error("[WEBHOOK] Error in button reply processMessage for:", maskWaId(waId), processError);
           }
         }
         // Process audio messages
