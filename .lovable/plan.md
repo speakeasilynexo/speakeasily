@@ -1,37 +1,44 @@
 
+## Diagnóstico: Audio antigo sendo tocado após substituição dos arquivos
 
-## Correcoes: Audio de Boas-Vindas + Botao de Traducao
+### Causa raiz identificada
 
-### Problema 1: Audio com conteudo errado
+O código do webhook esta **correto e sem alteracoes necessarias**. Os mappings no `AUDIO_ASSETS` ja apontam para os paths certos:
 
-O arquivo `phrases/AUDIO_PHRASE_HELLO.ogg` armazenado no bucket contem uma mensagem sobre "apertar botao para traduzir" em vez de uma saudacao. O codigo esta correto — o problema e o conteudo do arquivo de audio.
+```
+COACH_CORRECTION_01: "coach/correction_01.ogg"   (linha 243)
+COACH_TRY_AGAIN_01:  "coach/try_again_01.ogg"    (linha 242)
+```
 
-**Solucao:** Trocar o asset usado no welcome para `AUDIO_PHRASE_NICE_TO_MEET_YOU` (que existe no bucket e provavelmente contem uma saudacao adequada como "Hello! Nice to meet you!"). Se o conteudo desse arquivo tambem nao for ideal, voce precisara regravar/substituir o arquivo `.ogg` no storage.
+E os pontos de uso tambem estao corretos:
+- Linha 4675: `sendBotAudio(waId, "COACH_CORRECTION_01")` — tocado quando a resposta esta errada
+- Linha 3882: `sendBotAudio(waId, "COACH_TRY_AGAIN_01")` — tocado no shadowing apos falha de pronuncia
 
-**Mudancas no codigo:**
-- Arquivo: `supabase/functions/whatsapp-webhook/index.ts`
-- Substituir `"AUDIO_PHRASE_HELLO"` por `"AUDIO_PHRASE_NICE_TO_MEET_YOU"` nos 3 pontos onde o audio de welcome e enviado:
-  1. Primeira deteccao de idioma (~linha 4926)
-  2. Handler do language_picker (~linha 4953)
-  3. Case "welcome" no switch (~linha 5128)
+### Por que o audio antigo ainda foi tocado?
 
-### Problema 2: Botao de traducao
+As Edge Functions ficam em memoria por um tempo apos o ultimo deploy. Quando voce substituiu os arquivos `.ogg` no Storage, a funcao em execucao nao reiniciou automaticamente. O arquivo novo ja esta no Storage, mas a instancia antiga pode ter feito cache da URL assinada do arquivo anterior.
 
-O botao interativo "Ver Traducao" esta implementado corretamente no codigo e so aparece apos exercicios (nao no welcome, o que e esperado). Se ele nao esta aparecendo durante exercicios, pode ser que:
-- O `sendInteractiveButton` esta falhando e caindo no fallback de texto
-- O fallback de texto ("Digite TRADUCAO") tambem pode nao estar visivel
+### O que sera feito
 
-**Verificacao:** Apos corrigir o audio, testar fazendo o fluxo completo ate chegar a um exercicio para confirmar que o botao aparece. Se nao aparecer, verificar os logs da edge function buscando por erros no envio da mensagem interativa.
+**Apenas um redeploy da funcao `whatsapp-webhook`** — sem nenhuma alteracao de codigo.
 
-### Resumo
+O redeploy forca:
+1. Encerramento de todas as instancias em execucao (confirmado pelos logs de `shutdown` que aparecem nos logs recentes)
+2. Boot de nova instancia com o codigo atual
+3. Nas proximas chamadas ao Storage, o arquivo novo `correction_01.ogg` e `try_again_01.ogg` serao buscados frescos sem cache
 
-| Mudanca | Descricao |
-|---------|-----------|
-| Trocar asset de welcome | `AUDIO_PHRASE_HELLO` → `AUDIO_PHRASE_NICE_TO_MEET_YOU` em 3 pontos |
-| Testar botao de traducao | Verificar nos logs se `sendInteractiveButton` esta retornando sucesso nos exercicios |
+### Confirmacao dos paths corretos (auditoria)
 
-### Resultado esperado
+| Asset key | Path no Storage | Usado em |
+|---|---|---|
+| `COACH_CORRECTION_01` | `coach/correction_01.ogg` | Erro em exercicio de texto (linha 4675) |
+| `COACH_TRY_AGAIN_01` | `coach/try_again_01.ogg` | Shadowing com pronuncia incorreta (linha 3882) |
+| `COACH_GREAT_JOB_01` | `coach/great_job_01.ogg` | Shadowing com pronuncia correta (linha 3861) |
+| `COACH_WELCOME_01` | `coach/welcome_01.ogg` | Primeiro contato (linhas 5315, 5346, 5526) |
+| `COACH_YOUR_TURN_01` | `coach/your_turn_01.ogg` | Exercicios subsequentes (linha 4455) |
+| `COACH_REPEAT_AFTER_ME_01` | `coach/repeat_after_me_01.ogg` | Primeiro exercicio do dia (linha 4442) |
+| `COACH_AUDIO_NOT_CLEAR_01` | `coach/audio_not_clear_01.ogg` | Falha de transcricao de audio (linhas 3847, 4539) |
 
-- O usuario ouve "Hello! Nice to meet you!" (ou similar) logo no primeiro contato
-- O botao "Ver Traducao" aparece clicavel apos cada exercicio
+### Nenhum arquivo de codigo sera alterado
 
+Somente o redeploy da funcao `whatsapp-webhook` sera executado.
