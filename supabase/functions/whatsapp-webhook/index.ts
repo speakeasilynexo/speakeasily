@@ -3732,6 +3732,54 @@ function buildGrammarMicroExplanation(ruleId: string, lang: Language): string {
   return `\n\n${header} ${ruleText}\n${exampleLabel} ${exampleText}`;
 }
 
+/**
+ * Builds a structured error feedback message for a wrong exercise answer.
+ * Format:
+ *   ❌ Você disse: "..."
+ *   ✅ Forma correta: "..."
+ *   🔎 Por quê: <1 rule line>
+ *   🌐 Tradução: "..."
+ *   🔁 Repete: "..." / "<translation>"
+ */
+function buildStructuredErrorFeedback(params: {
+  userAnswer: string;
+  correctAnswer: string;
+  translation: string;
+  grammarRuleId: string | null;
+  lang: Language;
+}): string {
+  const { userAnswer, correctAnswer, translation, grammarRuleId, lang } = params;
+
+  const labels = {
+    heard: lang === "pt" ? "❌ *Você disse:*" : "❌ *Dijiste:*",
+    correct: lang === "pt" ? "✅ *Forma correta:*" : "✅ *Forma correcta:*",
+    why: lang === "pt" ? "🔎 *Por quê:*" : "🔎 *Por qué:*",
+    translation: lang === "pt" ? "🌐 *Tradução:*" : "🌐 *Traducción:*",
+    repeat: lang === "pt" ? "🔁 *Repete:*" : "🔁 *Repite:*",
+  };
+
+  const lines: string[] = [
+    `${labels.heard} _"${userAnswer}"_`,
+    `${labels.correct} *"${correctAnswer}"*`,
+  ];
+
+  if (grammarRuleId) {
+    const rule = CLASSIC_GRAMMAR_RULES[grammarRuleId];
+    if (rule) {
+      const ruleText = lang === "pt" ? rule.rule_pt : rule.rule_es;
+      lines.push(`${labels.why} ${ruleText}`);
+    }
+  }
+
+  if (translation) {
+    lines.push(`${labels.translation} _"${translation}"_`);
+  }
+
+  lines.push(`${labels.repeat} *"${correctAnswer}"*`);
+
+  return lines.join("\n");
+}
+
 // ============== SHADOWING EXERCISE HANDLER ==============
 
 /**
@@ -4621,25 +4669,35 @@ async function handleExerciseAnswer(
       return; // Don't advance to next exercise on audio error - let them retry
     }
   } else {
-    // Regular text feedback — play correction audio when wrong
+    // Regular text feedback
     if (!evaluation.correct) {
+      // 1) Play generic correction audio (doesn't carry specific content)
       await sendBotAudio(waId, "COACH_CORRECTION_01");
       await new Promise(r => setTimeout(r, 500));
 
-      // Detect classic grammar error and append micro-explanation
+      // 2) Build and send structured error message
       const classicRuleId = detectClassicGrammarError(exercise, answer);
-      const microExplanation = classicRuleId
-        ? buildGrammarMicroExplanation(classicRuleId, lang)
-        : "";
-      await send(waId, evaluation.feedback + microExplanation);
+      const exerciseTranslationForFeedback = exercise.prompt_translation?.[lang as "pt" | "es"] || "";
+      const structuredFeedback = buildStructuredErrorFeedback({
+        userAnswer: answer,
+        correctAnswer: exercise.correct_answer,
+        translation: exerciseTranslationForFeedback,
+        grammarRuleId: classicRuleId,
+        lang,
+      });
+      await send(waId, structuredFeedback);
+
+      // 3) Optional: store state so user must retry once
+      await updateState(supabase, waId, state.step, state.data);
+      return; // Force retry — do NOT advance exercise on first error
     } else {
       await send(waId, evaluation.feedback);
-    }
 
-    // Send interactive translation button
-    if (lang !== "en") {
-      await new Promise(r => setTimeout(r, 300));
-      await sendTranslationButton(waId, lang);
+      // Send interactive translation button
+      if (lang !== "en") {
+        await new Promise(r => setTimeout(r, 300));
+        await sendTranslationButton(waId, lang);
+      }
     }
   }
 
