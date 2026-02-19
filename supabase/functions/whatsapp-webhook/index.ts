@@ -155,6 +155,9 @@ interface StateData {
   };
   // Rich translation payload for "TRADUCAO" command
   last_translation_payload?: TranslationPayload;
+  // Audio flags to prevent repetition within a session
+  welcome_audio_sent?: boolean;
+  translation_hint_sent?: boolean;
 }
 
 type EventType =
@@ -221,6 +224,7 @@ const corsHeaders = {
 // ============== AUDIO ASSETS (PRE-RECORDED) ==============
 
 const AUDIO_ASSETS = {
+  // Legacy keys (kept for compatibility)
   AUDIO_COACH_YOUR_TURN: "coach/AUDIO_COACH_YOUR_TURN.ogg",
   AUDIO_COACH_REPEAT_AFTER_ME: "coach/AUDIO_COACH_REPEAT_AFTER_ME.ogg",
   AUDIO_COACH_GREAT_JOB: "coach/AUDIO_COACH_GREAT_JOB.ogg",
@@ -229,6 +233,21 @@ const AUDIO_ASSETS = {
   AUDIO_PHRASE_HOW_ARE_YOU: "phrases/AUDIO_PHRASE_HOW_ARE_YOU.ogg",
   AUDIO_PHRASE_IM_FINE: "phrases/AUDIO_PHRASE_IM_FINE.ogg",
   AUDIO_PHRASE_HELLO: "phrases/AUDIO_PHRASE_HELLO.ogg",
+  // New structured assets (v2)
+  COACH_WELCOME_01: "coach/welcome_01.ogg",
+  COACH_YOUR_TURN_01: "coach/your_turn_01.ogg",
+  COACH_REPEAT_AFTER_ME_01: "coach/repeat_after_me_01.ogg",
+  COACH_GREAT_JOB_01: "coach/great_job_01.ogg",
+  COACH_TRANSLATION_HINT_01: "coach/translation_hint_01.ogg",
+  COACH_TRY_AGAIN_01: "coach/try_again_01.ogg",
+  COACH_CORRECTION_01: "coach/correction_01.ogg",
+  COACH_AUDIO_NOT_CLEAR_01: "coach/audio_not_clear_01.ogg",
+  PHRASE_HELLO_01: "phrases/hello_01.ogg",
+  PHRASE_MY_NAME_IS_01: "phrases/my_name_is_01.ogg",
+  PHRASE_IM_FROM_01: "phrases/im_from_01.ogg",
+  PHRASE_IM_A_01: "phrases/im_a_01.ogg",
+  PHRASE_NICE_TO_MEET_YOU_01: "phrases/nice_to_meet_you_01.ogg",
+  PHRASE_WHATS_YOUR_NAME_01: "phrases/whats_your_name_01.ogg",
 } as const;
 
 type AudioAssetKey = keyof typeof AUDIO_ASSETS;
@@ -4108,15 +4127,25 @@ async function sendExercise(
   }
 
   // Send coach audio before exercise (if asset exists)
-  // Only for first few exercises and onboarding-related days
+  // Send coach audio before exercise prompt
   if (current === 1 && progress.current_day <= 3) {
-    // Send "repeat after me" coach instruction audio
-    const audioResult = await sendBotAudio(waId, "AUDIO_COACH_REPEAT_AFTER_ME");
-    if (audioResult.ok) {
+    // First exercise: prefer new "repeat after me" asset, fallback to legacy
+    const rmResult = await sendBotAudio(waId, "COACH_REPEAT_AFTER_ME_01");
+    if (rmResult.ok) {
       await new Promise(r => setTimeout(r, 400));
-    } else if (audioResult.reason === "storage_404") {
-      console.warn(`[AUDIO] Asset missing in storage — bucket=${audioResult.bucket} path=${audioResult.path} asset_id=${audioResult.asset_id}`);
-      await send(waId, "⚠️ Áudio indisponível no momento (asset faltando).");
+    } else {
+      const legacyResult = await sendBotAudio(waId, "AUDIO_COACH_REPEAT_AFTER_ME");
+      if (legacyResult.ok) {
+        await new Promise(r => setTimeout(r, 400));
+      } else if (legacyResult.reason === "storage_404") {
+        console.warn(`[AUDIO] repeat_after_me missing — bucket=${legacyResult.bucket} path=${legacyResult.path}`);
+      }
+    }
+  } else {
+    // Subsequent exercises: "Your turn" cue
+    const ytResult = await sendBotAudio(waId, "COACH_YOUR_TURN_01");
+    if (ytResult.ok) {
+      await new Promise(r => setTimeout(r, 400));
     }
   }
 
@@ -4172,6 +4201,9 @@ async function handleExerciseAnswer(
       if (transcriptionResult.error === "rate_limit") {
         await send(waId, t(lang, "audio_transcription_rate_limit"));
       } else {
+        // Play "audio not clear" coach audio before text message
+        await sendBotAudio(waId, "COACH_AUDIO_NOT_CLEAR_01");
+        await new Promise(r => setTimeout(r, 600));
         await send(waId, t(lang, "audio_transcription_failed"));
       }
       return;
@@ -4303,7 +4335,11 @@ async function handleExerciseAnswer(
       return; // Don't advance to next exercise on audio error - let them retry
     }
   } else {
-    // Regular text feedback
+    // Regular text feedback — play correction audio when wrong
+    if (!evaluation.correct) {
+      await sendBotAudio(waId, "COACH_CORRECTION_01");
+      await new Promise(r => setTimeout(r, 500));
+    }
     await send(waId, evaluation.feedback);
     
     // Send interactive translation button
@@ -4922,12 +4958,16 @@ async function processMessage(
       await send(waId, t(langChoice, confirmKey));
       await new Promise(r => setTimeout(r, 600));
       
-      // Send welcome audio for immediate impact
-      const welcomeAudioResult = await sendBotAudio(waId, "AUDIO_PHRASE_NICE_TO_MEET_YOU");
-      if (welcomeAudioResult.ok) {
-        await new Promise(r => setTimeout(r, 800));
-      } else {
-        console.warn(`[AUDIO] Welcome audio failed: ${welcomeAudioResult.reason}`);
+      // Send welcome audio once (coach/welcome_01.ogg with flag to prevent repeat)
+      if (!state.data.welcome_audio_sent) {
+        const welcomeAudioResult = await sendBotAudio(waId, "COACH_WELCOME_01");
+        if (welcomeAudioResult.ok) {
+          await new Promise(r => setTimeout(r, 800));
+        } else {
+          console.warn(`[AUDIO] Welcome audio failed (${welcomeAudioResult.reason}), trying fallback`);
+          await sendBotAudio(waId, "AUDIO_PHRASE_NICE_TO_MEET_YOU");
+        }
+        state.data.welcome_audio_sent = true;
       }
       
       // Após idioma definido, mostrar welcome
@@ -4949,10 +4989,15 @@ async function processMessage(
     if (result.handled) {
       if (result.newLang) {
         lang = result.newLang;
-        // Send welcome audio for immediate impact
-        const lpAudio = await sendBotAudio(waId, "AUDIO_PHRASE_NICE_TO_MEET_YOU");
-        if (lpAudio.ok) {
-          await new Promise(r => setTimeout(r, 800));
+        // Send welcome audio once (with flag to prevent repeat)
+        if (!state.data.welcome_audio_sent) {
+          const lpAudio = await sendBotAudio(waId, "COACH_WELCOME_01");
+          if (lpAudio.ok) {
+            await new Promise(r => setTimeout(r, 800));
+          } else {
+            await sendBotAudio(waId, "AUDIO_PHRASE_NICE_TO_MEET_YOU");
+          }
+          state.data.welcome_audio_sent = true;
         }
         // After language is set, move to welcome
         await updateState(supabase, waId, "welcome", state.data);
@@ -5124,12 +5169,16 @@ async function processMessage(
 
   switch (state.step) {
     case "welcome": {
-      // Send welcome audio for immediate impact (silent fallback)
-      const welcomeAudio = await sendBotAudio(waId, "AUDIO_PHRASE_NICE_TO_MEET_YOU");
-      if (welcomeAudio.ok) {
-        await new Promise(r => setTimeout(r, 800));
-      } else {
-        console.warn(`[AUDIO] Welcome audio failed: ${welcomeAudio.reason}`);
+      // Send welcome audio once (with flag to prevent repeat)
+      if (!state.data.welcome_audio_sent) {
+        const welcomeAudio = await sendBotAudio(waId, "COACH_WELCOME_01");
+        if (welcomeAudio.ok) {
+          await new Promise(r => setTimeout(r, 800));
+        } else {
+          console.warn(`[AUDIO] welcome_01.ogg missing (${welcomeAudio.reason}), using fallback`);
+          await sendBotAudio(waId, "AUDIO_PHRASE_NICE_TO_MEET_YOU");
+        }
+        state.data.welcome_audio_sent = true;
       }
       
       await send(waId, t(lang, "welcome", { name: displayName }));
