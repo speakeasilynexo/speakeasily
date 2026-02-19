@@ -980,6 +980,22 @@ const SEVEN_DAY_PLAN: DayLesson[] = [
           en: "Simple present doesn't use 'am' with action verbs.",
         },
         mistake_tag: "be_with_action_verb"
+      },
+      {
+        id: "d1_ex5",
+        type: "shadowing",
+        prompt: "Listen and repeat:",
+        prompt_translation: {
+          pt: "(Ouça e repita a frase em voz alta)",
+          es: "(Escucha y repite la frase en voz alta)",
+        },
+        correct_answer: "Nice to meet you",
+        hint: {
+          pt: "Frase de apresentação essencial.",
+          es: "Frase de presentación esencial.",
+          en: "Essential introduction phrase.",
+        },
+        mistake_tag: "pronunciation_drill",
       }
     ],
     production_type: "text",
@@ -1063,6 +1079,22 @@ const SEVEN_DAY_PLAN: DayLesson[] = [
           en: "With he/she/it we use DOESN'T, not DON'T.",
         },
         mistake_tag: "doesnt_vs_dont"
+      },
+      {
+        id: "d2_ex5",
+        type: "shadowing",
+        prompt: "Listen and repeat:",
+        prompt_translation: {
+          pt: "(Ouça e repita a frase em voz alta)",
+          es: "(Escucha y repite la frase en voz alta)",
+        },
+        correct_answer: "He doesn't work on weekends",
+        hint: {
+          pt: "Pratica a forma negativa da 3ª pessoa.",
+          es: "Practica la forma negativa en 3ª persona.",
+          en: "Practice 3rd person negative form.",
+        },
+        mistake_tag: "pronunciation_drill",
       }
     ],
     production_type: "text",
@@ -3597,6 +3629,223 @@ Return ONLY JSON: {"correct": true/false, "feedback": "1-2 lines in ${feedbackLa
   };
 }
 
+// ============== CLASSIC GRAMMAR ERROR DETECTION ==============
+
+interface ClassicGrammarRule {
+  id: string;
+  rule_pt: string;
+  rule_es: string;
+  example_pt: string;
+  example_es: string;
+}
+
+const CLASSIC_GRAMMAR_RULES: Record<string, ClassicGrammarRule> = {
+  doesnt_vs_dont: {
+    id: "doesnt_vs_dont",
+    rule_pt: "Com *he / she / it* usamos *DOESN'T*, não *DON'T*.",
+    rule_es: "Con *he / she / it* usamos *DOESN'T*, no *DON'T*.",
+    example_pt: "✅ He *doesn't* work. ❌ He *don't* work.",
+    example_es: "✅ He *doesn't* work. ❌ He *don't* work.",
+  },
+  third_person_s: {
+    id: "third_person_s",
+    rule_pt: "Na 3ª pessoa (he/she/it) o verbo recebe *-s* no presente simples.",
+    rule_es: "En 3ª persona (he/she/it) el verbo lleva *-s* en presente simple.",
+    example_pt: "✅ She *works*. ❌ She *work*.",
+    example_es: "✅ She *works*. ❌ She *work*.",
+  },
+  doesnt_base_verb: {
+    id: "doesnt_base_verb",
+    rule_pt: "Depois de *doesn't* o verbo volta à forma base — sem *-s*.",
+    rule_es: "Después de *doesn't* el verbo vuelve a la forma base — sin *-s*.",
+    example_pt: "✅ She doesn't *like*. ❌ She doesn't *likes*.",
+    example_es: "✅ She doesn't *like*. ❌ She doesn't *likes*.",
+  },
+  do_does_question: {
+    id: "do_does_question",
+    rule_pt: "Perguntas com he/she/it usam *DOES*, não *DO*.",
+    rule_es: "Preguntas con he/she/it usan *DOES*, no *DO*.",
+    example_pt: "✅ *Does* she work? ❌ *Do* she work?",
+    example_es: "✅ *Does* she work? ❌ *Do* she work?",
+  },
+};
+
+/**
+ * Detects classic grammar errors in a wrong answer.
+ * Returns the rule ID if a classic error is found, null otherwise.
+ * Only checks non-MCQ exercises.
+ */
+function detectClassicGrammarError(
+  exercise: LessonExercise,
+  userAnswer: string,
+): string | null {
+  if (exercise.type === "choose_correct") return null;
+
+  const ua = userAnswer.toLowerCase().trim();
+
+  // don't vs doesn't: user wrote don't but correct answer needs doesn't
+  if (
+    (exercise.correct_answer.toLowerCase().includes("doesn't") ||
+      exercise.correct_answer.toLowerCase().includes("does not")) &&
+    (ua.includes("don't") || ua.includes("do not"))
+  ) {
+    return "doesnt_vs_dont";
+  }
+
+  // doesn't + verb+s: e.g. "doesn't works"
+  if (/doesn'?t\s+\w+(s|es)\b/.test(ua)) {
+    return "doesnt_base_verb";
+  }
+
+  // 3rd person -s missing
+  if (exercise.mistake_tag === "third_person_s") {
+    const correctHasS = /\b(he|she|it)\s+\w+(s|es)\b/i.test(exercise.correct_answer);
+    const userMissingS =
+      /\b(he|she|it)\s+\w+\b/i.test(ua) &&
+      !/\b(he|she|it)\s+\w+(s|es)\b/i.test(ua);
+    if (correctHasS && userMissingS) return "third_person_s";
+  }
+
+  // do vs does in question
+  if (
+    exercise.correct_answer.toLowerCase().startsWith("does") &&
+    ua.startsWith("do ")
+  ) {
+    return "do_does_question";
+  }
+
+  return null;
+}
+
+/**
+ * Builds a short grammar micro-explanation for a detected classic rule.
+ */
+function buildGrammarMicroExplanation(ruleId: string, lang: Language): string {
+  const rule = CLASSIC_GRAMMAR_RULES[ruleId];
+  if (!rule) return "";
+
+  const ruleText = lang === "pt" ? rule.rule_pt : rule.rule_es;
+  const exampleText = lang === "pt" ? rule.example_pt : rule.example_es;
+  const header = lang === "pt" ? "🔎 *Regra rápida:*" : "🔎 *Regla rápida:*";
+  const exampleLabel = lang === "pt" ? "📌 *Exemplo:*" : "📌 *Ejemplo:*";
+
+  return `\n\n${header} ${ruleText}\n${exampleLabel} ${exampleText}`;
+}
+
+// ============== SHADOWING EXERCISE HANDLER ==============
+
+/**
+ * Sends a shadowing (pronunciation drill) exercise.
+ * Plays a phrase audio from storage if available, then shows target sentence.
+ */
+async function sendShadowingExercise(
+  waId: string,
+  exercise: LessonExercise,
+  lang: Language,
+  current: number,
+  total: number,
+): Promise<void> {
+  const header = lang === "pt"
+    ? `🎤 *Exercício ${current}/${total} — Pronúncia*\n\n`
+    : `🎤 *Ejercicio ${current}/${total} — Pronunciación*\n\n`;
+
+  const targetLine = `🗣 *"${exercise.correct_answer}"*`;
+
+  const instruction = lang === "pt"
+    ? "\n\n🎧 Ouça e repita. *Grave seu áudio* agora!"
+    : "\n\n🎧 Escucha y repite. ¡*Graba tu audio* ahora!";
+
+  // Map exercise to a phrase audio asset. Default based on day prefix.
+  const phraseAssetKey: AudioAssetKey = exercise.id.startsWith("d1")
+    ? "PHRASE_NICE_TO_MEET_YOU_01"
+    : "PHRASE_HELLO_01";
+
+  const audioResult = await sendBotAudio(waId, phraseAssetKey);
+  if (audioResult.ok) {
+    await new Promise(r => setTimeout(r, 600));
+  } else if (audioResult.reason === "storage_404") {
+    const unavailableMsg = lang === "pt"
+      ? "⚠️ Áudio indisponível no momento."
+      : "⚠️ Audio no disponible en este momento.";
+    await send(waId, unavailableMsg);
+  }
+
+  await send(waId, `${header}${targetLine}${instruction}`);
+}
+
+/**
+ * Handles the student's audio reply to a shadowing exercise.
+ * Returns true = stay in shadowing (retry), false = advance to next exercise.
+ */
+async function handleShadowingAnswer(
+  supabase: SupabaseClientType,
+  waId: string,
+  state: { step: string; data: StateData },
+  lang: Language,
+  audioData: { media_id: string; mime_type?: string },
+): Promise<boolean> {
+  const audioPractice = state.data.audio_practice;
+  if (!audioPractice) return false;
+
+  const transcriptionResult = await processAudioMessage(
+    supabase,
+    waId,
+    audioData.media_id,
+    audioData.mime_type,
+    state.step,
+  );
+
+  if (!transcriptionResult.success || !transcriptionResult.transcript.trim()) {
+    await sendBotAudio(waId, "COACH_AUDIO_NOT_CLEAR_01");
+    await new Promise(r => setTimeout(r, 600));
+    const msg = lang === "pt"
+      ? "🎤 Não consegui entender. Tente de novo, mais perto do microfone."
+      : "🎤 No pude entender. Inténtalo de nuevo, más cerca del micrófono.";
+    await send(waId, msg);
+    return true;
+  }
+
+  const transcript = transcriptionResult.transcript;
+  const { label } = calculateAudioScore(audioPractice.target_sentence, transcript);
+  const attempts = (audioPractice.attempts || 0) + 1;
+
+  if (label === "correct" || label === "close") {
+    await sendBotAudio(waId, "COACH_GREAT_JOB_01");
+    await new Promise(r => setTimeout(r, 600));
+    const successMsg = lang === "pt"
+      ? "✅ *Ótimo!* Pronúncia ok. 👏"
+      : "✅ *¡Excelente!* Pronunciación ok. 👏";
+    await send(waId, successMsg);
+    state.data.audio_practice = undefined;
+    await updateState(supabase, waId, state.step, state.data);
+    return false; // advance
+  }
+
+  if (attempts >= 2) {
+    state.data.audio_practice = undefined;
+    await updateState(supabase, waId, state.step, state.data);
+    const moveOnMsg = lang === "pt"
+      ? `🔁 *"${audioPractice.target_sentence}"* — Continue praticando! Avançando. 💪`
+      : `🔁 *"${audioPractice.target_sentence}"* — ¡Sigue practicando! Avancemos. 💪`;
+    await send(waId, moveOnMsg);
+    return false; // advance
+  }
+
+  await sendBotAudio(waId, "COACH_TRY_AGAIN_01");
+  await new Promise(r => setTimeout(r, 600));
+  state.data.audio_practice = {
+    target_sentence: audioPractice.target_sentence,
+    target_translation: audioPractice.target_translation,
+    attempts,
+  };
+  await updateState(supabase, waId, state.step, state.data);
+  const retryMsg = lang === "pt"
+    ? `🔄 *Eu ouvi:* _"${transcript}"_\n\nTente de novo:\n🗣 *"${audioPractice.target_sentence}"*\n\n_Fale devagar e claro._`
+    : `🔄 *Escuché:* _"${transcript}"_\n\nInténtalo de nuevo:\n🗣 *"${audioPractice.target_sentence}"*\n\n_Habla despacio y claro._`;
+  await send(waId, retryMsg);
+  return true;
+}
+
 // ============== LANGUAGE FUNCTIONS ==============
 
 function parseLanguageChoice(input: string): Language | null {
@@ -4126,7 +4375,19 @@ async function sendExercise(
     await updateState(supabase, waId, "lesson_exercise", state.data);
   }
 
-  // Send coach audio before exercise (if asset exists)
+  // ---- SHADOWING: special handling for pronunciation drill ----
+  if (exercise.type === "shadowing") {
+    // Store target in audio_practice so handler knows it's a shadowing exercise
+    state.data.audio_practice = {
+      target_sentence: exercise.correct_answer,
+      target_translation: exercise.prompt_translation?.[lang as "pt" | "es"] || "",
+      attempts: 0,
+    };
+    await updateState(supabase, waId, "lesson_exercise", state.data);
+    await sendShadowingExercise(waId, exercise, lang, current, total);
+    return;
+  }
+
   // Send coach audio before exercise prompt
   if (current === 1 && progress.current_day <= 3) {
     // First exercise: prefer new "repeat after me" asset, fallback to legacy
@@ -4178,6 +4439,31 @@ async function handleExerciseAnswer(
 
   if (!exercise) {
     await startDayProduction(supabase, waId, state, lang);
+    return;
+  }
+
+  // ---- SHADOWING: if audio_practice is active and user sent audio, handle drill ----
+  if (exercise.type === "shadowing" && audioData && state.data.audio_practice) {
+    const stayInShadowing = await handleShadowingAnswer(supabase, waId, state, lang, audioData);
+    if (stayInShadowing) return; // wait for retry
+    // Advance past the shadowing exercise
+    progress.current_exercise_index++;
+    progress.day_score++; // count shadowing as correct (effort-based)
+    progress.day_attempts++;
+    if (progress.current_exercise_index < day.exercises.length) {
+      await sendExercise(supabase, waId, state, day.exercises[progress.current_exercise_index], lang);
+    } else {
+      await startDayProduction(supabase, waId, state, lang);
+    }
+    return;
+  }
+
+  // ---- SHADOWING: user sent text instead of audio ----
+  if (exercise.type === "shadowing" && !audioData) {
+    const promptMsg = lang === "pt"
+      ? `🎤 Por favor, *grave um áudio* repetindo:\n\n🗣 *"${exercise.correct_answer}"*`
+      : `🎤 Por favor, *graba un audio* repitiendo:\n\n🗣 *"${exercise.correct_answer}"*`;
+    await send(waId, promptMsg);
     return;
   }
 
@@ -4339,9 +4625,17 @@ async function handleExerciseAnswer(
     if (!evaluation.correct) {
       await sendBotAudio(waId, "COACH_CORRECTION_01");
       await new Promise(r => setTimeout(r, 500));
+
+      // Detect classic grammar error and append micro-explanation
+      const classicRuleId = detectClassicGrammarError(exercise, answer);
+      const microExplanation = classicRuleId
+        ? buildGrammarMicroExplanation(classicRuleId, lang)
+        : "";
+      await send(waId, evaluation.feedback + microExplanation);
+    } else {
+      await send(waId, evaluation.feedback);
     }
-    await send(waId, evaluation.feedback);
-    
+
     // Send interactive translation button
     if (lang !== "en") {
       await new Promise(r => setTimeout(r, 300));
