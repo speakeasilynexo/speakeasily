@@ -2521,6 +2521,18 @@ async function callAI(systemPrompt: string, userMessage: string): Promise<string
   }
 }
 
+/**
+ * Translate a short English phrase to the user's native language (pt/es).
+ * Uses the lightest AI model for speed. Returns empty string on failure.
+ */
+async function translatePhrase(phrase: string, lang: Language): Promise<string> {
+  if (!phrase || lang === "en") return "";
+  const targetLang = lang === "pt" ? "Brazilian Portuguese" : "Spanish";
+  const systemPrompt = `Translate the following English sentence to ${targetLang}. Return ONLY the translation, nothing else.`;
+  const result = await callAI(systemPrompt, phrase);
+  return result.trim().replace(/^["']|["']$/g, "");
+}
+
 // ============== AUDIO TRANSCRIPTION (WHISPER) ==============
 
 interface TranscriptionResult {
@@ -4409,15 +4421,16 @@ async function sendExercise(
   });
 
   // Save last_target and translation payload for "TRADUCAO" command
+  // NOTE: translation_native is left empty here and generated on-demand
+  // when the user clicks "Ver Tradução" — avoids extra AI call per exercise.
   if (exercise.correct_answer) {
-    const exerciseTranslation = exercise.prompt_translation?.[lang as "pt" | "es"] || "";
     state.data.last_target = {
       en: exercise.correct_answer,
-      translation: exerciseTranslation,
+      translation: "", // filled on-demand in TRADUCAO handler
     };
     state.data.last_translation_payload = {
       target_en: exercise.correct_answer,
-      translation_native: exerciseTranslation,
+      translation_native: "", // filled on-demand in TRADUCAO handler
       explanation: exercise.hint?.[lang] || "",
     };
     await updateState(supabase, waId, "lesson_exercise", state.data);
@@ -4613,15 +4626,15 @@ async function handleExerciseAnswer(
   });
 
   // Store translation payload for TRADUCAO command
-  const exerciseTranslation = exercise.prompt_translation?.[lang as "pt" | "es"] || "";
+  // Use correct_answer as target (not prompt_translation which translates the coach instruction)
   state.data.last_translation_payload = {
     target_en: exercise.correct_answer,
-    translation_native: exerciseTranslation,
+    translation_native: "", // filled on-demand or at error time below
     explanation: exercise.hint?.[lang] || "",
   };
   state.data.last_target = {
     en: exercise.correct_answer,
-    translation: exerciseTranslation,
+    translation: "", // filled on-demand
   };
 
   // Build response for audio input
@@ -4675,17 +4688,30 @@ async function handleExerciseAnswer(
       await sendBotAudio(waId, "COACH_CORRECTION_01");
       await new Promise(r => setTimeout(r, 500));
 
-      // 2) Build and send structured error message
+      // 2) Translate the CORRECT ANSWER (not the coach instruction)
+      const correctAnswerTranslation = await translatePhrase(exercise.correct_answer, lang);
+
+      // 3) Build and send structured error message
       const classicRuleId = detectClassicGrammarError(exercise, answer);
-      const exerciseTranslationForFeedback = exercise.prompt_translation?.[lang as "pt" | "es"] || "";
       const structuredFeedback = buildStructuredErrorFeedback({
         userAnswer: answer,
         correctAnswer: exercise.correct_answer,
-        translation: exerciseTranslationForFeedback,
+        translation: correctAnswerTranslation,
         grammarRuleId: classicRuleId,
         lang,
       });
       await send(waId, structuredFeedback);
+
+      // 4) Update payload with the translated correct answer for "Ver Tradução"
+      state.data.last_translation_payload = {
+        target_en: exercise.correct_answer,
+        translation_native: correctAnswerTranslation,
+        explanation: exercise.hint?.[lang] || "",
+      };
+      state.data.last_target = {
+        en: exercise.correct_answer,
+        translation: correctAnswerTranslation,
+      };
 
       // 3) Optional: store state so user must retry once
       await updateState(supabase, waId, state.step, state.data);
@@ -4721,6 +4747,11 @@ async function startDayProduction(
 ): Promise<void> {
   const progress = state.data.progress!;
   const day = SEVEN_DAY_PLAN.find(l => l.day === progress.current_day)!;
+
+  // Extract model sentence from production prompt (text between _"..."_ or just clear the target)
+  // Production is open-ended, so we clear the translation payload to avoid stale data.
+  state.data.last_translation_payload = undefined;
+  state.data.last_target = undefined;
 
   await updateState(supabase, waId, "day_production", { ...state.data, progress });
 
@@ -5461,7 +5492,17 @@ async function processMessage(
     const payload = state.data.last_translation_payload;
     const lastTarget = state.data.last_target;
 
-    if (payload) {
+    if (payload && payload.target_en) {
+      // Generate translation on-demand if not yet available
+      if (!payload.translation_native) {
+        payload.translation_native = await translatePhrase(payload.target_en, lang);
+        state.data.last_translation_payload = payload;
+        if (lastTarget) {
+          lastTarget.translation = payload.translation_native;
+        }
+        await updateState(supabase, waId, state.step, state.data);
+      }
+
       // Rich translation response
       const flag = lang === "pt" ? "🇧🇷" : "🇪🇸";
       let msg = `📖 *Tradução:*\n\n🇺🇸 "${payload.target_en}"\n${flag} _${payload.translation_native}_`;
@@ -5478,6 +5519,12 @@ async function processMessage(
 
       await send(waId, msg);
     } else if (lastTarget && lastTarget.en) {
+      // Generate translation on-demand if not yet available
+      if (!lastTarget.translation) {
+        lastTarget.translation = await translatePhrase(lastTarget.en, lang);
+        state.data.last_target = lastTarget;
+        await updateState(supabase, waId, state.step, state.data);
+      }
       const flag = lang === "pt" ? "🇧🇷" : "🇪🇸";
       await send(waId, `🇺🇸 ${lastTarget.en}\n${flag} ${lastTarget.translation}`);
     } else {
