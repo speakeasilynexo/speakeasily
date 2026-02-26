@@ -123,9 +123,9 @@ const I18N: Record<string, Record<Language, string>> = {
     en: "Have questions? Write us on WhatsApp and we'll help.",
   },
   footer: {
-    pt: "SpeakEasily • Seu coach de inglês por WhatsApp",
-    es: "SpeakEasily • Tu coach de inglés por WhatsApp",
-    en: "SpeakEasily • Your English coach on WhatsApp",
+    pt: "SpeakEasily • Seu coach de inglês por WhatsApp • Marca operada por ELIAS ISRAEL MENDES UNIPESSOAL LDA • IVA / NIPC: PT517286688 • Contacto: contacto@nexo-digital.app",
+    es: "SpeakEasily • Tu coach de inglés por WhatsApp • Marca operada por ELIAS ISRAEL MENDES UNIPESSOAL LDA • IVA / NIPC: PT517286688 • Contacto: contacto@nexo-digital.app",
+    en: "SpeakEasily • Your English coach on WhatsApp • Brand operated by ELIAS ISRAEL MENDES UNIPESSOAL LDA • VAT / NIPC: PT517286688 • Contact: contacto@nexo-digital.app",
   },
   processing: {
     pt: "Processando...",
@@ -251,7 +251,7 @@ export default function Subscribe() {
         throw new Error(result.error || I18N.error_generic[lang]);
       }
 
-      const planName = PLANS.find(p => p.id === selectedPlan)?.name[lang] || selectedPlan;
+      const planName = PLANS.find((p) => p.id === selectedPlan)?.name[lang] || selectedPlan;
       toast({
         title: I18N.success_title[lang],
         description: I18N.success_msg[lang].replace("{plan}", planName),
@@ -319,9 +319,7 @@ export default function Subscribe() {
           <h1 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold mb-4 tracking-tight text-balance">
             {I18N.headline[lang]}
           </h1>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto leading-relaxed">
-            {I18N.subheadline[lang]}
-          </p>
+          <p className="text-muted-foreground text-lg max-w-2xl mx-auto leading-relaxed">{I18N.subheadline[lang]}</p>
         </section>
 
         {/* Benefits */}
@@ -352,11 +350,7 @@ export default function Subscribe() {
                   plan.recommended
                     ? "border-primary/30 bg-card shadow-elevated"
                     : "border-border/50 bg-card shadow-soft"
-                } ${
-                  selectedPlan === plan.id
-                    ? "ring-2 ring-primary border-primary"
-                    : "hover:border-primary/40"
-                }`}
+                } ${selectedPlan === plan.id ? "ring-2 ring-primary border-primary" : "hover:border-primary/40"}`}
               >
                 {plan.recommended && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full gradient-hero text-primary-foreground text-xs font-semibold whitespace-nowrap">
@@ -375,14 +369,10 @@ export default function Subscribe() {
                 <div className="mt-auto flex justify-center">
                   <div
                     className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
-                      selectedPlan === plan.id
-                        ? "border-primary bg-primary"
-                        : "border-muted-foreground/40"
+                      selectedPlan === plan.id ? "border-primary bg-primary" : "border-muted-foreground/40"
                     }`}
                   >
-                    {selectedPlan === plan.id && (
-                      <Check className="h-3 w-3 text-primary-foreground" />
-                    )}
+                    {selectedPlan === plan.id && <Check className="h-3 w-3 text-primary-foreground" />}
                   </div>
                 </div>
               </div>
@@ -390,9 +380,7 @@ export default function Subscribe() {
           </div>
         </section>
 
-        <p className="text-center text-muted-foreground text-sm mb-10">
-          {I18N.cancel_anytime[lang]}
-        </p>
+        <p className="text-center text-muted-foreground text-sm mb-10">{I18N.cancel_anytime[lang]}</p>
 
         {/* CTA */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
@@ -407,12 +395,7 @@ export default function Subscribe() {
               : `${I18N.choose_btn[lang]} ${selectedPlanInfo.name[lang]} — ${selectedPlanInfo.price}`}
           </Button>
 
-          <Button
-            variant="outline"
-            size="lg"
-            className="w-full sm:w-auto gap-2 py-5"
-            asChild
-          >
+          <Button variant="outline" size="lg" className="w-full sm:w-auto gap-2 py-5" asChild>
             <a href={WHATSAPP_LINK}>
               <MessageCircle className="h-4 w-4" />
               {I18N.back_whatsapp[lang]}
@@ -435,9 +418,7 @@ export default function Subscribe() {
               </div>
               <span className="font-display font-semibold text-sm">SpeakEasily</span>
             </div>
-            <div className="text-xs text-muted-foreground">
-              {I18N.footer[lang]}
-            </div>
+            <div className="text-xs text-muted-foreground leading-relaxed max-w-2xl">{I18N.footer[lang]}</div>
           </div>
         </div>
       </footer>
