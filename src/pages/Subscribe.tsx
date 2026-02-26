@@ -221,28 +221,18 @@ export default function Subscribe() {
   };
 
   const handleSubscribe = async () => {
-    if (!waId) {
-      toast({
-        title: I18N.error_title[lang],
-        description: I18N.error_no_wa_id[lang],
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsLoading(true);
 
     try {
-      await supabase.from("wa_events").insert({
-        wa_id: waId,
-        event_type: "subscribe_clicked",
-        metadata: { plan: selectedPlan, source, lang },
-      });
-
-      const response = await fetch(`${SUPABASE_FUNCTIONS_URL}/activate-subscription`, {
+      const response = await fetch(`${SUPABASE_FUNCTIONS_URL}/create-checkout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ wa_id: waId, plan: selectedPlan, source }),
+        body: JSON.stringify({
+          plan: selectedPlan,
+          wa_id: waId,
+          lang,
+          source,
+        }),
       });
 
       const result = await response.json();
@@ -251,13 +241,13 @@ export default function Subscribe() {
         throw new Error(result.error || I18N.error_generic[lang]);
       }
 
-      const planName = PLANS.find((p) => p.id === selectedPlan)?.name[lang] || selectedPlan;
-      toast({
-        title: I18N.success_title[lang],
-        description: I18N.success_msg[lang].replace("{plan}", planName),
-      });
+      if (result.url) {
+        window.location.href = result.url;
+      } else {
+        throw new Error(I18N.error_generic[lang]);
+      }
     } catch (error) {
-      console.error("Error activating subscription:", error);
+      console.error("Error creating checkout:", error);
       toast({
         title: I18N.error_title[lang],
         description: error instanceof Error ? error.message : I18N.error_generic[lang],
