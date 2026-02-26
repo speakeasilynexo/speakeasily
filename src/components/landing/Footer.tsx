@@ -10,12 +10,27 @@ const Footer = () => (
           </div>
           <span className="font-display font-semibold text-sm">SpeakEasily</span>
         </div>
+
         <div className="text-xs text-muted-foreground leading-relaxed space-y-0.5">
           <div>© 2026 SpeakEasily · Aprende inglés por WhatsApp</div>
-          <div>CNPJ: 64.696.664/0001-10</div>
+          <div>
+            SpeakEasily es una marca operada por <span className="font-medium">ELIAS ISRAEL MENDES UNIPESSOAL LDA</span>
+          </div>
+          <div>IVA / NIPC: PT517286688</div>
+          <div>
+            Sitio web:{" "}
+            <a
+              href="https://speakeasily.nexo-digital.app"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-foreground transition-colors"
+            >
+              speakeasily.nexo-digital.app
+            </a>
+          </div>
           <div>
             Contacto:{" "}
-            <a href="mailto:contato@nexo-digital.app" className="underline hover:text-foreground transition-colors">
+            <a href="mailto:contacto@nexo-digital.app" className="underline hover:text-foreground transition-colors">
               contacto@nexo-digital.app
             </a>
           </div>
