@@ -5,28 +5,43 @@ const WHATSAPP_LINK = "https://wa.me/34657100100?text=Hello";
 
 const plans = [
   {
-    name: "Prueba Gratis",
-    price: "€0",
-    period: "7 días",
+    name: "Mensual",
+    price: "€7,99",
+    period: "/mes",
     badge: null,
     highlight: false,
-    features: ["20 lecciones completas", "Feedback IA ilimitado", "Correcciones detalladas", "Sin tarjeta de crédito"],
-    cta: "Empezar Gratis",
+    features: ["Lecciones ilimitadas", "Feedback IA ilimitado", "Correcciones detalladas", "Práctica con audio"],
+    cta: "Elegir Mensual",
   },
   {
-    name: "Premium",
-    price: "€12,99",
-    period: "/mes",
-    badge: "Popular",
+    name: "Trimestral",
+    price: "€19,99",
+    period: "/3 meses",
+    badge: "Recomendado",
     highlight: true,
     features: [
       "Lecciones ilimitadas",
       "Práctica con audio",
       "Vocabulario personalizado",
       "Soporte prioritario",
-      "Acceso a todos los niveles",
+      "Mejor equilibrio precio/valor",
     ],
-    cta: "Elegir Premium",
+    cta: "Elegir Trimestral",
+  },
+  {
+    name: "Semestral",
+    price: "€34,99",
+    period: "/6 meses",
+    badge: "Mejor ahorro",
+    highlight: false,
+    features: [
+      "Lecciones ilimitadas",
+      "Práctica con audio",
+      "Vocabulario personalizado",
+      "Soporte prioritario",
+      "Mayor ahorro a largo plazo",
+    ],
+    cta: "Elegir Semestral",
   },
 ];
 
@@ -44,7 +59,7 @@ const Pricing = () => (
         <p className="text-muted-foreground text-lg max-w-xl mx-auto">Sin compromisos. Cancela cuando quieras.</p>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+      <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
         {plans.map((plan) => (
           <div
             key={plan.name}
