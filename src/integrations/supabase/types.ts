@@ -127,6 +127,7 @@ export type Database = {
       wa_users: {
         Row: {
           created_at: string
+          expires_at: string | null
           id: string
           is_subscribed: boolean | null
           level: Database["public"]["Enums"]["english_level"] | null
@@ -134,7 +135,10 @@ export type Database = {
           preferred_language: string | null
           prefers_audio: boolean | null
           show_translations: boolean | null
+          stripe_payment_intent_id: string | null
+          stripe_session_id: string | null
           subscription_plan: string | null
+          subscription_started_at: string | null
           subscription_status: string
           trial_completed: boolean | null
           trial_expires_at: string | null
@@ -145,6 +149,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          expires_at?: string | null
           id?: string
           is_subscribed?: boolean | null
           level?: Database["public"]["Enums"]["english_level"] | null
@@ -152,7 +157,10 @@ export type Database = {
           preferred_language?: string | null
           prefers_audio?: boolean | null
           show_translations?: boolean | null
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
           subscription_plan?: string | null
+          subscription_started_at?: string | null
           subscription_status?: string
           trial_completed?: boolean | null
           trial_expires_at?: string | null
@@ -163,6 +171,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          expires_at?: string | null
           id?: string
           is_subscribed?: boolean | null
           level?: Database["public"]["Enums"]["english_level"] | null
@@ -170,7 +179,10 @@ export type Database = {
           preferred_language?: string | null
           prefers_audio?: boolean | null
           show_translations?: boolean | null
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
           subscription_plan?: string | null
+          subscription_started_at?: string | null
           subscription_status?: string
           trial_completed?: boolean | null
           trial_expires_at?: string | null
