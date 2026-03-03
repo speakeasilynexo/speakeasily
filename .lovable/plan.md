@@ -1,29 +1,37 @@
 
-Diagnóstico rápido (verificado):
-1) No encontré errores internos en el frontend (rutas y render están correctos).
-2) La URL publicada sí está funcionando y muestra la landing:
-   - https://speakeasilynexo-digitalapp.lovable.app
-3) La URL de preview está mostrando pantalla de login del entorno de edición, no un crash de tu app:
-   - https://id-preview--7e6cd3f6-c3cb-4553-8264-e3614eec45bc.lovable.app
-4) En los logs no aparecen errores JS ni requests fallidas de publicación.
 
-Qué está pasando:
-- No es un fallo de código de la interfaz.
-- El bloqueo parece de flujo de publicación/preview en el editor (o sesión del editor), no de la app publicada.
+## Plano: Favicon full-bleed nítido para SpeakEasily
 
-Plan de recuperación (sin tocar código):
-1) Confirmar publicación real en la URL pública (ya está OK).
-2) Reintentar publicación desde el botón correcto del editor:
-   - Desktop: botón “Publish” arriba a la derecha.
-   - Mobile: botón “…” abajo derecha → “Publish”.
-3) Si no responde al hacer clic:
-   - Hard refresh del editor (Ctrl/Cmd+Shift+R).
-   - Cerrar/reabrir proyecto.
-   - Probar en ventana incógnito.
-   - Cerrar sesión e iniciar sesión otra vez.
-4) Verificar que estás en “Preview” y no solo en “Chat”.
-5) Si sigue sin publicar tras lo anterior, tratarlo como incidencia de la UI del editor (porque la app pública sí está viva) y continuar operando desde la URL publicada mientras se resuelve el panel de preview.
+### O que muda
 
-Resultado esperado:
-- Aunque el preview del editor falle temporalmente, tu interfaz ya está accesible en producción.
-- El problema restante es del botón/estado del editor, no del despliegue de la app.
+**1. Criar `public/favicon.svg`** — SVG vetorial de um balão de chat verde (#22C55E) full-bleed (sem padding), com símbolo branco dentro (três pontos ou ondas sonoras), opacidade 100%, bordas nítidas. O viewBox ocupa 100% do quadrado.
+
+**2. Criar PNGs derivados do SVG** — Como não temos ferramentas de conversão de imagem no ambiente, criaremos o SVG inline e os PNGs serão gerados a partir de um canvas no build ou fornecidos como SVG referências. Na prática, criaremos:
+- `favicon.svg` (vetorial principal)
+- Manter `favicon.png` e `apple-touch-icon.png` existentes mas atualizá-los referenciando o novo design
+
+> **Limitação**: Não é possível gerar `.ico` multi-size nem PNGs em múltiplas resoluções programaticamente neste ambiente. O que faremos é criar o **SVG perfeito** (que browsers modernos priorizam) e atualizar as referências HTML. Para `.ico` e PNGs em múltiplos tamanhos, será necessário usar uma ferramenta externa (ex: realfavicongenerator.net) com o SVG gerado.
+
+**3. Atualizar `index.html`** — Substituir os links de favicon atuais por:
+```html
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+```
+Remover o link antigo `<link rel="icon" type="image/png" href="/favicon.png" />`.
+
+**4. Atualizar `public/manifest.json`** — Trocar ícones para `android-chrome-192x192.png` e `android-chrome-512x512.png`, manter `theme_color` e `background_color` como `#22C55E`.
+
+### Design do SVG
+
+Balão de chat arredondado ocupando ~95% do viewBox, preenchido com `#22C55E`, com três pontos brancos centralizados (estilo "digitando"). Sem padding, sem transparência.
+
+### O que NÃO muda
+- Nenhum componente React
+- Nenhum layout/UI
+- Nenhuma dependência nova
+
+### Nota importante
+Os arquivos PNG em múltiplos tamanhos (16, 32, 48, 64, 192, 512) e o `.ico` precisam ser gerados externamente a partir do SVG. Posso criar o SVG e atualizar todo o HTML/manifest, e depois indicar como gerar os PNGs restantes.
+
