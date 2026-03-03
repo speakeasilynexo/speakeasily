@@ -1,44 +1,42 @@
 
-## Diagnóstico: Audio antigo sendo tocado após substituição dos arquivos
+## Stripe Integration & Security Hardening — COMPLETED
 
-### Causa raiz identificada
+### What was done
 
-O código do webhook esta **correto e sem alteracoes necessarias**. Os mappings no `AUDIO_ASSETS` ja apontam para os paths certos:
+1. **`stripe-webhook` (NEW)** — Handles `checkout.session.completed`:
+   - Verifies Stripe signature with `STRIPE_WEBHOOK_SECRET`
+   - Extracts `plan` + `wa_id` from session metadata
+   - Calculates `expires_at` (30/90/180 days)
+   - Idempotency via `stripe_session_id` unique index
+   - Updates `wa_users`: `is_subscribed=true`, `subscription_status='active'`, `expires_at`, etc.
+   - Logs `subscription_activated` in `wa_events`
+   - Also logs `payment_intent.succeeded` (no action)
 
-```
-COACH_CORRECTION_01: "coach/correction_01.ogg"   (linha 243)
-COACH_TRY_AGAIN_01:  "coach/try_again_01.ogg"    (linha 242)
-```
+2. **`activate-subscription` SECURED**:
+   - Requires `x-internal-token` header (403 without it)
+   - CORS restricted to official domains only
 
-E os pontos de uso tambem estao corretos:
-- Linha 4675: `sendBotAudio(waId, "COACH_CORRECTION_01")` — tocado quando a resposta esta errada
-- Linha 3882: `sendBotAudio(waId, "COACH_TRY_AGAIN_01")` — tocado no shadowing apos falha de pronuncia
+3. **`create-checkout` SECURED**:
+   - CORS restricted to official domains only
 
-### Por que o audio antigo ainda foi tocado?
+4. **`whatsapp-webhook` ACCESS CONTROL updated**:
+   - `UserData` includes `expires_at`
+   - All `select()` queries include `expires_at`
+   - `getAccessStatus()`: if subscribed but `expires_at < now()`, treats as NOT subscribed
+   - `isTrialExpired()`: returns `subscription_expired` when subscription expired
+   - `sendPaywallMessage()`: shows renewal message for expired subscriptions
+   - New i18n key `subscription_expired` in pt/es/en
 
-As Edge Functions ficam em memoria por um tempo apos o ultimo deploy. Quando voce substituiu os arquivos `.ogg` no Storage, a funcao em execucao nao reiniciou automaticamente. O arquivo novo ja esta no Storage, mas a instancia antiga pode ter feito cache da URL assinada do arquivo anterior.
+5. **Database migration** (already applied):
+   - Added `subscription_started_at`, `expires_at`, `stripe_session_id`, `stripe_payment_intent_id` to `wa_users`
+   - Unique index on `stripe_session_id` for idempotency
 
-### O que sera feito
+### CORS Allowed Origins
+- `https://speakeasilynexo-digitalapp.lovable.app`
+- `https://speakeasily.nexo-digital.app`
+- `https://id-preview--7e6cd3f6-c3cb-4553-8264-e3614eec45bc.lovable.app`
 
-**Apenas um redeploy da funcao `whatsapp-webhook`** — sem nenhuma alteracao de codigo.
-
-O redeploy forca:
-1. Encerramento de todas as instancias em execucao (confirmado pelos logs de `shutdown` que aparecem nos logs recentes)
-2. Boot de nova instancia com o codigo atual
-3. Nas proximas chamadas ao Storage, o arquivo novo `correction_01.ogg` e `try_again_01.ogg` serao buscados frescos sem cache
-
-### Confirmacao dos paths corretos (auditoria)
-
-| Asset key | Path no Storage | Usado em |
-|---|---|---|
-| `COACH_CORRECTION_01` | `coach/correction_01.ogg` | Erro em exercicio de texto (linha 4675) |
-| `COACH_TRY_AGAIN_01` | `coach/try_again_01.ogg` | Shadowing com pronuncia incorreta (linha 3882) |
-| `COACH_GREAT_JOB_01` | `coach/great_job_01.ogg` | Shadowing com pronuncia correta (linha 3861) |
-| `COACH_WELCOME_01` | `coach/welcome_01.ogg` | Primeiro contato (linhas 5315, 5346, 5526) |
-| `COACH_YOUR_TURN_01` | `coach/your_turn_01.ogg` | Exercicios subsequentes (linha 4455) |
-| `COACH_REPEAT_AFTER_ME_01` | `coach/repeat_after_me_01.ogg` | Primeiro exercicio do dia (linha 4442) |
-| `COACH_AUDIO_NOT_CLEAR_01` | `coach/audio_not_clear_01.ogg` | Falha de transcricao de audio (linhas 3847, 4539) |
-
-### Nenhum arquivo de codigo sera alterado
-
-Somente o redeploy da funcao `whatsapp-webhook` sera executado.
+### Pending: Stripe Dashboard Config
+The user needs to configure the webhook endpoint in Stripe Dashboard:
+- URL: `https://njaylytxqksoibyiijms.supabase.co/functions/v1/stripe-webhook`
+- Events: `checkout.session.completed`, `payment_intent.succeeded`

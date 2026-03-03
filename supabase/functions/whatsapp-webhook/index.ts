@@ -65,6 +65,7 @@ interface UserData {
   preferred_language: Language | null;
   show_translations: boolean;
   prefers_audio: boolean;
+  expires_at: string | null;
 }
 
 interface MistakeTag {
@@ -503,6 +504,11 @@ const I18N: Record<string, Record<Language, string>> = {
     pt: "✅ *Seu teste terminou*\n\nPara continuar com áudios + revisão inteligente + novos módulos, ative sua assinatura aqui:\n\n🔗 {link}\n\nVocê pode ver seu progresso com *PROGRESO*.",
     es: "✅ *Tu prueba terminó*\n\nPara seguir con audios + revisión inteligente + nuevos módulos, activa tu suscripción aquí:\n\n🔗 {link}\n\nPuedes ver tu progreso con *PROGRESO*.",
     en: "✅ *Your trial ended*\n\nTo continue with audio + smart review + new modules, activate your subscription here:\n\n🔗 {link}\n\nYou can view your progress with *PROGRESS*.",
+  },
+  subscription_expired: {
+    pt: "⏳ *Sua assinatura expirou*\n\nRenove para continuar aprendendo:\n\n🔗 {link}\n\nVocê pode ver seu progresso com *PROGRESO*.",
+    es: "⏳ *Tu suscripción ha expirado*\n\nRenueva para seguir aprendiendo:\n\n🔗 {link}\n\nPuedes ver tu progreso con *PROGRESO*.",
+    en: "⏳ *Your subscription has expired*\n\nRenew to keep learning:\n\n🔗 {link}\n\nYou can view your progress with *PROGRESS*.",
   },
   review_limit: {
     pt: "🙌 *Você esgotou sua revisão grátis de hoje*\n\nAtive a assinatura para revisão ilimitada:\n🔗 {link}",
@@ -1836,7 +1842,7 @@ async function getOrCreateUser(
   
   const { data: existing } = await supabase
     .from("wa_users")
-    .select("wa_id, name, level, subscription_status, trial_started_at, trial_expires_at, trial_completed, is_subscribed, subscription_plan, preferred_language, show_translations, prefers_audio")
+    .select("wa_id, name, level, subscription_status, trial_started_at, trial_expires_at, trial_completed, is_subscribed, subscription_plan, preferred_language, show_translations, prefers_audio, expires_at")
     .eq("wa_id", waId)
     .maybeSingle();
 
@@ -1857,6 +1863,7 @@ async function getOrCreateUser(
         preferred_language: existing.preferred_language as Language | null,
         show_translations: existing.show_translations as boolean ?? true,
         prefers_audio: existing.prefers_audio as boolean ?? false,
+        expires_at: existing.expires_at as string | null,
       };
     }
 
@@ -1897,6 +1904,7 @@ async function getOrCreateUser(
         preferred_language: existing.preferred_language as Language | null,
         show_translations: existing.show_translations as boolean ?? true,
         prefers_audio: existing.prefers_audio as boolean ?? false,
+        expires_at: existing.expires_at as string | null,
       };
     }
 
@@ -1913,6 +1921,7 @@ async function getOrCreateUser(
       preferred_language: existing.preferred_language as Language | null,
       show_translations: existing.show_translations as boolean ?? true,
       prefers_audio: existing.prefers_audio as boolean ?? false,
+      expires_at: existing.expires_at as string | null,
     };
   }
 
@@ -1935,7 +1944,7 @@ async function getOrCreateUser(
         show_translations: true,
         prefers_audio: false,
       })
-      .select("wa_id, name, level, subscription_status, trial_started_at, trial_expires_at, trial_completed, is_subscribed, subscription_plan, preferred_language, show_translations, prefers_audio")
+      .select("wa_id, name, level, subscription_status, trial_started_at, trial_expires_at, trial_completed, is_subscribed, subscription_plan, preferred_language, show_translations, prefers_audio, expires_at")
       .single();
 
     if (error) {
@@ -1958,6 +1967,7 @@ async function getOrCreateUser(
       preferred_language: newUser.preferred_language as Language | null,
       show_translations: newUser.show_translations as boolean ?? true,
       prefers_audio: newUser.prefers_audio as boolean ?? false,
+      expires_at: newUser.expires_at as string | null,
     };
   }
 
@@ -1978,7 +1988,7 @@ async function getOrCreateUser(
       show_translations: true,
       prefers_audio: false,
     })
-    .select("wa_id, name, level, subscription_status, trial_started_at, trial_expires_at, trial_completed, is_subscribed, subscription_plan, preferred_language, show_translations, prefers_audio")
+    .select("wa_id, name, level, subscription_status, trial_started_at, trial_expires_at, trial_completed, is_subscribed, subscription_plan, preferred_language, show_translations, prefers_audio, expires_at")
     .single();
 
   if (error) {
@@ -2008,6 +2018,7 @@ async function getOrCreateUser(
     preferred_language: newUser.preferred_language as Language | null,
     show_translations: newUser.show_translations as boolean ?? true,
     prefers_audio: newUser.prefers_audio as boolean ?? false,
+    expires_at: newUser.expires_at as string | null,
   };
 }
 
@@ -2115,6 +2126,15 @@ function getAccessStatus(waUser: UserData, waId: string): AccessStatus {
   // Regular user
   const isSubscribed = waUser.is_subscribed === true;
   
+  // Check if subscription has expired
+  let subscriptionExpired = false;
+  if (isSubscribed && waUser.expires_at) {
+    const expiresAt = new Date(waUser.expires_at);
+    if (new Date() >= expiresAt) {
+      subscriptionExpired = true;
+    }
+  }
+
   let trialActive = false;
   let trialExpired = false;
   
@@ -2127,8 +2147,8 @@ function getAccessStatus(waUser: UserData, waId: string): AccessStatus {
 
   return {
     isAdmin: false,
-    isSubscribed,
-    plan: isSubscribed ? (waUser.subscription_plan as SubscriptionPlan) : null,
+    isSubscribed: isSubscribed && !subscriptionExpired,
+    plan: isSubscribed && !subscriptionExpired ? (waUser.subscription_plan as SubscriptionPlan) : null,
     trialActive,
     trialExpired,
   };
@@ -2366,7 +2386,16 @@ function getSubscribeLink(waId: string, source: string, lang?: Language): string
   return `${SUBSCRIBE_URL}?wa_id=${waId}&source=${source}${langParam}`;
 }
 
-function isTrialExpired(user: UserData): { expired: boolean; reason: "trial_completed" | "trial_expired" | null } {
+function isTrialExpired(user: UserData): { expired: boolean; reason: "trial_completed" | "trial_expired" | "subscription_expired" | null } {
+  // Check subscription expiration first
+  if (user.is_subscribed && user.expires_at) {
+    const expiresAt = new Date(user.expires_at);
+    if (new Date() >= expiresAt) {
+      return { expired: true, reason: "subscription_expired" };
+    }
+    return { expired: false, reason: null };
+  }
+
   if (user.is_subscribed) {
     return { expired: false, reason: null };
   }
@@ -2388,7 +2417,7 @@ function isTrialExpired(user: UserData): { expired: boolean; reason: "trial_comp
 async function sendPaywallMessage(
   supabase: SupabaseClientType,
   waId: string,
-  reason: "trial_completed" | "trial_expired",
+  reason: "trial_completed" | "trial_expired" | "subscription_expired",
   command: string,
   lang: Language
 ): Promise<void> {
@@ -2404,7 +2433,8 @@ async function sendPaywallMessage(
     link: subscribeLink,
   });
 
-  await send(waId, t(lang, "trial_ended", { link: subscribeLink }));
+  const msgKey = reason === "subscription_expired" ? "subscription_expired" : "trial_ended";
+  await send(waId, t(lang, msgKey, { link: subscribeLink }));
 }
 
 async function checkReviewLimit(

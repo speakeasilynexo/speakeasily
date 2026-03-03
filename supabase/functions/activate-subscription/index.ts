@@ -1,10 +1,20 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+const ALLOWED_ORIGINS = [
+  "https://speakeasilynexo-digitalapp.lovable.app",
+  "https://speakeasily.nexo-digital.app",
+  "https://id-preview--7e6cd3f6-c3cb-4553-8264-e3614eec45bc.lovable.app",
+];
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get("origin") || "";
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-internal-token",
+  };
+}
 
 interface ActivateRequest {
   wa_id: string;
@@ -15,8 +25,21 @@ interface ActivateRequest {
 serve(async (req: Request) => {
   console.log(`[ACTIVATE-SUBSCRIPTION] ${req.method} ${req.url}`);
 
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Validate internal token
+  const internalToken = Deno.env.get("INTERNAL_API_TOKEN");
+  const providedToken = req.headers.get("x-internal-token");
+  if (!internalToken || providedToken !== internalToken) {
+    console.error("[ACTIVATE-SUBSCRIPTION] Invalid or missing x-internal-token");
+    return new Response(JSON.stringify({ error: "Forbidden" }), {
+      status: 403,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   if (req.method !== "POST") {
