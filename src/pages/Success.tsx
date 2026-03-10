@@ -113,7 +113,7 @@ export default function Success() {
             <span className="font-display font-semibold text-sm">SpeakEasily</span>
           </div>
           <p className="text-xs text-muted-foreground">
-            SpeakEasily • ELIAS ISRAEL MENDES UNIPESSOAL LDA • PT517286688
+            SpeakEasily • PT517286688
           </p>
         </div>
       </footer>
