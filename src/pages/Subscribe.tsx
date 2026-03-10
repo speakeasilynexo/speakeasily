@@ -123,9 +123,9 @@ const I18N: Record<string, Record<Language, string>> = {
     en: "Have questions? Write us on WhatsApp and we'll help.",
   },
   footer: {
-    pt: "SpeakEasily • Seu coach de inglês por WhatsApp • Marca operada por ELIAS ISRAEL MENDES UNIPESSOAL LDA • IVA / NIPC: PT517286688 • Contacto: contacto@nexo-digital.app",
-    es: "SpeakEasily • Tu coach de inglés por WhatsApp • Marca operada por ELIAS ISRAEL MENDES UNIPESSOAL LDA • IVA / NIPC: PT517286688 • Contacto: contacto@nexo-digital.app",
-    en: "SpeakEasily • Your English coach on WhatsApp • Brand operated by ELIAS ISRAEL MENDES UNIPESSOAL LDA • VAT / NIPC: PT517286688 • Contact: contacto@nexo-digital.app",
+    pt: "SpeakEasily • Seu coach de inglês por WhatsApp • IVA / NIPC: PT517286688 • Contacto: contacto@nexo-digital.app",
+    es: "SpeakEasily • Tu coach de inglés por WhatsApp • IVA / NIPC: PT517286688 • Contacto: contacto@nexo-digital.app",
+    en: "SpeakEasily • Your English coach on WhatsApp • VAT / NIPC: PT517286688 • Contact: contacto@nexo-digital.app",
   },
   processing: {
     pt: "Processando...",
