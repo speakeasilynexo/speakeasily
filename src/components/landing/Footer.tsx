@@ -13,9 +13,6 @@ const Footer = () => (
 
         <div className="text-xs text-muted-foreground leading-relaxed space-y-0.5">
           <div>© 2026 SpeakEasily · Aprende inglés por WhatsApp</div>
-          <div>
-            SpeakEasily es una marca operada por <span className="font-medium">ELIAS ISRAEL MENDES UNIPESSOAL LDA</span>
-          </div>
           <div>IVA / NIPC: PT517286688</div>
           <div>
             Sitio web:{" "}
