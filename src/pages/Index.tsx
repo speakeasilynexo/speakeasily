@@ -28,6 +28,7 @@ const Index = () => {
     <FinalCta />
     <Footer />
   </div>
-);
+  );
+};
 
 export default Index;

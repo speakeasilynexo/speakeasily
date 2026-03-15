@@ -44,6 +44,12 @@ export default function Success() {
   const [searchParams] = useSearchParams();
   const lang = getLang(searchParams.get("lang"));
 
+  useSEO({
+    title: "Pago confirmado - SpeakEasily",
+    description: "Tu plan ha sido activado con éxito. Vuelve a WhatsApp para seguir aprendiendo inglés.",
+    path: "/success",
+  });
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}

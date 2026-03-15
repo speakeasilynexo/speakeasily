@@ -178,6 +178,12 @@ export default function Subscribe() {
   const source = searchParams.get("source") || "direct";
   const waId = searchParams.get("wa_id") || null;
 
+  useSEO({
+    title: "Suscríbete - SpeakEasily",
+    description: "Elige tu plan y empieza a aprender inglés por WhatsApp con SpeakEasily. Lecciones cortas, audios y correcciones.",
+    path: "/subscribe",
+  });
+
   // Track page view
   useEffect(() => {
     const trackPageView = async () => {
