@@ -178,10 +178,22 @@ export default function Subscribe() {
   const source = searchParams.get("source") || "direct";
   const waId = searchParams.get("wa_id") || null;
 
+  const SEO_TITLES: Record<Language, string> = {
+    es: "Suscríbete - SpeakEasily",
+    pt: "Assine - SpeakEasily",
+    en: "Subscribe - SpeakEasily",
+  };
+  const SEO_DESCS: Record<Language, string> = {
+    es: "Elige tu plan y empieza a aprender inglés por WhatsApp con SpeakEasily.",
+    pt: "Escolha seu plano e comece a aprender inglês pelo WhatsApp com SpeakEasily.",
+    en: "Choose your plan and start learning English via WhatsApp with SpeakEasily.",
+  };
+
   useSEO({
-    title: "Suscríbete - SpeakEasily",
-    description: "Elige tu plan y empieza a aprender inglés por WhatsApp con SpeakEasily. Lecciones cortas, audios y correcciones.",
+    title: SEO_TITLES[lang],
+    description: SEO_DESCS[lang],
     path: "/subscribe",
+    lang,
   });
 
   // Track page view

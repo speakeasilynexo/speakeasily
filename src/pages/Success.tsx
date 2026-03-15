@@ -44,10 +44,22 @@ export default function Success() {
   const [searchParams] = useSearchParams();
   const lang = getLang(searchParams.get("lang"));
 
+  const SEO_TITLES: Record<Language, string> = {
+    es: "Pago confirmado - SpeakEasily",
+    pt: "Pagamento confirmado - SpeakEasily",
+    en: "Payment confirmed - SpeakEasily",
+  };
+  const SEO_DESCS: Record<Language, string> = {
+    es: "Tu plan ha sido activado con éxito. Vuelve a WhatsApp para seguir aprendiendo inglés.",
+    pt: "Seu plano foi ativado com sucesso. Volte ao WhatsApp para continuar aprendendo inglês.",
+    en: "Your plan has been activated successfully. Go back to WhatsApp to keep learning English.",
+  };
+
   useSEO({
-    title: "Pago confirmado - SpeakEasily",
-    description: "Tu plan ha sido activado con éxito. Vuelve a WhatsApp para seguir aprendiendo inglés.",
+    title: SEO_TITLES[lang],
+    description: SEO_DESCS[lang],
     path: "/success",
+    lang,
   });
 
   return (
