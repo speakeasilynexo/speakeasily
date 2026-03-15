@@ -1,6 +1,7 @@
 import { useSearchParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { MessageCircle, CheckCircle, ArrowLeft } from "lucide-react";
+import { useSEO } from "@/hooks/useSEO";
 
 type Language = "pt" | "es" | "en";
 
