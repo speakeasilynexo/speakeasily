@@ -108,5 +108,5 @@ export function useSEO({ title, description, path = "/", lang = "es", noindex = 
       upsertLink("alternate", l, getHreflangUrl(path, l));
     }
     upsertLink("alternate", "x-default", getHreflangUrl(path, "es"));
-  }, [title, description, path, lang]);
+  }, [title, description, path, lang, noindex]);
 }
