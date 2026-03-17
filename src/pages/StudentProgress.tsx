@@ -72,6 +72,14 @@ const EVENT_ICONS: Record<string, typeof BookOpen> = {
 
 export default function StudentProgress() {
   const { waId } = useParams<{ waId: string }>();
+
+  useSEO({
+    title: "Progreso del Alumno - SpeakEasily",
+    description: "Página privada de progreso del alumno.",
+    path: `/u/${waId}`,
+    noindex: true,
+  });
+
   const [user, setUser] = useState<UserData | null>(null);
   const [state, setState] = useState<StateData | null>(null);
   const [events, setEvents] = useState<EventData[]>([]);
