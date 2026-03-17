@@ -15,24 +15,6 @@ const sitemapXml = `<?xml version="1.0" encoding="UTF-8"?>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
-  <url>
-    <loc>https://speakeasily.nexo-digital.app/subscribe</loc>
-    <xhtml:link rel="alternate" hreflang="es" href="https://speakeasily.nexo-digital.app/subscribe" />
-    <xhtml:link rel="alternate" hreflang="pt" href="https://speakeasily.nexo-digital.app/subscribe?lang=pt" />
-    <xhtml:link rel="alternate" hreflang="en" href="https://speakeasily.nexo-digital.app/subscribe?lang=en" />
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://speakeasily.nexo-digital.app/subscribe" />
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://speakeasily.nexo-digital.app/success</loc>
-    <xhtml:link rel="alternate" hreflang="es" href="https://speakeasily.nexo-digital.app/success" />
-    <xhtml:link rel="alternate" hreflang="pt" href="https://speakeasily.nexo-digital.app/success?lang=pt" />
-    <xhtml:link rel="alternate" hreflang="en" href="https://speakeasily.nexo-digital.app/success?lang=en" />
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://speakeasily.nexo-digital.app/success" />
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
 </urlset>`;
 
 Deno.serve(async (req) => {
