@@ -15,6 +15,7 @@ interface SEOProps {
   description: string;
   path?: string;
   lang?: SupportedLang;
+  noindex?: boolean;
 }
 
 function getCanonicalUrl(path: string, lang?: SupportedLang): string {
