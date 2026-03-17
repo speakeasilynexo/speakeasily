@@ -50,6 +50,7 @@ const Index = () => {
     <Benefits />
     <DemoChat />
     <Pricing />
+    <FAQ />
     <FinalCta />
     <Footer />
   </div>
