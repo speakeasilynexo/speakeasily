@@ -59,10 +59,23 @@ function upsertLink(rel: string, hreflang: string, href: string) {
   }
 }
 
-export function useSEO({ title, description, path = "/", lang = "es" }: SEOProps) {
+export function useSEO({ title, description, path = "/", lang = "es", noindex = false }: SEOProps) {
   useEffect(() => {
     // Title
     document.title = title;
+
+    // Noindex
+    let robotsMeta = document.querySelector<HTMLMetaElement>('meta[name="robots"]');
+    if (noindex) {
+      if (!robotsMeta) {
+        robotsMeta = document.createElement("meta");
+        robotsMeta.name = "robots";
+        document.head.appendChild(robotsMeta);
+      }
+      robotsMeta.content = "noindex, nofollow";
+    } else if (robotsMeta) {
+      robotsMeta.remove();
+    }
 
     // HTML lang
     document.documentElement.lang = lang;
