@@ -7,6 +7,7 @@ import Benefits from "@/components/landing/Benefits";
 import DemoChat from "@/components/landing/DemoChat";
 import SocialProof from "@/components/landing/SocialProof";
 import Pricing from "@/components/landing/Pricing";
+import FAQ from "@/components/landing/FAQ";
 import FinalCta from "@/components/landing/FinalCta";
 import Footer from "@/components/landing/Footer";
 
