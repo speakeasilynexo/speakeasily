@@ -3,12 +3,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
-
 const robotsTxt = `User-agent: *
 Allow: /
+Disallow: /u/
+Disallow: /success
+Disallow: /subscribe
 
-Sitemap: ${SUPABASE_URL}/functions/v1/sitemap
+Sitemap: https://speakeasily.nexo-digital.app/sitemap.xml
 `;
 
 Deno.serve(async (req) => {

@@ -60,6 +60,7 @@ export default function Success() {
     description: SEO_DESCS[lang],
     path: "/success",
     lang,
+    noindex: true,
   });
 
   return (

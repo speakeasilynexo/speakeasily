@@ -20,7 +20,7 @@ const HowItWorks = () => (
   <section id="como-funciona" className="py-24 px-4 bg-card">
     <div className="container mx-auto max-w-5xl">
       <div className="text-center mb-16">
-        <h2 className="font-display text-3xl md:text-4xl font-bold mb-4 tracking-tight">Cómo Funciona</h2>
+        <h2 className="font-display text-3xl md:text-4xl font-bold mb-4 tracking-tight">Cómo Funciona Nuestro Curso de Inglés</h2>
         <p className="text-muted-foreground text-lg max-w-xl mx-auto">
           Empieza en menos de 1 minuto. Sin descargas, sin registros complicados.
         </p>

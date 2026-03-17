@@ -1,4 +1,7 @@
 User-agent: *
 Allow: /
+Disallow: /u/
+Disallow: /success
+Disallow: /subscribe
 
 Sitemap: https://speakeasily.nexo-digital.app/sitemap.xml

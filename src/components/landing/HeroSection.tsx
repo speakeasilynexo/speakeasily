@@ -21,12 +21,12 @@ const HeroSection = () => (
           <h1 className="font-display text-3xl sm:text-4xl md:text-5xl lg:text-[3.5rem] font-bold text-foreground leading-[1.1] tracking-tight mb-6">
             Aprende inglés{" "}
             <span className="bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-              directamente desde WhatsApp
+              por WhatsApp con IA
             </span>
           </h1>
 
           <p className="text-lg sm:text-xl text-muted-foreground mb-10 leading-relaxed max-w-lg">
-            Lecciones cortas, IA inteligente y progreso real. Todo en la app que ya usas todos los días.
+            Clases de inglés online con lecciones cortas, IA inteligente y progreso real. Todo en la app que ya usas todos los días.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3">

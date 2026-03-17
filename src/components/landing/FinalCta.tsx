@@ -8,10 +8,10 @@ const FinalCta = () => (
     <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-primary/5 blur-3xl rounded-full hidden sm:block" />
     <div className="container mx-auto max-w-2xl text-center relative">
       <h2 className="font-display text-3xl md:text-4xl font-bold mb-4 tracking-tight">
-        ¿Listo para Hablar Inglés?
+        ¿Listo para Aprender Inglés Gratis?
       </h2>
       <p className="text-muted-foreground text-lg mb-8">
-        Empieza ahora y verás tu progreso en pocos días.
+        Empieza tu curso de inglés por WhatsApp y verás tu progreso en pocos días.
       </p>
       <Button
         size="lg"

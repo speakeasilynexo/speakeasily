@@ -28,10 +28,10 @@ const Benefits = () => (
     <div className="container mx-auto max-w-5xl">
       <div className="text-center mb-16">
         <h2 className="font-display text-3xl md:text-4xl font-bold mb-4 tracking-tight">
-          ¿Por Qué SpeakEasily?
+          ¿Por Qué Aprender Inglés con SpeakEasily?
         </h2>
         <p className="text-muted-foreground text-lg max-w-xl mx-auto">
-          Diferente a cualquier app de inglés que hayas probado.
+          Diferente a cualquier app o curso de inglés online que hayas probado.
         </p>
       </div>
 
