@@ -26,7 +26,7 @@ const HeroSection = () => (
           </h1>
 
           <p className="text-lg sm:text-xl text-muted-foreground mb-10 leading-relaxed max-w-lg">
-            Lecciones cortas, IA inteligente y progreso real. Todo en la app que ya usas todos los días.
+            Clases de inglés online con lecciones cortas, IA inteligente y progreso real. Todo en la app que ya usas todos los días.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3">

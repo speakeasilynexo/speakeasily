@@ -14,15 +14,15 @@ import Footer from "@/components/landing/Footer";
 type Language = "pt" | "es" | "en";
 
 const SEO_TITLES: Record<Language, string> = {
-  es: "SpeakEasily - Aprende inglés por WhatsApp",
-  pt: "SpeakEasily - Aprenda inglês pelo WhatsApp",
-  en: "SpeakEasily - Learn English via WhatsApp",
+  es: "SpeakEasily - Aprende inglés por WhatsApp | Clases de inglés online gratis",
+  pt: "SpeakEasily - Aprenda inglês pelo WhatsApp | Aulas de inglês online grátis",
+  en: "SpeakEasily - Learn English via WhatsApp | Free Online English Lessons",
 };
 
 const SEO_DESCS: Record<Language, string> = {
-  es: "Aprende inglés de forma natural conversando por WhatsApp. Practica con conversaciones reales y mejora tu fluidez.",
-  pt: "Aprenda inglês de forma natural conversando pelo WhatsApp. Pratique com conversas reais e melhore sua fluência.",
-  en: "Learn English naturally by chatting on WhatsApp. Practice with real conversations and improve your fluency.",
+  es: "Aprende inglés por WhatsApp con lecciones personalizadas de IA. Curso de inglés online gratis: 5 min/día, sin descargar apps. Prueba 7 días gratis.",
+  pt: "Aprenda inglês pelo WhatsApp com lições personalizadas de IA. Curso de inglês online grátis: 5 min/dia, sem baixar apps. Teste 7 dias grátis.",
+  en: "Learn English on WhatsApp with personalized AI lessons. Free online English course: 5 min/day, no app downloads. Try 7 days free.",
 };
 
 function getLang(param: string | null): Language {
