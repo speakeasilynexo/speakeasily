@@ -10,6 +10,7 @@ import Pricing from "@/components/landing/Pricing";
 import FAQ from "@/components/landing/FAQ";
 import FinalCta from "@/components/landing/FinalCta";
 import Footer from "@/components/landing/Footer";
+import ContentGuides from "@/components/landing/ContentGuides";
 import { landingCopy } from "@/lib/i18n";
 
 const Index = () => {
@@ -32,6 +33,7 @@ const Index = () => {
       <Benefits lang={lang} />
       <DemoChat lang={lang} />
       <Pricing lang={lang} />
+      <ContentGuides />
       <FAQ lang={lang} />
       <FinalCta lang={lang} />
       <Footer lang={lang} />
