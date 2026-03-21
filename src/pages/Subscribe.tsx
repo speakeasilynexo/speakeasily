@@ -1,14 +1,15 @@
-import { useState, useEffect } from "react";
-import { useSearchParams, Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { MessageCircle, Check, ArrowLeft, CheckCircle, Gift } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSEO } from "@/hooks/useSEO";
+import { useLanguage } from "@/hooks/useLanguage";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { MessageCircle, Check, ArrowLeft, CheckCircle, Gift } from "lucide-react";
+import LanguageSwitcher from "@/components/landing/LanguageSwitcher";
+import { buildLocalizedPath, type Language } from "@/lib/i18n";
 import { useToast } from "@/hooks/use-toast";
 
 type PlanType = "mensual" | "trimestral" | "semestral";
-type Language = "pt" | "es" | "en";
 
 interface PlanInfo {
   id: PlanType;
@@ -133,21 +134,6 @@ const I18N: Record<string, Record<Language, string>> = {
     es: "Procesando...",
     en: "Processing...",
   },
-  error_no_wa_id: {
-    pt: "Não foi possível identificar sua conta. Por favor, volte pelo WhatsApp.",
-    es: "No se pudo identificar tu cuenta. Por favor, vuelve desde WhatsApp.",
-    en: "Could not identify your account. Please return from WhatsApp.",
-  },
-  success_title: {
-    pt: "Assinatura ativada! 🎉",
-    es: "¡Suscripción activada! 🎉",
-    en: "Subscription activated! 🎉",
-  },
-  success_msg: {
-    pt: "Seu plano {plan} está ativo. Volte ao WhatsApp e escreva NEXT!",
-    es: "Tu plan {plan} está activo. ¡Vuelve a WhatsApp y escribe NEXT!",
-    en: "Your {plan} plan is active. Go back to WhatsApp and type NEXT!",
-  },
   error_title: {
     pt: "Erro",
     es: "Error",
@@ -158,45 +144,39 @@ const I18N: Record<string, Record<Language, string>> = {
     es: "No se pudo activar la suscripción. Intenta de nuevo.",
     en: "Could not activate subscription. Try again.",
   },
-};
+} as const;
 
 const WHATSAPP_LINK = "https://wa.me/34657100100";
 const SUPABASE_FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 
-function getLangFromParam(param: string | null): Language {
-  if (param === "pt" || param === "es" || param === "en") return param;
-  return "es";
-}
-
 export default function Subscribe() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const { lang, setLanguage } = useLanguage();
   const [selectedPlan, setSelectedPlan] = useState<PlanType>("trimestral");
   const [isLoading, setIsLoading] = useState(false);
-  const [lang, setLang] = useState<Language>(() => getLangFromParam(searchParams.get("lang")));
   const { toast } = useToast();
 
+  const searchParams = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
   const source = searchParams.get("source") || "direct";
   const waId = searchParams.get("wa_id") || null;
 
-  const SEO_TITLES: Record<Language, string> = {
+  const seoTitles: Record<Language, string> = {
     es: "Suscríbete - SpeakEasily",
     pt: "Assine - SpeakEasily",
     en: "Subscribe - SpeakEasily",
   };
-  const SEO_DESCS: Record<Language, string> = {
+  const seoDescriptions: Record<Language, string> = {
     es: "Elige tu plan y empieza a aprender inglés por WhatsApp con SpeakEasily.",
     pt: "Escolha seu plano e comece a aprender inglês pelo WhatsApp com SpeakEasily.",
     en: "Choose your plan and start learning English via WhatsApp with SpeakEasily.",
   };
 
   useSEO({
-    title: SEO_TITLES[lang],
-    description: SEO_DESCS[lang],
+    title: seoTitles[lang],
+    description: seoDescriptions[lang],
     path: "/subscribe",
     lang,
   });
 
-  // Track page view
   useEffect(() => {
     const trackPageView = async () => {
       try {
@@ -215,15 +195,8 @@ export default function Subscribe() {
       }
     };
 
-    trackPageView();
-  }, [waId, source, lang]);
-
-  const handleLanguageChange = (newLang: Language) => {
-    setLang(newLang);
-    const newParams = new URLSearchParams(searchParams);
-    newParams.set("lang", newLang);
-    setSearchParams(newParams, { replace: true });
-  };
+    void trackPageView();
+  }, [lang, source, waId]);
 
   const handlePlanSelect = async (planId: PlanType) => {
     setSelectedPlan(planId);
@@ -254,7 +227,7 @@ export default function Subscribe() {
         }),
       });
 
-      const result = await response.json();
+      const result = (await response.json()) as { error?: string; url?: string };
 
       if (!response.ok) {
         throw new Error(result.error || I18N.error_generic[lang]);
@@ -277,70 +250,54 @@ export default function Subscribe() {
     }
   };
 
-  const selectedPlanInfo = PLANS.find((p) => p.id === selectedPlan)!;
+  const selectedPlanInfo = PLANS.find((plan) => plan.id === selectedPlan);
+
+  if (!selectedPlanInfo) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header — matches landing */}
-      <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-xl bg-background/80 border-b border-border/50">
-        <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
+        <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6">
           <Link
-            to="/"
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm"
+            to={buildLocalizedPath("/", lang)}
+            className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
             <span className="hidden sm:inline">{I18N.back[lang]}</span>
           </Link>
 
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl gradient-hero flex items-center justify-center shadow-soft">
-              <MessageCircle className="w-4 h-4 text-primary-foreground" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl gradient-hero shadow-soft">
+              <MessageCircle className="h-4 w-4 text-primary-foreground" />
             </div>
-            <span className="font-display font-bold text-lg tracking-tight">SpeakEasily</span>
+            <span className="font-display text-lg font-bold tracking-tight">SpeakEasily</span>
           </div>
 
-          {/* Language Selector */}
-          <div className="flex gap-1">
-            {(["pt", "es", "en"] as Language[]).map((l) => (
-              <button
-                key={l}
-                onClick={() => handleLanguageChange(l)}
-                className={`px-2.5 py-1.5 text-xs rounded-lg font-medium transition-colors ${
-                  lang === l
-                    ? "gradient-hero text-primary-foreground shadow-soft"
-                    : "bg-muted text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {l.toUpperCase()}
-              </button>
-            ))}
-          </div>
+          <LanguageSwitcher currentLanguage={lang} onChange={setLanguage} />
         </div>
       </header>
 
-      <main className="container mx-auto px-4 pt-28 pb-16 max-w-4xl">
-        {/* Hero */}
-        <section className="text-center mb-16">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-accent/30 bg-accent/10 text-accent-foreground text-sm font-medium mb-6">
-            <Gift className="w-3.5 h-3.5" />
+      <main className="container mx-auto max-w-4xl px-4 pb-16 pt-28">
+        <section className="mb-16 text-center">
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-4 py-1.5 text-sm font-medium text-accent-foreground">
+            <Gift className="h-3.5 w-3.5" />
             <span>{I18N.choose_plan[lang]}</span>
           </div>
-          <h1 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold mb-4 tracking-tight text-balance">
+          <h1 className="mb-4 font-display text-3xl font-bold tracking-tight text-balance md:text-4xl lg:text-5xl">
             {I18N.headline[lang]}
           </h1>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto leading-relaxed">{I18N.subheadline[lang]}</p>
+          <p className="mx-auto max-w-2xl text-lg leading-relaxed text-muted-foreground">{I18N.subheadline[lang]}</p>
         </section>
 
-        {/* Benefits */}
         <section className="mb-16">
-          <div className="rounded-2xl border border-primary/20 bg-card p-7 md:p-10 shadow-soft">
-            <h2 className="font-display text-lg md:text-xl font-semibold mb-6 text-center">
-              {I18N.benefits_title[lang]}
-            </h2>
-            <ul className="space-y-3.5 max-w-lg mx-auto">
+          <div className="rounded-2xl border border-primary/20 bg-card p-7 shadow-soft md:p-10">
+            <h2 className="mb-6 text-center font-display text-lg font-semibold md:text-xl">{I18N.benefits_title[lang]}</h2>
+            <ul className="mx-auto max-w-lg space-y-3.5">
               {BENEFITS[lang].map((benefit) => (
                 <li key={benefit} className="flex items-start gap-2.5 text-sm">
-                  <CheckCircle className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                   <span>{benefit}</span>
                 </li>
               ))}
@@ -348,36 +305,33 @@ export default function Subscribe() {
           </div>
         </section>
 
-        {/* Plans */}
         <section className="mb-10">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 max-w-3xl mx-auto">
+          <div className="mx-auto grid max-w-3xl grid-cols-1 gap-5 md:grid-cols-3">
             {PLANS.map((plan) => (
               <div
                 key={plan.id}
-                onClick={() => handlePlanSelect(plan.id)}
-                className={`relative rounded-2xl border p-6 flex flex-col cursor-pointer transition-all ${
-                  plan.recommended
-                    ? "border-primary/30 bg-card shadow-elevated"
-                    : "border-border/50 bg-card shadow-soft"
-                } ${selectedPlan === plan.id ? "ring-2 ring-primary border-primary" : "hover:border-primary/40"}`}
+                onClick={() => void handlePlanSelect(plan.id)}
+                className={`relative flex cursor-pointer flex-col rounded-2xl border p-6 transition-all ${
+                  plan.recommended ? "border-primary/30 bg-card shadow-elevated" : "border-border/50 bg-card shadow-soft"
+                } ${selectedPlan === plan.id ? "border-primary ring-2 ring-primary" : "hover:border-primary/40"}`}
               >
                 {plan.recommended && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full gradient-hero text-primary-foreground text-xs font-semibold whitespace-nowrap">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full px-3 py-0.5 text-xs font-semibold text-primary-foreground gradient-hero">
                     {I18N.recommended[lang]}
                   </div>
                 )}
 
-                <p className="text-muted-foreground text-xs font-medium mb-1">{plan.subtitle[lang]}</p>
-                <h3 className="font-display text-base font-semibold mb-3">{plan.name[lang]}</h3>
+                <p className="mb-1 text-xs font-medium text-muted-foreground">{plan.subtitle[lang]}</p>
+                <h3 className="mb-3 font-display text-base font-semibold">{plan.name[lang]}</h3>
 
-                <div className="flex items-baseline gap-1 mb-5">
+                <div className="mb-5 flex items-baseline gap-1">
                   <span className="font-display text-3xl font-bold">{plan.price}</span>
-                  <span className="text-muted-foreground text-sm">{plan.period[lang]}</span>
+                  <span className="text-sm text-muted-foreground">{plan.period[lang]}</span>
                 </div>
 
                 <div className="mt-auto flex justify-center">
                   <div
-                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                    className={`flex h-5 w-5 items-center justify-center rounded-full border-2 transition-colors ${
                       selectedPlan === plan.id ? "border-primary bg-primary" : "border-muted-foreground/40"
                     }`}
                   >
@@ -389,22 +343,19 @@ export default function Subscribe() {
           </div>
         </section>
 
-        <p className="text-center text-muted-foreground text-sm mb-10">{I18N.cancel_anytime[lang]}</p>
+        <p className="mb-10 text-center text-sm text-muted-foreground">{I18N.cancel_anytime[lang]}</p>
 
-        {/* CTA */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
+        <div className="mb-16 flex flex-col items-center justify-center gap-4 sm:flex-row">
           <Button
             size="lg"
-            className="w-full sm:w-auto gap-2 px-8 py-5 gradient-hero shadow-soft text-base font-semibold whitespace-normal"
-            onClick={handleSubscribe}
+            className="w-full gap-2 whitespace-normal px-8 py-5 text-base font-semibold shadow-soft gradient-hero sm:w-auto"
+            onClick={() => void handleSubscribe()}
             disabled={isLoading}
           >
-            {isLoading
-              ? I18N.processing[lang]
-              : `${I18N.choose_btn[lang]} ${selectedPlanInfo.name[lang]} — ${selectedPlanInfo.price}`}
+            {isLoading ? I18N.processing[lang] : `${I18N.choose_btn[lang]} ${selectedPlanInfo.name[lang]} - ${selectedPlanInfo.price}`}
           </Button>
 
-          <Button variant="outline" size="lg" className="w-full sm:w-auto gap-2 py-5" asChild>
+          <Button variant="outline" size="lg" className="w-full gap-2 py-5 sm:w-auto" asChild>
             <a href={WHATSAPP_LINK}>
               <MessageCircle className="h-4 w-4" />
               {I18N.back_whatsapp[lang]}
@@ -417,17 +368,16 @@ export default function Subscribe() {
         </section>
       </main>
 
-      {/* Footer — matches landing */}
-      <footer className="py-10 px-4 border-t border-border/40 bg-card">
+      <footer className="border-t border-border/40 bg-card px-4 py-10">
         <div className="container mx-auto max-w-5xl">
-          <div className="flex flex-col items-center text-center gap-3">
+          <div className="flex flex-col items-center gap-3 text-center">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg gradient-hero flex items-center justify-center">
-                <MessageCircle className="w-3.5 h-3.5 text-primary-foreground" />
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg gradient-hero">
+                <MessageCircle className="h-3.5 w-3.5 text-primary-foreground" />
               </div>
-              <span className="font-display font-semibold text-sm">SpeakEasily</span>
+              <span className="font-display text-sm font-semibold">SpeakEasily</span>
             </div>
-            <div className="text-xs text-muted-foreground leading-relaxed max-w-2xl">{I18N.footer[lang]}</div>
+            <div className="max-w-2xl text-xs leading-relaxed text-muted-foreground">{I18N.footer[lang]}</div>
           </div>
         </div>
       </footer>

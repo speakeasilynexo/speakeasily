@@ -1,9 +1,9 @@
-import { useSearchParams, Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 import { MessageCircle, CheckCircle, ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useSEO } from "@/hooks/useSEO";
-
-type Language = "pt" | "es" | "en";
+import { useLanguage } from "@/hooks/useLanguage";
+import { buildLocalizedPath, type Language } from "@/lib/i18n";
 
 const I18N = {
   title: {
@@ -18,7 +18,7 @@ const I18N = {
   },
   message: {
     pt: "Seu plano foi ativado com sucesso. Agora volte ao WhatsApp e escreva NEXT para continuar aprendendo!",
-    es: "Tu plan ha sido activado con éxito. ¡Ahora vuelve a WhatsApp y escribe NEXT para seguir aprendiendo!",
+    es: "Tu plan ha sido activado con éxito. Ahora vuelve a WhatsApp y escribe NEXT para seguir aprendiendo.",
     en: "Your plan has been activated successfully. Now go back to WhatsApp and type NEXT to keep learning!",
   },
   cta: {
@@ -35,81 +35,65 @@ const I18N = {
 
 const WHATSAPP_LINK = "https://wa.me/34657100100";
 
-function getLang(param: string | null): Language {
-  if (param === "pt" || param === "es" || param === "en") return param;
-  return "es";
-}
-
 export default function Success() {
-  const [searchParams] = useSearchParams();
-  const lang = getLang(searchParams.get("lang"));
+  const { lang } = useLanguage();
 
-  const SEO_TITLES: Record<Language, string> = {
+  const seoTitles: Record<Language, string> = {
     es: "Pago confirmado - SpeakEasily",
     pt: "Pagamento confirmado - SpeakEasily",
     en: "Payment confirmed - SpeakEasily",
   };
-  const SEO_DESCS: Record<Language, string> = {
+  const seoDescriptions: Record<Language, string> = {
     es: "Tu plan ha sido activado con éxito. Vuelve a WhatsApp para seguir aprendiendo inglés.",
     pt: "Seu plano foi ativado com sucesso. Volte ao WhatsApp para continuar aprendendo inglês.",
     en: "Your plan has been activated successfully. Go back to WhatsApp to keep learning English.",
   };
 
   useSEO({
-    title: SEO_TITLES[lang],
-    description: SEO_DESCS[lang],
+    title: seoTitles[lang],
+    description: seoDescriptions[lang],
     path: "/success",
     lang,
     noindex: true,
   });
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-xl bg-background/80 border-b border-border/50">
-        <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+    <div className="flex min-h-screen flex-col bg-background">
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
+        <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6">
           <Link
-            to="/"
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm"
+            to={buildLocalizedPath("/", lang)}
+            className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
             <span className="hidden sm:inline">{I18N.back[lang]}</span>
           </Link>
+
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl gradient-hero flex items-center justify-center shadow-soft">
-              <MessageCircle className="w-4 h-4 text-primary-foreground" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl gradient-hero shadow-soft">
+              <MessageCircle className="h-4 w-4 text-primary-foreground" />
             </div>
-            <span className="font-display font-bold text-lg tracking-tight">SpeakEasily</span>
+            <span className="font-display text-lg font-bold tracking-tight">SpeakEasily</span>
           </div>
+
           <div className="w-16" />
         </div>
       </header>
 
-      {/* Content */}
-      <main className="flex-1 flex items-center justify-center px-4 pt-20 pb-16">
-        <div className="text-center max-w-md mx-auto space-y-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary/10">
-            <CheckCircle className="w-10 h-10 text-primary" />
+      <main className="flex flex-1 items-center justify-center px-4 pb-16 pt-20">
+        <div className="mx-auto max-w-md space-y-8 text-center">
+          <div className="inline-flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
+            <CheckCircle className="h-10 w-10 text-primary" />
           </div>
 
           <div className="space-y-3">
-            <h1 className="font-display text-3xl md:text-4xl font-bold tracking-tight">
-              {I18N.title[lang]}
-            </h1>
-            <p className="text-lg font-medium text-primary">
-              {I18N.welcome[lang]}
-            </p>
-            <p className="text-muted-foreground leading-relaxed">
-              {I18N.message[lang]}
-            </p>
+            <h1 className="font-display text-3xl font-bold tracking-tight md:text-4xl">{I18N.title[lang]}</h1>
+            <p className="text-lg font-medium text-primary">{I18N.welcome[lang]}</p>
+            <p className="leading-relaxed text-muted-foreground">{I18N.message[lang]}</p>
           </div>
 
           <div className="flex flex-col gap-3">
-            <Button
-              size="lg"
-              className="w-full gap-2 py-5 gradient-hero shadow-soft text-base font-semibold"
-              asChild
-            >
+            <Button size="lg" className="w-full gap-2 py-5 text-base font-semibold shadow-soft gradient-hero" asChild>
               <a href={WHATSAPP_LINK}>
                 <MessageCircle className="h-5 w-5" />
                 {I18N.cta[lang]}
@@ -117,24 +101,21 @@ export default function Success() {
             </Button>
 
             <Button variant="outline" size="lg" className="w-full py-5" asChild>
-              <Link to="/">{I18N.back[lang]}</Link>
+              <Link to={buildLocalizedPath("/", lang)}>{I18N.back[lang]}</Link>
             </Button>
           </div>
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="py-6 px-4 border-t border-border/40 bg-card">
+      <footer className="border-t border-border/40 bg-card px-4 py-6">
         <div className="container mx-auto text-center">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <div className="w-6 h-6 rounded-lg gradient-hero flex items-center justify-center">
-              <MessageCircle className="w-3 h-3 text-primary-foreground" />
+          <div className="mb-2 flex items-center justify-center gap-2">
+            <div className="flex h-6 w-6 items-center justify-center rounded-lg gradient-hero">
+              <MessageCircle className="h-3 w-3 text-primary-foreground" />
             </div>
-            <span className="font-display font-semibold text-sm">SpeakEasily</span>
+            <span className="font-display text-sm font-semibold">SpeakEasily</span>
           </div>
-          <p className="text-xs text-muted-foreground">
-            SpeakEasily • PT517286688
-          </p>
+          <p className="text-xs text-muted-foreground">SpeakEasily • PT517286688</p>
         </div>
       </footer>
     </div>

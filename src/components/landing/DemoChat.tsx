@@ -1,64 +1,55 @@
-const DemoChat = () => (
-  <section className="py-24 px-4 bg-card">
-    <div className="container mx-auto max-w-3xl">
-      <div className="text-center mb-12">
-        <h2 className="font-display text-3xl md:text-4xl font-bold mb-4 tracking-tight">
-          Así Se Ve una Lección
-        </h2>
-        <p className="text-muted-foreground text-lg max-w-xl mx-auto">
-          Un ejemplo real de cómo aprendes inglés por WhatsApp.
-        </p>
+import { landingCopy, type Language } from "@/lib/i18n";
+
+interface DemoChatProps {
+  lang: Language;
+}
+
+const DemoChat = ({ lang }: DemoChatProps) => {
+  const copy = landingCopy[lang].demoChat;
+
+  return (
+    <section className="bg-card px-4 py-24">
+      <div className="container mx-auto max-w-3xl">
+        <div className="mb-12 text-center">
+          <h2 className="mb-4 font-display text-3xl font-bold tracking-tight md:text-4xl">{copy.title}</h2>
+          <p className="mx-auto max-w-xl text-lg text-muted-foreground">{copy.description}</p>
+        </div>
+
+        <div className="mx-auto max-w-md space-y-3 rounded-2xl border border-border/40 bg-muted/40 p-4 shadow-soft sm:p-5">
+          {copy.messages.map((message, index) => (
+            <Bubble key={`${message.side}-${index}`} side={message.side} text={message.text} isAudio={message.isAudio} />
+          ))}
+        </div>
       </div>
-
-      <div className="max-w-md mx-auto bg-muted/40 rounded-2xl border border-border/40 p-4 sm:p-5 space-y-3 shadow-soft">
-        {/* Bot message */}
-        <Bubble side="left" text="📖 *Lección 3* — Ordering food" />
-        <Bubble side="left" text='✏️ Traduce al inglés:\n🇪🇸 "Me gustaría un café con leche, por favor."' />
-
-        {/* User reply */}
-        <Bubble side="right" text="I would like a coffee with milk, please." />
-
-        {/* Bot feedback */}
-        <Bubble
-          side="left"
-          text={'✅ *¡Muy bien!* 🌟\n\n🇺🇸 "I\'d like a latte, please."\n🇪🇸 _Me gustaría un café con leche._\n\n💡 Tip: "latte" es más natural que "coffee with milk".\n\n🔁 Repite: *"I\'d like a latte, please."*'}
-        />
-
-        {/* User repeat */}
-        <Bubble side="right" text="🎤 0:04" isAudio />
-
-        {/* Bot confirm */}
-        <Bubble side="left" text="🎉 *¡Perfecto!* Pronunciación clara.\n\n👉 Siguiente ejercicio →" />
-      </div>
-    </div>
-  </section>
-);
+    </section>
+  );
+};
 
 interface BubbleProps {
   side: "left" | "right";
   text: string;
-  isAudio?: boolean;
+  isAudio: boolean;
 }
 
 const Bubble = ({ side, text, isAudio }: BubbleProps) => {
   if (side === "right") {
     return (
       <div className="flex justify-end">
-        <div className="bg-primary text-primary-foreground rounded-2xl rounded-tr-sm px-3 py-2 max-w-[80%]">
+        <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-primary px-3 py-2 text-primary-foreground">
           {isAudio ? (
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded-full bg-primary-foreground/30 flex items-center justify-center">
-                <div className="w-0 h-0 border-l-[5px] border-l-primary-foreground border-y-[3px] border-y-transparent ml-0.5" />
+              <div className="flex h-4 w-4 items-center justify-center rounded-full bg-primary-foreground/30">
+                <div className="ml-0.5 h-0 w-0 border-y-[3px] border-y-transparent border-l-[5px] border-l-primary-foreground" />
               </div>
-              <div className="flex gap-[2px] items-end h-3">
-                {[3, 5, 8, 6, 10, 7, 4, 9, 5, 7, 3].map((h, i) => (
-                  <div key={i} className="w-[2px] bg-primary-foreground/60 rounded-full" style={{ height: `${h}px` }} />
+              <div className="flex h-3 items-end gap-[2px]">
+                {[3, 5, 8, 6, 10, 7, 4, 9, 5, 7, 3].map((height, index) => (
+                  <div key={index} className="w-[2px] rounded-full bg-primary-foreground/60" style={{ height: `${height}px` }} />
                 ))}
               </div>
               <span className="text-xs opacity-80">0:04</span>
             </div>
           ) : (
-            <p className="text-xs leading-relaxed whitespace-pre-line">{text}</p>
+            <p className="whitespace-pre-line text-xs leading-relaxed">{text}</p>
           )}
         </div>
       </div>
@@ -67,8 +58,8 @@ const Bubble = ({ side, text, isAudio }: BubbleProps) => {
 
   return (
     <div className="flex gap-2">
-      <div className="bg-card rounded-2xl rounded-tl-sm px-3 py-2 shadow-soft max-w-[85%]">
-        <p className="text-xs leading-relaxed whitespace-pre-line">{text}</p>
+      <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-card px-3 py-2 shadow-soft">
+        <p className="whitespace-pre-line text-xs leading-relaxed">{text}</p>
       </div>
     </div>
   );

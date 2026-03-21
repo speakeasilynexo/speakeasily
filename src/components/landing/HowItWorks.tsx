@@ -1,47 +1,37 @@
-const steps = [
-  {
-    num: "1",
-    title: 'Envía "Hello"',
-    desc: "Abre WhatsApp y manda un mensaje simple. ¡Listo, ya empezaste!",
-  },
-  {
-    num: "2",
-    title: "La IA Evalúa Tu Nivel",
-    desc: "3 preguntas rápidas y descubres tu nivel actual de inglés.",
-  },
-  {
-    num: "3",
-    title: "Lecciones Personalizadas",
-    desc: "Recibe ejercicios adaptados a tu objetivo: trabajo, viaje o conversación.",
-  },
-];
+import { landingCopy, type Language } from "@/lib/i18n";
 
-const HowItWorks = () => (
-  <section id="como-funciona" className="py-24 px-4 bg-card">
-    <div className="container mx-auto max-w-5xl">
-      <div className="text-center mb-16">
-        <h2 className="font-display text-3xl md:text-4xl font-bold mb-4 tracking-tight">Cómo Funciona Nuestro Curso de Inglés</h2>
-        <p className="text-muted-foreground text-lg max-w-xl mx-auto">
-          Empieza en menos de 1 minuto. Sin descargas, sin registros complicados.
-        </p>
-      </div>
+interface HowItWorksProps {
+  lang: Language;
+}
 
-      <div className="grid md:grid-cols-3 gap-6">
-        {steps.map((s) => (
-          <div
-            key={s.num}
-            className="relative bg-background rounded-2xl border border-border/50 p-8 text-center hover:shadow-soft transition-shadow duration-300"
-          >
-            <div className="w-14 h-14 rounded-2xl gradient-hero flex items-center justify-center mx-auto mb-6 shadow-soft">
-              <span className="text-xl font-display font-bold text-primary-foreground">{s.num}</span>
+const HowItWorks = ({ lang }: HowItWorksProps) => {
+  const copy = landingCopy[lang].howItWorks;
+
+  return (
+    <section id="como-funciona" className="bg-card px-4 py-24">
+      <div className="container mx-auto max-w-5xl">
+        <div className="mb-16 text-center">
+          <h2 className="mb-4 font-display text-3xl font-bold tracking-tight md:text-4xl">{copy.title}</h2>
+          <p className="mx-auto max-w-xl text-lg text-muted-foreground">{copy.description}</p>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-3">
+          {copy.steps.map((step) => (
+            <div
+              key={step.num}
+              className="relative rounded-2xl border border-border/50 bg-background p-8 text-center transition-shadow duration-300 hover:shadow-soft"
+            >
+              <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl gradient-hero shadow-soft">
+                <span className="font-display text-xl font-bold text-primary-foreground">{step.num}</span>
+              </div>
+              <h3 className="mb-3 font-display text-lg font-semibold">{step.title}</h3>
+              <p className="text-sm leading-relaxed text-muted-foreground">{step.desc}</p>
             </div>
-            <h3 className="font-display text-lg font-semibold mb-3">{s.title}</h3>
-            <p className="text-muted-foreground text-sm leading-relaxed">{s.desc}</p>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
-    </div>
-  </section>
-);
+    </section>
+  );
+};
 
 export default HowItWorks;
