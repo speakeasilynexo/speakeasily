@@ -14,8 +14,15 @@ interface SitemapRoute {
   alternateLanguages?: Language[];
 }
 
-// Only include real, indexable routes that exist in the current app.
-// Anchors such as /#como-funciona and transactional routes like /subscribe are excluded on purpose.
+const contentPaths = [
+  "/aprender-ingles-por-whatsapp",
+  "/clases-de-ingles-online",
+  "/aprender-ingles-rapido",
+  "/curso-de-ingles-gratis",
+  "/ingles-para-el-trabajo",
+  "/ingles-para-viajar",
+] as const;
+
 const routes: SitemapRoute[] = [
   {
     path: "/",
@@ -23,6 +30,11 @@ const routes: SitemapRoute[] = [
     priority: "1.0",
     alternateLanguages: ["es", "en", "pt"],
   },
+  ...contentPaths.map((path) => ({
+    path,
+    changefreq: "weekly" as const,
+    priority: path === "/aprender-ingles-por-whatsapp" || path === "/clases-de-ingles-online" ? "0.9" : "0.8",
+  })),
 ];
 
 function buildUrl(path: string, language?: Language): string {

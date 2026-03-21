@@ -8,6 +8,7 @@ import StudentProgress from "./pages/StudentProgress";
 import Subscribe from "./pages/Subscribe";
 import Success from "./pages/Success";
 import NotFound from "./pages/NotFound";
+import ContentPage from "./pages/ContentPage";
 
 const queryClient = new QueryClient();
 
@@ -22,6 +23,7 @@ const App = () => (
           <Route path="/u/:waId" element={<StudentProgress />} />
           <Route path="/subscribe" element={<Subscribe />} />
           <Route path="/success" element={<Success />} />
+          <Route path="/:slug" element={<ContentPage />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
