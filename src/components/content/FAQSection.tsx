@@ -7,11 +7,13 @@ export interface FAQItem {
 
 interface FAQSectionProps {
   items: FAQItem[];
+  title: string;
+  description: string;
 }
 
 const CONTENT_FAQ_SCRIPT_ID = "content-faq-jsonld";
 
-const FAQSection = ({ items }: FAQSectionProps) => {
+const FAQSection = ({ items, title, description }: FAQSectionProps) => {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   useEffect(() => {
@@ -45,10 +47,10 @@ const FAQSection = ({ items }: FAQSectionProps) => {
     <section className="mx-auto max-w-4xl px-4 py-16 sm:px-6" aria-labelledby="faq-title">
       <div className="mb-8 max-w-2xl">
         <h2 id="faq-title" className="text-3xl font-semibold tracking-tight text-slate-900">
-          Preguntas frecuentes
+          {title}
         </h2>
         <p className="mt-3 text-base leading-7 text-slate-600">
-          Resolvemos las dudas más comunes para que entiendas cómo funciona SpeakEasily en WhatsApp antes de probarlo.
+          {description}
         </p>
       </div>
       <div className="space-y-4">

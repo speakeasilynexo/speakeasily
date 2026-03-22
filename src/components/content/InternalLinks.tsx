@@ -5,14 +5,15 @@ export interface InternalLinkItem {
 
 interface InternalLinksProps {
   links: InternalLinkItem[];
+  title: string;
 }
 
-const InternalLinks = ({ links }: InternalLinksProps) => {
+const InternalLinks = ({ links, title }: InternalLinksProps) => {
   return (
     <section className="mx-auto max-w-5xl px-4 py-16 sm:px-6" aria-labelledby="internal-links-title">
       <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6 sm:p-8">
         <h2 id="internal-links-title" className="text-2xl font-semibold tracking-tight text-slate-900">
-          También te puede interesar
+          {title}
         </h2>
         <div className="mt-5 flex flex-wrap gap-3">
           {links.map((link) => (
