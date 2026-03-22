@@ -24,7 +24,6 @@ import { useSEO } from "@/hooks/useSEO";
 import NotFound from "@/pages/NotFound";
 import ContentLayout from "@/components/content/ContentLayout";
 import ContentHero from "@/components/content/ContentHero";
-import ContentNav from "@/components/content/ContentNav";
 import FAQSection from "@/components/content/FAQSection";
 import ComparisonTable, { type ComparisonRow } from "@/components/content/ComparisonTable";
 import CTABanner from "@/components/content/CTABanner";
@@ -159,9 +158,8 @@ const ContentPage = () => {
   }
 
   return (
-    <ContentLayout breadcrumb={page.h1}>
+    <ContentLayout breadcrumb={page.h1} currentSlug={slug ?? ""}>
       <ContentHero badge="Práctica diaria por WhatsApp" h1={page.h1} intro={page.intro} />
-      <ContentNav currentSlug={slug ?? ""} />
 
       <section className="mx-auto max-w-6xl px-5 py-6 sm:px-6 sm:py-8">
         <div className="grid gap-5 md:grid-cols-3">
