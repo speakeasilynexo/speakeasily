@@ -23,6 +23,8 @@ import {
 import { useSEO } from "@/hooks/useSEO";
 import NotFound from "@/pages/NotFound";
 import ContentLayout from "@/components/content/ContentLayout";
+import ContentHero from "@/components/content/ContentHero";
+import ContentNav from "@/components/content/ContentNav";
 import FAQSection from "@/components/content/FAQSection";
 import ComparisonTable, { type ComparisonRow } from "@/components/content/ComparisonTable";
 import CTABanner from "@/components/content/CTABanner";
