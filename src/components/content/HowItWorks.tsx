@@ -6,17 +6,19 @@ export interface HowItWorksStep {
 
 interface HowItWorksProps {
   steps: HowItWorksStep[];
+  title: string;
+  description: string;
 }
 
-const HowItWorks = ({ steps }: HowItWorksProps) => {
+const HowItWorks = ({ steps, title, description }: HowItWorksProps) => {
   return (
     <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6" aria-labelledby="how-it-works-title">
       <div className="mb-8 max-w-2xl">
         <h2 id="how-it-works-title" className="text-3xl font-semibold tracking-tight text-slate-900">
-          Cómo funciona
+          {title}
         </h2>
         <p className="mt-3 text-base leading-7 text-slate-600">
-          SpeakEasily convierte tu práctica diaria de inglés en algo simple, guiado y fácil de mantener desde WhatsApp.
+          {description}
         </p>
       </div>
       <div className="grid gap-5 md:grid-cols-3">
