@@ -13,12 +13,12 @@ const ContentLayout = ({ children, breadcrumb }: ContentLayoutProps) => {
           <a href="/" className="text-xl font-semibold tracking-tight text-slate-900">
             SpeakEasily
           </a>
-          <nav aria-label="Breadcrumb" className="text-sm text-slate-500">
-            <a href="/" className="transition-colors hover:text-green-700">
+          <nav aria-label="Breadcrumb" className="hidden min-w-0 text-sm text-slate-500 sm:flex sm:items-center">
+            <a href="/" className="flex-shrink-0 transition-colors hover:text-green-700">
               Inicio
             </a>
-            <span className="px-2 text-slate-300">{">"}</span>
-            <span className="text-slate-700">{breadcrumb}</span>
+            <span className="flex-shrink-0 px-2 text-slate-300">{">"}</span>
+            <span className="truncate text-slate-700">{breadcrumb}</span>
           </nav>
         </div>
       </header>

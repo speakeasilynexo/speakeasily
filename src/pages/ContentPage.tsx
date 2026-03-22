@@ -159,14 +159,14 @@ const ContentPage = () => {
   return (
     <ContentLayout breadcrumb={page.h1}>
       <section className="relative overflow-hidden border-b border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fff9_65%,#ffffff_100%)]">
-        <div className="absolute left-[-8%] top-12 h-48 w-48 rounded-full bg-green-100 blur-3xl" />
-        <div className="absolute right-[-10%] top-20 h-64 w-64 rounded-full bg-emerald-100 blur-3xl" />
-        <div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
-          <div className="max-w-3xl">
+        <div className="absolute left-[-8%] top-12 hidden h-48 w-48 rounded-full bg-green-100 blur-3xl sm:block" />
+        <div className="absolute right-[-10%] top-20 hidden h-64 w-64 rounded-full bg-emerald-100 blur-3xl sm:block" />
+        <div className="mx-auto grid max-w-6xl gap-6 px-4 py-10 sm:gap-10 sm:px-6 sm:py-16 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
+          <div className="max-w-3xl pt-2 sm:pt-0">
             <p className="mb-4 inline-flex rounded-full border border-green-200 bg-green-50 px-4 py-1.5 text-sm font-medium text-green-700">
               Práctica diaria por WhatsApp
             </p>
-            <h1 className="text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl">{page.h1}</h1>
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-4xl md:text-5xl">{page.h1}</h1>
             <p className="mt-6 text-lg leading-8 text-slate-600">{page.intro}</p>
             <div className="mt-8 flex flex-wrap gap-3">
               <a
