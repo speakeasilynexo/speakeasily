@@ -24,6 +24,7 @@ const ComparisonTable = ({ rows }: ComparisonTableProps) => {
         </p>
       </div>
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto">
         <table className="min-w-full border-collapse">
           <thead className="bg-slate-50">
             <tr>
