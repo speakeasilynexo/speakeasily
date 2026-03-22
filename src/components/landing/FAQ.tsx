@@ -10,7 +10,16 @@ const FAQ = ({ lang }: FAQProps) => {
   const copy = landingCopy[lang].faq;
 
   useEffect(() => {
-    const faqJsonLd = {
+    const id = "landing-faq-jsonld";
+
+    // Remove any previous landing FAQ script to avoid duplicates
+    const existing = document.getElementById(id);
+    if (existing) existing.remove();
+
+    const script = document.createElement("script");
+    script.id = id;
+    script.type = "application/ld+json";
+    script.textContent = JSON.stringify({
       "@context": "https://schema.org",
       "@type": "FAQPage",
       mainEntity: copy.items.map((faq) => ({
@@ -21,22 +30,11 @@ const FAQ = ({ lang }: FAQProps) => {
           text: faq.a,
         },
       })),
-    };
-
-    const id = "faq-jsonld";
-    let script = document.getElementById(id) as HTMLScriptElement | null;
-
-    if (!script) {
-      script = document.createElement("script");
-      script.id = id;
-      script.type = "application/ld+json";
-      document.head.appendChild(script);
-    }
-
-    script.textContent = JSON.stringify(faqJsonLd);
+    });
+    document.head.appendChild(script);
 
     return () => {
-      script?.remove();
+      script.remove();
     };
   }, [copy.items]);
 

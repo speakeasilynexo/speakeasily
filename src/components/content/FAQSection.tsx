@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useState } from "react";
 
 export interface FAQItem {
   question: string;
@@ -9,14 +9,19 @@ interface FAQSectionProps {
   items: FAQItem[];
 }
 
+const CONTENT_FAQ_SCRIPT_ID = "content-faq-jsonld";
+
 const FAQSection = ({ items }: FAQSectionProps) => {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
-  const scriptId = useId();
 
   useEffect(() => {
+    // Remove any previous content FAQ script to avoid duplicates
+    const existing = document.getElementById(CONTENT_FAQ_SCRIPT_ID);
+    if (existing) existing.remove();
+
     const script = document.createElement("script");
     script.type = "application/ld+json";
-    script.id = `faq-jsonld-${scriptId}`;
+    script.id = CONTENT_FAQ_SCRIPT_ID;
     script.text = JSON.stringify({
       "@context": "https://schema.org",
       "@type": "FAQPage",
@@ -34,7 +39,7 @@ const FAQSection = ({ items }: FAQSectionProps) => {
     return () => {
       script.remove();
     };
-  }, [items, scriptId]);
+  }, [items]);
 
   return (
     <section className="mx-auto max-w-4xl px-4 py-16 sm:px-6" aria-labelledby="faq-title">
