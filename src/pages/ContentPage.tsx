@@ -163,7 +163,7 @@ const ContentPage = () => {
       <ContentHero badge="Práctica diaria por WhatsApp" h1={page.h1} intro={page.intro} />
       <ContentNav currentSlug={slug ?? ""} />
 
-      <section className="mx-auto max-w-6xl px-4 py-4 sm:px-6">
+      <section className="mx-auto max-w-6xl px-5 py-6 sm:px-6 sm:py-8">
         <div className="grid gap-5 md:grid-cols-3">
           {page.benefits.map((benefit) => {
             const Icon = getIcon(benefit.icon);
