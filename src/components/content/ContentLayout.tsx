@@ -7,17 +7,26 @@ interface ContentLayoutProps {
   currentSlug: string;
 }
 
+const SHORT_LABELS: Record<string, string> = {
+  "aprender-ingles-por-whatsapp": "WhatsApp",
+  "clases-de-ingles-online": "Clases online",
+  "aprender-ingles-rapido": "Inglés rápido",
+  "curso-de-ingles-gratis": "Curso gratis",
+  "ingles-para-el-trabajo": "Trabajo",
+  "ingles-para-viajar": "Viajar",
+};
+
 const ContentLayout = ({ children, breadcrumb, currentSlug }: ContentLayoutProps) => {
   return (
     <div className="min-h-screen bg-white text-slate-900">
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6">
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center justify-between gap-4">
             <div className="min-w-0">
               <a href="/" className="text-xl font-semibold tracking-tight text-slate-900">
                 SpeakEasily
               </a>
-              <nav aria-label="Breadcrumb" className="mt-1 flex min-w-0 items-center text-sm text-slate-500">
+              <nav aria-label="Breadcrumb" className="mt-1 hidden min-w-0 items-center text-sm text-slate-500 sm:flex">
                 <a href="/" className="flex-shrink-0 transition-colors hover:text-green-700">
                   Inicio
                 </a>
@@ -28,38 +37,26 @@ const ContentLayout = ({ children, breadcrumb, currentSlug }: ContentLayoutProps
 
             <a
               href="https://wa.me/34657100100?text=Hello"
-              className="hidden flex-shrink-0 rounded-full bg-green-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700 sm:inline-flex"
+              className="flex-shrink-0 rounded-full bg-green-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700"
             >
-              Probar gratis
+              Probar
             </a>
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="mt-3 flex items-center gap-2 sm:hidden">
             <a
               href="/"
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:border-green-200 hover:bg-green-50 hover:text-green-700"
+              className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:border-green-200 hover:bg-green-50 hover:text-green-700"
             >
               Inicio
             </a>
-            <a
-              href="https://wa.me/34657100100?text=Hello"
-              className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700 transition-colors hover:border-green-300 hover:bg-green-100"
-            >
-              WhatsApp gratis
-            </a>
-            <a
-              href="#explorar-guias"
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:border-green-200 hover:bg-green-50 hover:text-green-700"
-            >
-              Explorar guías
-            </a>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-600">
-              Página: <span className="text-slate-900">{breadcrumb}</span>
+            <div className="min-w-0 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700">
+              <span className="block truncate">{SHORT_LABELS[currentSlug] ?? breadcrumb}</span>
             </div>
           </div>
         </div>
 
-        <div id="explorar-guias" className="border-t border-slate-200 bg-slate-50/80">
+        <div className="border-t border-slate-200 bg-slate-50/80">
           <ContentNav currentSlug={currentSlug} />
         </div>
       </header>
