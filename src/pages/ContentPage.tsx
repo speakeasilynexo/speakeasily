@@ -21,6 +21,7 @@ import {
   Zap,
 } from "lucide-react";
 import { useSEO } from "@/hooks/useSEO";
+import { useLanguage } from "@/hooks/useLanguage";
 import NotFound from "@/pages/NotFound";
 import ContentLayout from "@/components/content/ContentLayout";
 import ContentHero from "@/components/content/ContentHero";
@@ -29,32 +30,8 @@ import ComparisonTable, { type ComparisonRow } from "@/components/content/Compar
 import CTABanner from "@/components/content/CTABanner";
 import InternalLinks from "@/components/content/InternalLinks";
 import HowItWorks, { type HowItWorksStep } from "@/components/content/HowItWorks";
-import { contentPages } from "@/data/contentPages";
-
-const comparisonRows: ComparisonRow[] = [
-  { feature: "Aprender dentro de WhatsApp", speakeasily: true, competitor: false },
-  { feature: "Correcciones con inteligencia artificial", speakeasily: true, competitor: false },
-  { feature: "Lecciones cortas y fáciles de sostener", speakeasily: true, competitor: true },
-  { feature: "Adaptación al objetivo del usuario", speakeasily: true, competitor: false },
-];
-
-const steps: HowItWorksStep[] = [
-  {
-    number: 1,
-    title: "Escribes por WhatsApp",
-    description: "Empiezas en el mismo canal que ya usas cada día, sin instalar otra app ni cambiar tu rutina.",
-  },
-  {
-    number: 2,
-    title: "Recibes práctica guiada",
-    description: "SpeakEasily te envía ejercicios breves, ejemplos claros y situaciones útiles para mejorar tu inglés.",
-  },
-  {
-    number: 3,
-    title: "La IA corrige y adapta",
-    description: "La inteligencia artificial revisa tus respuestas y enfoca la práctica en lo que más necesitas reforzar.",
-  },
-];
+import { getContentPages } from "@/data/contentPages";
+import { contentUICopy } from "@/lib/contentI18n";
 
 function getIcon(icon: string) {
   switch (icon) {
@@ -102,14 +79,29 @@ function getIcon(icon: string) {
 const ContentPage = () => {
   const { slug } = useParams<{ slug: string }>();
   const location = useLocation();
-  const page = contentPages.find((item) => item.slug === slug);
+  const { lang } = useLanguage();
+  const copy = contentUICopy[lang];
+  const pages = getContentPages(lang);
+  const page = pages.find((item) => item.slug === slug);
 
   useSEO({
     title: page?.metaTitle ?? "SpeakEasily",
     description: page?.metaDescription ?? "Aprende inglés por WhatsApp con inteligencia artificial.",
     path: location.pathname,
-    lang: "es",
+    lang,
   });
+
+  const comparisonRows: ComparisonRow[] = copy.comparisonFeatures.map((feature, i) => ({
+    feature,
+    speakeasily: true,
+    competitor: i === 2,
+  }));
+
+  const steps: HowItWorksStep[] = copy.steps.map((step, i) => ({
+    number: i + 1,
+    title: step.title,
+    description: step.description,
+  }));
 
   useEffect(() => {
     if (!page) return;
@@ -158,8 +150,8 @@ const ContentPage = () => {
   }
 
   return (
-    <ContentLayout breadcrumb={page.h1} currentSlug={slug ?? ""}>
-      <ContentHero badge="Práctica diaria por WhatsApp" h1={page.h1} intro={page.intro} />
+    <ContentLayout breadcrumb={page.h1} currentSlug={slug ?? ""} copy={copy} pages={pages}>
+      <ContentHero badge={copy.heroBadge} h1={page.h1} intro={page.intro} copy={copy} />
 
       <section className="mx-auto max-w-6xl px-5 py-6 sm:px-6 sm:py-8">
         <div className="grid gap-5 md:grid-cols-3">
@@ -179,11 +171,16 @@ const ContentPage = () => {
         </div>
       </section>
 
-      <HowItWorks steps={steps} />
-      <ComparisonTable rows={comparisonRows} />
-      <FAQSection items={page.faq} />
-      <CTABanner />
-      <InternalLinks links={page.internalLinks} />
+      <HowItWorks steps={steps} title={copy.howItWorksTitle} description={copy.howItWorksDescription} />
+      <ComparisonTable
+        rows={comparisonRows}
+        speakEasilyLabel={copy.comparisonSpeakEasily}
+        othersLabel={copy.comparisonOthers}
+        title={copy.comparisonTitle}
+      />
+      <FAQSection items={page.faq} title={copy.faqTitle} description={copy.faqDescription} />
+      <CTABanner title={copy.ctaTitle} description={copy.ctaDescription} buttonText={copy.ctaButton} />
+      <InternalLinks links={page.internalLinks} title={copy.internalLinksTitle} />
     </ContentLayout>
   );
 };
