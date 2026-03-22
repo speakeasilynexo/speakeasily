@@ -43,6 +43,7 @@ const ComparisonTable = ({ rows }: ComparisonTableProps) => {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </section>
   );
