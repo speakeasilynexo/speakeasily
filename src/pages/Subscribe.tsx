@@ -175,6 +175,7 @@ export default function Subscribe() {
     description: seoDescriptions[lang],
     path: "/subscribe",
     lang,
+    noindex: true,
   });
 
   useEffect(() => {

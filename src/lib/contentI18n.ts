@@ -78,6 +78,12 @@ export const contentUICopy: Record<Language, ContentUICopy> = {
       "curso-de-ingles-gratis": "Curso gratis",
       "ingles-para-el-trabajo": "Trabajo",
       "ingles-para-viajar": "Viajar",
+      "como-funciona": "Cómo funciona",
+      "metodologia": "Metodología",
+      "pronunciacion": "Pronunciación",
+      "correccion-en-tiempo-real": "Corrección IA",
+      "preguntas-frecuentes": "FAQ",
+      "ingles-para-principiantes": "Principiantes",
     },
     steps: [
       {
@@ -139,6 +145,12 @@ export const contentUICopy: Record<Language, ContentUICopy> = {
       "curso-de-ingles-gratis": "Free course",
       "ingles-para-el-trabajo": "For work",
       "ingles-para-viajar": "For travel",
+      "como-funciona": "How it works",
+      "metodologia": "Methodology",
+      "pronunciacion": "Pronunciation",
+      "correccion-en-tiempo-real": "AI correction",
+      "preguntas-frecuentes": "FAQ",
+      "ingles-para-principiantes": "Beginners",
     },
     steps: [
       {
@@ -200,6 +212,12 @@ export const contentUICopy: Record<Language, ContentUICopy> = {
       "curso-de-ingles-gratis": "Curso grátis",
       "ingles-para-el-trabajo": "Trabalho",
       "ingles-para-viajar": "Viajar",
+      "como-funciona": "Como funciona",
+      "metodologia": "Metodologia",
+      "pronunciacion": "Pronúncia",
+      "correccion-en-tiempo-real": "Correção IA",
+      "preguntas-frecuentes": "FAQ",
+      "ingles-para-principiantes": "Iniciantes",
     },
     steps: [
       {
