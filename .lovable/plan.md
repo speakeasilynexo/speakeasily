@@ -1,50 +1,55 @@
 
 
-## Fix: Mobile spacing and layout issues
+## Plano: Expandir Conteúdo SEO Indexável + Corrigir Sitemap
 
-### Problems identified
+### Diagnóstico
 
-1. **SocialProof section** — 3-column grid with `gap-4` is too cramped on mobile (320-414px). Stats labels like "IA adaptativa" and "100% WhatsApp" collide visually (visible in screenshot).
+Comparando os screenshots:
+- **BeConfident**: 2 páginas indexadas com títulos claros e focados ("Habla inglés con inteligencia artificial", "Sé seguro | Habla a tu manera con IA")
+- **SpeakEasily**: 4 páginas indexadas, mas a página "Suscríbete" aparece no Google apesar de estar no `robots.txt` (Google pode ignorar Disallow se houver links internos)
 
-2. **ContentPage hero** — H1 at `text-4xl` is too large on mobile. The section `py-16` combined with no fixed header offset is fine, but the grid `gap-10` creates uneven spacing.
+Problemas identificados no código:
 
-3. **ComparisonTable** — `min-w-full` table overflows horizontally on mobile. Needs horizontal scroll wrapper or stacked layout.
+1. **Sitemap incompleto** — As 6 páginas de conteúdo NÃO têm `alternateLanguages` no sitemap, só a `/` tem. Google não sabe que existem versões EN/PT.
+2. **Página /subscribe indexada** — Falta `noindex` meta tag na página Subscribe (robots.txt não é garantia).
+3. **Faltam páginas para keywords de alto volume** — A memória do projeto menciona 9 rotas adicionais (como-funciona, metodologia, pronunciacion, etc.) que ainda não existem no `contentPages.ts`.
+4. **Meta titles pouco diferenciados** — Todos seguem o padrão "X con WhatsApp e IA | SpeakEasily", pouca variedade para o Google.
 
-4. **ContentLayout breadcrumb** — On narrow screens, long breadcrumb text can overflow the header row.
+### O que fazer (por ordem de impacto vs créditos)
 
-5. **CTABanner** — H2 at `text-3xl` and `px-6` inside the green banner is tight on small screens.
+#### 1. Corrigir o sitemap (ambos: edge function + static)
+Adicionar `alternateLanguages: ["es", "en", "pt"]` a TODAS as rotas de conteúdo no sitemap, não só à `/`.
 
-### Changes (minimal, no refactor)
+#### 2. Adicionar noindex ao /subscribe e /success
+Usar o hook `useSEO` com `noindex: true` nestas páginas transacionais.
 
-**1. `src/components/landing/SocialProof.tsx`**
-- Add `gap-2` on mobile (currently `gap-4`), keep `sm:gap-8`
-- Reduce stat value font to `text-lg` on mobile, `sm:text-xl`
+#### 3. Criar 6 novas páginas de conteúdo SEO
+Novas páginas focadas em keywords complementares de alto volume:
 
-**2. `src/pages/ContentPage.tsx`** (hero section only)
-- H1: change `text-4xl` to `text-2xl sm:text-4xl`
-- Section padding: `py-10 sm:py-16`
-- Add `pt-4` to the hero inner grid for breathing room
+| Slug | Keyword alvo (ES) | Volume estimado |
+|------|-------------------|-----------------|
+| `/como-funciona` | "aprender inglés con inteligencia artificial" | Alto |
+| `/metodologia` | "método para aprender inglés online" | Médio |
+| `/pronunciacion` | "mejorar pronunciación en inglés" | Alto |
+| `/correccion-en-tiempo-real` | "corrección de inglés en tiempo real" | Médio |
+| `/preguntas-frecuentes` | FAQ hub (long-tail capture) | Médio |
+| `/ingles-para-principiantes` | "inglés para principiantes gratis" | Alto |
 
-**3. `src/components/content/ComparisonTable.tsx`**
-- Wrap table in `overflow-x-auto` div
+Cada página terá conteúdo único em ES/EN/PT (seguindo o padrão existente em `contentPages.ts`).
 
-**4. `src/components/content/ContentLayout.tsx`**
-- Breadcrumb: add `truncate` or `overflow-hidden` to prevent long text overflow
-- Breadcrumb nav: hide on very small screens or truncate label
+#### 4. Atualizar ContentNav com as novas páginas
+A barra de navegação horizontal incluirá as novas páginas.
 
-**5. `src/components/content/CTABanner.tsx`**
-- H2: `text-2xl sm:text-3xl`
-- Inner padding: `px-4 sm:px-6` and `py-8 sm:py-10`
+### Ficheiros alterados
+- `src/data/contentPages.ts` — 6 novas páginas (ES/EN/PT)
+- `src/lib/contentI18n.ts` — labels de nav para as novas páginas
+- `supabase/functions/sitemap/index.ts` — hreflang em todas as rotas + novas rotas
+- `public/sitemap.xml` — mesmo update (fallback estático)
+- `src/pages/Subscribe.tsx` — adicionar `useSEO({ noindex: true })`
+- `src/pages/Success.tsx` — adicionar `useSEO({ noindex: true })`
 
-### Files touched
-- `src/components/landing/SocialProof.tsx` (2 lines)
-- `src/pages/ContentPage.tsx` (2 lines in hero)
-- `src/components/content/ComparisonTable.tsx` (1 line — wrap)
-- `src/components/content/ContentLayout.tsx` (1 line — breadcrumb)
-- `src/components/content/CTABanner.tsx` (2 lines)
-
-### Not changed
-- No new files, no new dependencies, no `any`, no refactor
-- Landing page components other than SocialProof untouched
-- No route changes
+### Estimativa de créditos
+Isto é um trabalho grande (~6-8 créditos para o conteúdo + sitemap). Com 13 créditos, é viável mas ajustado. Posso priorizar:
+- **Opção A**: Fazer tudo (6 páginas novas + fixes) — usa ~8-10 créditos
+- **Opção B**: Só os fixes (sitemap + noindex) + 3 páginas novas — usa ~5-6 créditos
 
