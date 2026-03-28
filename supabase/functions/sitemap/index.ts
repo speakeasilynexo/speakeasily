@@ -21,7 +21,15 @@ const contentPaths = [
   "/curso-de-ingles-gratis",
   "/ingles-para-el-trabajo",
   "/ingles-para-viajar",
+  "/como-funciona",
+  "/metodologia",
+  "/pronunciacion",
+  "/correccion-en-tiempo-real",
+  "/preguntas-frecuentes",
+  "/ingles-para-principiantes",
 ] as const;
+
+const highPriority = ["/aprender-ingles-por-whatsapp", "/clases-de-ingles-online", "/como-funciona", "/ingles-para-principiantes"];
 
 const routes: SitemapRoute[] = [
   {
@@ -33,7 +41,8 @@ const routes: SitemapRoute[] = [
   ...contentPaths.map((path) => ({
     path,
     changefreq: "weekly" as const,
-    priority: path === "/aprender-ingles-por-whatsapp" || path === "/clases-de-ingles-online" ? "0.9" : "0.8",
+    priority: highPriority.includes(path) ? "0.9" : "0.8",
+    alternateLanguages: ["es", "en", "pt"] as Language[],
   })),
 ];
 

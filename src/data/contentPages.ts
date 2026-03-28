@@ -1,4 +1,5 @@
 import type { Language } from "@/lib/i18n";
+import { newEsPages, newEnPages, newPtPages } from "./newContentPages";
 
 export type ContentPage = {
   slug: string;
@@ -949,9 +950,9 @@ const ptPages: ContentPage[] = [
 ];
 
 const allPages: Record<Language, ContentPage[]> = {
-  es: esPages,
-  en: enPages,
-  pt: ptPages,
+  es: [...esPages, ...newEsPages],
+  en: [...enPages, ...newEnPages],
+  pt: [...ptPages, ...newPtPages],
 };
 
 export function getContentPages(lang: Language): ContentPage[] {
