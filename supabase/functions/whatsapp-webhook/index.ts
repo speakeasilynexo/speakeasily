@@ -5906,9 +5906,14 @@ serve(async (req: Request) => {
     let raw: string;
     try {
       raw = await req.text();
-      console.log("[WEBHOOK] Body read successfully, length:", raw.length);
     } catch (readError) {
-      console.error("[WEBHOOK] Failed to read body:", readError);
+      console.error("[WEBHOOK] Failed to read body");
+      return new Response("OK", { status: 200, headers: corsHeaders });
+    }
+
+    // Reject oversized payloads (max 256KB)
+    if (raw.length > 262144) {
+      console.error("[WEBHOOK] Payload too large:", raw.length);
       return new Response("OK", { status: 200, headers: corsHeaders });
     }
 
@@ -5922,14 +5927,19 @@ serve(async (req: Request) => {
     let body: WhatsAppWebhookPayload;
     try {
       body = JSON.parse(raw);
-      console.log("[WEBHOOK] JSON parsed, object:", body?.object);
     } catch (parseError) {
-      console.error("[WEBHOOK] JSON parse failed:", parseError);
+      console.error("[WEBHOOK] JSON parse failed");
       return new Response("OK", { status: 200, headers: corsHeaders });
     }
 
-    if (body.object !== "whatsapp_business_account") {
-      console.log("[WEBHOOK] Not a WhatsApp Business payload, ignoring");
+    // Validate payload structure
+    if (
+      !body ||
+      typeof body !== "object" ||
+      body.object !== "whatsapp_business_account" ||
+      !Array.isArray(body.entry)
+    ) {
+      console.log("[WEBHOOK] Invalid payload structure, ignoring");
       return new Response("OK", { status: 200, headers: corsHeaders });
     }
 
