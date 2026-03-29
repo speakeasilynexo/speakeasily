@@ -116,6 +116,12 @@ const ContentPage = () => {
       name: page.h1,
       description: page.metaDescription,
       url: `https://speakeasily.nexo-digital.app/${page.slug}`,
+      inLanguage: lang === "es" ? "es-ES" : lang === "pt" ? "pt-BR" : "en-US",
+      isPartOf: {
+        "@type": "WebSite",
+        name: "SpeakEasily",
+        url: "https://speakeasily.nexo-digital.app",
+      },
     });
     document.head.appendChild(webPageScript);
     scripts.push(webPageScript);

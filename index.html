@@ -11,9 +11,9 @@
     <link rel="canonical" href="https://speakeasily.nexo-digital.app/" />
 
     <!-- Hreflang -->
-    <link rel="alternate" hreflang="es" href="https://speakeasily.nexo-digital.app/" />
-    <link rel="alternate" hreflang="pt" href="https://speakeasily.nexo-digital.app/?lang=pt" />
-    <link rel="alternate" hreflang="en" href="https://speakeasily.nexo-digital.app/?lang=en" />
+    <link rel="alternate" hreflang="es-ES" href="https://speakeasily.nexo-digital.app/" />
+    <link rel="alternate" hreflang="pt-BR" href="https://speakeasily.nexo-digital.app/?lang=pt" />
+    <link rel="alternate" hreflang="en-US" href="https://speakeasily.nexo-digital.app/?lang=en" />
     <link rel="alternate" hreflang="x-default" href="https://speakeasily.nexo-digital.app/" />
 
     <!-- Favicon -->
@@ -51,16 +51,27 @@
           "@type": "Organization",
           "name": "SpeakEasily",
           "url": "https://speakeasily.nexo-digital.app",
-          "logo": "https://speakeasily.nexo-digital.app/favicon.png",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://speakeasily.nexo-digital.app/favicon.png",
+            "width": 512,
+            "height": 512
+          },
           "description": "Aprende inglés de forma natural conversando por WhatsApp.",
-          "sameAs": []
+          "sameAs": [],
+          "contactPoint": {
+            "@type": "ContactPoint",
+            "contactType": "customer support",
+            "url": "https://wa.me/34657100100",
+            "availableLanguage": ["Spanish", "Portuguese", "English"]
+          }
         },
         {
           "@type": "WebApplication",
           "name": "SpeakEasily",
           "url": "https://speakeasily.nexo-digital.app",
           "applicationCategory": "EducationalApplication",
-          "operatingSystem": "Web",
+          "operatingSystem": "All",
           "description": "Aprende inglés de forma natural conversando por WhatsApp. Practica con conversaciones reales y mejora tu fluidez.",
           "offers": {
             "@type": "AggregateOffer",
@@ -69,7 +80,19 @@
             "priceCurrency": "EUR",
             "offerCount": "3"
           },
-          "inLanguage": ["es", "pt", "en"]
+          "inLanguage": ["es", "pt", "en"],
+          "screenshot": "https://speakeasily.nexo-digital.app/favicon.png"
+        },
+        {
+          "@type": "WebSite",
+          "name": "SpeakEasily",
+          "url": "https://speakeasily.nexo-digital.app",
+          "inLanguage": ["es-ES", "pt-BR", "en-US"],
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://speakeasily.nexo-digital.app/?q={search_term_string}",
+            "query-input": "required name=search_term_string"
+          }
         }
       ]
     }
