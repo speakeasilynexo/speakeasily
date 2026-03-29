@@ -2218,7 +2218,7 @@ async function handleAdminCommand(
   
   // Silently ignore for non-admins
   if (!accessStatus.isAdmin) {
-    console.log(`[ADMIN] Non-admin tried admin command: ${waId}`);
+    console.log(`[ADMIN] Non-admin tried admin command: ${maskWaId(waId)}`);
     return false;
   }
   
@@ -5866,7 +5866,7 @@ async function processWebhookPayload(
 // ============== MAIN HANDLER ==============
 
 serve(async (req: Request) => {
-  console.log(`[WEBHOOK] ${req.method} ${req.url}`);
+  console.log(`[WEBHOOK] ${req.method} received`);
 
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
