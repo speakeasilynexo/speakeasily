@@ -10,6 +10,12 @@ const LOCALE_MAP: Record<SupportedLang, string> = {
   en: "en_US",
 };
 
+const HREFLANG_MAP: Record<SupportedLang, string> = {
+  es: "es-ES",
+  pt: "pt-BR",
+  en: "en-US",
+};
+
 interface SEOProps {
   title: string;
   description: string;
@@ -102,10 +108,10 @@ export function useSEO({ title, description, path = "/", lang = "es", noindex = 
     upsertMeta("property", "og:description", description);
     upsertMeta("property", "og:locale", LOCALE_MAP[lang]);
 
-    // Hreflang tags
+    // Hreflang tags (using regional codes es-ES, pt-BR, en-US)
     const langs: SupportedLang[] = ["es", "pt", "en"];
     for (const l of langs) {
-      upsertLink("alternate", l, getHreflangUrl(path, l));
+      upsertLink("alternate", HREFLANG_MAP[l], getHreflangUrl(path, l));
     }
     upsertLink("alternate", "x-default", getHreflangUrl(path, "es"));
   }, [title, description, path, lang, noindex]);

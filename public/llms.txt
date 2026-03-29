@@ -1,0 +1,35 @@
+# SpeakEasily
+
+> Learn English via WhatsApp with AI-powered personalized lessons.
+
+SpeakEasily is an AI-based English learning platform that delivers short, daily lessons through WhatsApp. No app downloads required — just chat and learn.
+
+## Key Features
+- Personalized AI lessons adapted to your level
+- Audio practice with listening and shadowing exercises
+- Real-time grammar and pronunciation correction
+- Smart spaced repetition review system
+- 5-minute daily micro-lessons
+- Available in Spanish, Portuguese, and English
+
+## Plans
+- Monthly: €7.99/month
+- Quarterly: €19.99/3 months
+- Biannual: €34.99/6 months
+
+## Links
+- Homepage: https://speakeasily.nexo-digital.app/
+- How it works: https://speakeasily.nexo-digital.app/como-funciona
+- Methodology: https://speakeasily.nexo-digital.app/metodologia
+- Pronunciation: https://speakeasily.nexo-digital.app/pronunciacion
+- Real-time correction: https://speakeasily.nexo-digital.app/correccion-en-tiempo-real
+- English for beginners: https://speakeasily.nexo-digital.app/ingles-para-principiantes
+- English for work: https://speakeasily.nexo-digital.app/ingles-para-el-trabajo
+- English for travel: https://speakeasily.nexo-digital.app/ingles-para-viajar
+- FAQ: https://speakeasily.nexo-digital.app/preguntas-frecuentes
+- WhatsApp: https://wa.me/34657100100
+
+## Company
+- Name: SpeakEasily
+- VAT/NIPC: PT517286688
+- Contact: contacto@nexo-digital.app
