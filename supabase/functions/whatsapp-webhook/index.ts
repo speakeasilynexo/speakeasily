@@ -2287,14 +2287,19 @@ async function handleAdminCommand(
     }
     
     // Auto-init placement data when jumping to placement steps
-    if (targetStep.startsWith("placement_q")) {
+    if (targetStep.startsWith("placement")) {
       const qIndex = targetStep === "placement_q1" ? 0 
-                   : targetStep === "placement_q2" ? 1 : 2;
+                   : targetStep === "placement_q2" ? 1 
+                   : targetStep === "placement_q3" ? 2 : 0;
+      const part = targetStep === "placement_written" ? 2 
+                 : targetStep === "placement_audio" ? 3 
+                 : targetStep === "placement_result" ? 4 : 1;
       state.data.placement = state.data.placement || {
-        part: 1, question_index: qIndex,
+        part, question_index: qIndex,
         mcq_answers: [], mcq_score: 0,
       };
       state.data.placement.question_index = qIndex;
+      state.data.placement.part = part;
     }
     await updateState(supabase, waId, targetStep, state.data);
     await send(waId, t(lang, "admin_step_changed", { step: targetStep }));
@@ -4179,6 +4184,13 @@ async function handlePlacementWritten(
   audioData?: { media_id: string; mime_type?: string },
   isAdmin: boolean = false
 ): Promise<void> {
+  if (!state.data.placement) {
+    state.data.placement = {
+      part: 2, question_index: 3,
+      mcq_answers: [], mcq_score: 0,
+    };
+    await updateState(supabase, waId, state.step, state.data);
+  }
   const placement = state.data.placement!;
   
   let actualText = text;
@@ -4253,6 +4265,13 @@ async function handlePlacementAudio(
   lang: Language,
   audioData?: { media_id: string }
 ): Promise<void> {
+  if (!state.data.placement) {
+    state.data.placement = {
+      part: 3, question_index: 3,
+      mcq_answers: [], mcq_score: 0,
+    };
+    await updateState(supabase, waId, state.step, state.data);
+  }
   const placement = state.data.placement!;
 
   if (audioData) {
@@ -4282,6 +4301,14 @@ async function finishPlacement(
   state: { step: string; data: StateData },
   lang: Language
 ): Promise<void> {
+  if (!state.data.placement) {
+    state.data.placement = {
+      part: 4, question_index: 3,
+      mcq_answers: [], mcq_score: 0,
+      written_text: "", written_score: 3,
+    };
+    await updateState(supabase, waId, state.step, state.data);
+  }
   const placement = state.data.placement!;
   
   // Calculate level based on score
@@ -5699,9 +5726,13 @@ async function processMessage(
     }
 
     case "select_goal": {
+      if (!progress) {
+        progress = { level: "A1", day: 1, goal: "general", onboarding_complete: false, streak: 0 };
+        state.data.progress = progress;
+      }
       const goal = parseGoal(messageText) || "general";
-      progress!.goal = goal;
-      progress!.onboarding_complete = true;
+      progress.goal = goal;
+      progress.onboarding_complete = true;
       
       await trackEvent(supabase, waId, "goal_selected", { goal });
       await trackEvent(supabase, waId, "onboarding_complete", {});
