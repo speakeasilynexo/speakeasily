@@ -1,47 +1,82 @@
 
 
-## Plano: Corrigir Erros SEO do Semrush
+## Plano: Corrigir o Crash no Fluxo de Placement (Chat não responde)
 
-### Resumo da Auditoria (62 findings)
+### Problema Identificado
 
-O relatório tem 3 categorias: **Erros**, **Advertências** e **Avisos**. Muitos são problemas de infraestrutura/hosting que não podemos resolver no código. Vou separar o que podemos e o que não podemos corrigir.
+Quando o bot está no step `placement_q1`, `placement_q2` ou `placement_q3`, se `state.data.placement` não existe (por exemplo, após um `/admin reset` ou `/admin step`), a função `handlePlacementQuestion` faz `state.data.placement!.question_index` e crasheia com TypeError. O erro é engolido silenciosamente pelo try/catch do processamento em background, e o utilizador não recebe resposta.
 
-### O que PODEMOS corrigir no código
+Isto também acontece quando o utilizador chega organicamente ao placement sem que o objeto `placement` tenha sido inicializado corretamente.
 
-| # | Problema | Solução |
-|---|----------|---------|
-| 1 | **Dados estruturados inválidos** | Corrigir JSON-LD no `index.html` — validar com Google Rich Results Test e ajustar campos obrigatórios |
-| 2 | **Conflitos de hreflang** | Revisar hreflang tags no `index.html` e no hook `useSEO.ts` — garantir códigos ISO corretos (es → es-ES, pt → pt-BR, en → en-US) |
-| 3 | **Sitemap com páginas incorretas** | Verificar que `/subscribe` e `/success` não estão no sitemap; verificar que todas as URLs retornam 200 |
-| 4 | **Páginas sem encabezado H1** | Verificar que `/subscribe` e `/success` têm `<h1>` |
-| 5 | **Baixa relação texto-HTML** | Adicionar mais conteúdo textual semântico nas páginas (usar tags `<article>`, `<section>`, `<main>`) |
-| 6 | **Páginas sem metadescrição** | Garantir que Subscribe e Success usam `useSEO` com descrições |
-| 7 | **Imagens sem atributo ALT** | Auditar todas as imagens e adicionar `alt` descritivos |
-| 8 | **Múltiplos H1 em páginas** | Corrigir páginas que tenham mais de um `<h1>` |
-| 9 | **Criar arquivo llms.txt** | Criar `public/llms.txt` para compatibilidade com motores de busca IA |
-| 10 | **Sitemap não referenciado no robots.txt** | Já está — verificar se Semrush leu a versão antiga |
-| 11 | **Hreflang com formato incorreto** | Mudar de `es` → `es-ES`, `pt` → `pt-BR`, `en` → `en-US` nos atributos hreflang |
+### Solução
 
-### O que NÃO podemos corrigir (infraestrutura/hosting)
+Modificar **1 ficheiro**: `supabase/functions/whatsapp-webhook/index.ts`
 
-- Páginas que não puderam ser rastreadas (timeout do servidor)
-- Códigos de estado 4XX/5XX (depende do hosting)
-- Problemas de DNS
-- Certificado SSL / HTTPS / HSTS
-- Resolução de WWW
-- Recursos externos bloqueados
+#### Alteração 1: Proteção no `handlePlacementQuestion` (linhas ~4048-4055)
+Adicionar verificação de `state.data.placement` no início da função. Se não existir, inicializar com valores padrão e sincronizar o `question_index` com o step atual:
 
-### Ficheiros a alterar
+```
+if (!state.data.placement) {
+  const stepIndex = state.step === "placement_q1" ? 0 
+                  : state.step === "placement_q2" ? 1 
+                  : 2;
+  state.data.placement = {
+    part: 1,
+    question_index: stepIndex,
+    mcq_answers: [],
+    mcq_score: 0,
+  };
+  await updateState(supabase, waId, state.step, state.data);
+}
+```
 
-1. **`index.html`** — Corrigir JSON-LD (adicionar campos obrigatórios), corrigir hreflang para formato `es-ES`
-2. **`src/hooks/useSEO.ts`** — Corrigir hreflang para usar códigos regionais (`es-ES` em vez de `es`)
-3. **`src/pages/Subscribe.tsx`** — Adicionar `useSEO` com noindex + H1 se não tiver
-4. **`src/pages/Success.tsx`** — Adicionar `useSEO` com noindex + H1 se não tiver
-5. **`public/llms.txt`** — Criar arquivo novo
-6. **`src/components/landing/HeroSection.tsx`** + outros componentes — Auditar ALTs e H1 duplicados
-7. **`src/pages/ContentPage.tsx`** — Verificar que structured data WebPage tem campos válidos
+#### Alteração 2: Proteção no switch case para placement (linhas ~5623-5628)
+Adicionar inicialização automática do placement quando o step é `placement_q*` mas não há dados de placement:
 
-### Estimativa: ~3-4 créditos
+```
+case "placement_q1":
+case "placement_q2":
+case "placement_q3": {
+  // Auto-init placement if missing (e.g. after /admin step)
+  if (!state.data.placement) {
+    const stepIndex = state.step === "placement_q1" ? 0 
+                    : state.step === "placement_q2" ? 1 : 2;
+    state.data.placement = {
+      part: 1, question_index: stepIndex,
+      mcq_answers: [], mcq_score: 0,
+    };
+  }
+  // Sync question_index with step
+  const expectedIndex = state.step === "placement_q1" ? 0 
+                      : state.step === "placement_q2" ? 1 : 2;
+  state.data.placement.question_index = expectedIndex;
+  
+  await handlePlacementQuestion(supabase, waId, messageText, state, lang, audioData, isAdmin);
+  break;
+}
+```
 
-Foca nos erros críticos (dados estruturados, hreflang, H1) que impactam diretamente a indexação.
+#### Alteração 3: Proteção no `/admin step` (linha ~2289)
+Quando o admin pula para um step de placement, inicializar automaticamente os dados necessários:
+
+```
+if (targetStep.startsWith("placement_q")) {
+  const qIndex = targetStep === "placement_q1" ? 0 
+               : targetStep === "placement_q2" ? 1 : 2;
+  state.data.placement = state.data.placement || {
+    part: 1, question_index: qIndex,
+    mcq_answers: [], mcq_score: 0,
+  };
+  state.data.placement.question_index = qIndex;
+}
+```
+
+### Resultado Esperado
+
+- Ao enviar "Hola" no step `placement_q2`, o bot responderá: "Responda com A, B, C ou D"
+- Ao enviar "B", o bot avaliará a resposta e avançará normalmente
+- O `/admin step placement_q1` funcionará sem crashar
+
+### Ficheiros alterados: 1
+- `supabase/functions/whatsapp-webhook/index.ts` — 3 blocos de proteção contra `placement` undefined
 
