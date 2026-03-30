@@ -2286,6 +2286,16 @@ async function handleAdminCommand(
       return true;
     }
     
+    // Auto-init placement data when jumping to placement steps
+    if (targetStep.startsWith("placement_q")) {
+      const qIndex = targetStep === "placement_q1" ? 0 
+                   : targetStep === "placement_q2" ? 1 : 2;
+      state.data.placement = state.data.placement || {
+        part: 1, question_index: qIndex,
+        mcq_answers: [], mcq_score: 0,
+      };
+      state.data.placement.question_index = qIndex;
+    }
     await updateState(supabase, waId, targetStep, state.data);
     await send(waId, t(lang, "admin_step_changed", { step: targetStep }));
     return true;
@@ -4047,7 +4057,20 @@ async function handlePlacementQuestion(
   audioData?: { media_id: string; mime_type?: string },
   isAdmin: boolean = false
 ): Promise<void> {
-  const placement = state.data.placement!;
+  // Auto-init placement if missing (e.g. after /admin reset or /admin step)
+  if (!state.data.placement) {
+    const stepIndex = state.step === "placement_q1" ? 0 
+                    : state.step === "placement_q2" ? 1 
+                    : 2;
+    state.data.placement = {
+      part: 1,
+      question_index: stepIndex,
+      mcq_answers: [],
+      mcq_score: 0,
+    };
+    await updateState(supabase, waId, state.step, state.data);
+  }
+  const placement = state.data.placement;
   const qIndex = placement.question_index;
   const question = PLACEMENT_QUESTIONS[qIndex];
   
@@ -5623,6 +5646,20 @@ async function processMessage(
     case "placement_q1":
     case "placement_q2":
     case "placement_q3": {
+      // Auto-init placement if missing (e.g. after /admin step)
+      if (!state.data.placement) {
+        const stepIndex = state.step === "placement_q1" ? 0 
+                        : state.step === "placement_q2" ? 1 : 2;
+        state.data.placement = {
+          part: 1, question_index: stepIndex,
+          mcq_answers: [], mcq_score: 0,
+        };
+      }
+      // Sync question_index with step
+      const expectedIndex = state.step === "placement_q1" ? 0 
+                          : state.step === "placement_q2" ? 1 : 2;
+      state.data.placement.question_index = expectedIndex;
+      
       await handlePlacementQuestion(supabase, waId, messageText, state, lang, audioData, isAdmin);
       break;
     }
