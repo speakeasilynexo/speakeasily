@@ -62,7 +62,7 @@ export const landingCopy = {
     seo: {
       title: "SpeakEasily - Aprende inglés por WhatsApp | Clases de inglés online gratis",
       description:
-        "Aprende inglés por WhatsApp con lecciones personalizadas de IA. Curso de inglés online gratis: 5 min/día, sin descargar apps. Prueba 7 días gratis.",
+        "Aprende inglés por WhatsApp con un curso guiado de 7 días e IA. Curso de inglés online gratis: 5 min/día, sin descargar apps. Prueba 7 días gratis.",
     },
     header: {
       howItWorks: "Cómo funciona",
@@ -100,8 +100,8 @@ export const landingCopy = {
         { num: "2", title: "La IA evalúa tu nivel", desc: "3 preguntas rápidas y descubres tu nivel actual de inglés." },
         {
           num: "3",
-          title: "Lecciones personalizadas",
-          desc: "Recibe ejercicios adaptados a tu objetivo: trabajo, viaje o conversación.",
+          title: "Curso guiado de 7 días",
+          desc: "Recibe ejercicios guiados para tu objetivo: trabajo, viaje o conversación.",
         },
       ],
     },
@@ -116,11 +116,11 @@ export const landingCopy = {
         },
         {
           title: "Correcciones inteligentes",
-          desc: "IA que entiende tus errores y adapta las explicaciones a tu ritmo de aprendizaje.",
+          desc: "IA que entiende tus errores y te da explicaciones claras para reforzar cada punto.",
         },
         {
           title: "Enfocado en tu objetivo",
-          desc: "Vocabulario y ejercicios adaptados para trabajo, viajes o conversación casual.",
+          desc: "Vocabulario y ejercicios orientados a trabajo, viajes o conversación casual.",
         },
       ],
     },
@@ -151,7 +151,7 @@ export const landingCopy = {
           period: "/mes",
           badge: null,
           cta: "Elegir mensual",
-          features: ["Lecciones ilimitadas", "Feedback IA ilimitado", "Correcciones detalladas", "Práctica con audio"],
+          features: ["Curso de 7 días estructurado", "Feedback IA en cada ejercicio", "Correcciones detalladas", "Práctica con audio"],
         },
         {
           name: "Trimestral",
@@ -159,9 +159,9 @@ export const landingCopy = {
           badge: "Recomendado",
           cta: "Elegir trimestral",
           features: [
-            "Lecciones ilimitadas",
+            "Curso de 7 días estructurado",
             "Práctica con audio",
-            "Vocabulario personalizado",
+            "Repaso inteligente",
             "Soporte prioritario",
             "Mejor equilibrio precio/valor",
           ],
@@ -172,9 +172,9 @@ export const landingCopy = {
           badge: "Mejor ahorro",
           cta: "Elegir semestral",
           features: [
-            "Lecciones ilimitadas",
+            "Curso de 7 días estructurado",
             "Práctica con audio",
-            "Vocabulario personalizado",
+            "Repaso inteligente",
             "Soporte prioritario",
             "Mayor ahorro a largo plazo",
           ],
@@ -187,7 +187,7 @@ export const landingCopy = {
       items: [
         {
           q: "¿Cómo funciona aprender inglés por WhatsApp con SpeakEasily?",
-          a: "Simplemente envías un mensaje a nuestro número de WhatsApp y nuestra IA comienza a enseñarte inglés con lecciones personalizadas. No necesitas descargar ninguna app ni crear una cuenta. Todo sucede en la misma conversación de WhatsApp que ya usas a diario.",
+          a: "Simplemente envías un mensaje a nuestro número de WhatsApp y nuestra IA comienza con una evaluación rápida y un curso guiado de 7 días. No necesitas descargar ninguna app ni crear una cuenta. Todo sucede en la misma conversación de WhatsApp que ya usas a diario.",
         },
         {
           q: "¿Necesito descargar alguna aplicación para las clases de inglés online?",
@@ -203,11 +203,11 @@ export const landingCopy = {
         },
         {
           q: "¿Cómo se adaptan las lecciones a mi nivel de inglés?",
-          a: "Al comenzar, nuestra IA evalúa tu nivel con 3 preguntas rápidas. Luego, cada ejercicio y corrección se adapta automáticamente a tus puntos fuertes y débiles, creando un curso de inglés verdaderamente personalizado.",
+          a: "Al comenzar, nuestra IA evalúa tu nivel con 3 preguntas rápidas. Recibes un plan de 7 días adaptado a tus objetivos y errores detectados, con correcciones personalizadas en cada ejercicio.",
         },
         {
           q: "¿Puedo aprender inglés para el trabajo o para viajar?",
-          a: "Sí, SpeakEasily adapta el vocabulario y los ejercicios a tu objetivo: inglés profesional para el trabajo, inglés práctico para viajar o conversación casual para el día a día.",
+          a: "Sí, SpeakEasily incluye práctica orientada a tu objetivo: inglés profesional para el trabajo, inglés práctico para viajar o conversación casual para el día a día.",
         },
         {
           q: "¿En qué idiomas está disponible SpeakEasily?",
@@ -230,7 +230,7 @@ export const landingCopy = {
     seo: {
       title: "SpeakEasily - Learn English via WhatsApp | Free Online English Lessons",
       description:
-        "Learn English on WhatsApp with personalized AI lessons. Free online English course: 5 min/day, no app downloads. Try 7 days free.",
+        "Learn English on WhatsApp with a guided 7-day course and AI. Free online English course: 5 min/day, no app downloads. Try 7 days free.",
     },
     header: { howItWorks: "How it works", benefits: "Benefits", plans: "Plans", cta: "Start free" },
     hero: {
@@ -263,8 +263,8 @@ export const landingCopy = {
         { num: "2", title: "AI checks your level", desc: "Answer 3 quick questions and discover your current English level." },
         {
           num: "3",
-          title: "Personalized lessons",
-          desc: "Receive exercises tailored to your goal: work, travel, or conversation.",
+          title: "Guided 7-day course",
+          desc: "Receive guided exercises for your goal: work, travel, or conversation.",
         },
       ],
     },
@@ -279,11 +279,11 @@ export const landingCopy = {
         },
         {
           title: "Smart corrections",
-          desc: "AI understands your mistakes and adapts explanations to your learning pace.",
+          desc: "AI understands your mistakes and gives clear explanations to reinforce each point.",
         },
         {
           title: "Focused on your goal",
-          desc: "Vocabulary and exercises adapted for work, travel, or casual conversation.",
+          desc: "Vocabulary and exercises focused on work, travel, or casual conversation.",
         },
       ],
     },
@@ -314,7 +314,7 @@ export const landingCopy = {
           period: "/month",
           badge: null,
           cta: "Choose monthly",
-          features: ["Unlimited lessons", "Unlimited AI feedback", "Detailed corrections", "Audio practice"],
+          features: ["Structured 7-day course", "AI feedback on every exercise", "Detailed corrections", "Audio practice"],
         },
         {
           name: "Quarterly",
@@ -322,9 +322,9 @@ export const landingCopy = {
           badge: "Recommended",
           cta: "Choose quarterly",
           features: [
-            "Unlimited lessons",
+            "Structured 7-day course",
             "Audio practice",
-            "Personalized vocabulary",
+            "Smart review",
             "Priority support",
             "Best price/value balance",
           ],
@@ -335,9 +335,9 @@ export const landingCopy = {
           badge: "Best savings",
           cta: "Choose biannual",
           features: [
-            "Unlimited lessons",
+            "Structured 7-day course",
             "Audio practice",
-            "Personalized vocabulary",
+            "Smart review",
             "Priority support",
             "More long-term savings",
           ],
@@ -350,7 +350,7 @@ export const landingCopy = {
       items: [
         {
           q: "How does learning English on WhatsApp with SpeakEasily work?",
-          a: "You simply send a message to our WhatsApp number and our AI starts teaching you English with personalized lessons. You don't need to download any app or create an account. Everything happens inside the same WhatsApp chat you already use every day.",
+          a: "You simply send a message to our WhatsApp number and our AI starts with a quick level check and a guided 7-day course. You don't need to download any app or create an account. Everything happens inside the same WhatsApp chat you already use every day.",
         },
         {
           q: "Do I need to download any app for the online English lessons?",
@@ -366,11 +366,11 @@ export const landingCopy = {
         },
         {
           q: "How are the lessons adapted to my English level?",
-          a: "At the start, our AI checks your level with 3 quick questions. Then every exercise and correction adapts automatically to your strengths and weaknesses, creating a truly personalized English course.",
+          a: "When you start, our AI checks your level with 3 quick questions. You receive a 7-day plan adapted to your goals and detected mistakes, with personalized corrections in every exercise.",
         },
         {
           q: "Can I learn English for work or travel?",
-          a: "Yes. SpeakEasily adapts vocabulary and exercises to your goal: professional English for work, practical English for travel, or casual conversation for everyday life.",
+          a: "Yes. SpeakEasily includes practice focused on your goal: professional English for work, practical English for travel, or casual conversation for everyday life.",
         },
         {
           q: "Which languages is SpeakEasily available in?",
@@ -393,7 +393,7 @@ export const landingCopy = {
     seo: {
       title: "SpeakEasily - Aprenda inglês pelo WhatsApp | Aulas de inglês online grátis",
       description:
-        "Aprenda inglês pelo WhatsApp com lições personalizadas por IA. Curso de inglês online grátis: 5 min/dia, sem baixar apps. Teste 7 dias grátis.",
+        "Aprenda inglês pelo WhatsApp com um curso guiado de 7 dias e IA. Curso de inglês online grátis: 5 min/dia, sem baixar apps. Teste 7 dias grátis.",
     },
     header: { howItWorks: "Como funciona", benefits: "Benefícios", plans: "Planos", cta: "Teste grátis" },
     hero: {
@@ -426,8 +426,8 @@ export const landingCopy = {
         { num: "2", title: "A IA avalia seu nível", desc: "3 perguntas rápidas e você descobre seu nível atual de inglês." },
         {
           num: "3",
-          title: "Lições personalizadas",
-          desc: "Receba exercícios adaptados ao seu objetivo: trabalho, viagem ou conversação.",
+          title: "Curso guiado de 7 dias",
+          desc: "Receba exercícios guiados para o seu objetivo: trabalho, viagem ou conversação.",
         },
       ],
     },
@@ -442,11 +442,11 @@ export const landingCopy = {
         },
         {
           title: "Correções inteligentes",
-          desc: "IA que entende seus erros e adapta as explicações ao seu ritmo de aprendizagem.",
+          desc: "IA que entende seus erros e dá explicações claras para reforçar cada ponto.",
         },
         {
           title: "Focado no seu objetivo",
-          desc: "Vocabulário e exercícios adaptados para trabalho, viagens ou conversa casual.",
+          desc: "Vocabulário e exercícios voltados para trabalho, viagens ou conversa casual.",
         },
       ],
     },
@@ -477,7 +477,7 @@ export const landingCopy = {
           period: "/mês",
           badge: null,
           cta: "Escolher mensal",
-          features: ["Lições ilimitadas", "Feedback de IA ilimitado", "Correções detalhadas", "Prática com áudio"],
+          features: ["Curso de 7 dias estruturado", "Feedback de IA em cada exercício", "Correções detalhadas", "Prática com áudio"],
         },
         {
           name: "Trimestral",
@@ -485,9 +485,9 @@ export const landingCopy = {
           badge: "Recomendado",
           cta: "Escolher trimestral",
           features: [
-            "Lições ilimitadas",
+            "Curso de 7 dias estruturado",
             "Prática com áudio",
-            "Vocabulário personalizado",
+            "Revisão inteligente",
             "Suporte prioritário",
             "Melhor equilíbrio entre preço e valor",
           ],
@@ -498,9 +498,9 @@ export const landingCopy = {
           badge: "Melhor economia",
           cta: "Escolher semestral",
           features: [
-            "Lições ilimitadas",
+            "Curso de 7 dias estruturado",
             "Prática com áudio",
-            "Vocabulário personalizado",
+            "Revisão inteligente",
             "Suporte prioritário",
             "Mais economia no longo prazo",
           ],
@@ -513,7 +513,7 @@ export const landingCopy = {
       items: [
         {
           q: "Como funciona aprender inglês pelo WhatsApp com SpeakEasily?",
-          a: "Você só precisa enviar uma mensagem para nosso número no WhatsApp e nossa IA começa a ensinar inglês com lições personalizadas. Não é preciso baixar nenhum app nem criar conta. Tudo acontece na mesma conversa do WhatsApp que você já usa todos os dias.",
+          a: "Você só precisa enviar uma mensagem para nosso número no WhatsApp e nossa IA começa com uma avaliação rápida e um curso guiado de 7 dias. Não é preciso baixar nenhum app nem criar conta. Tudo acontece na mesma conversa do WhatsApp que você já usa todos os dias.",
         },
         {
           q: "Preciso baixar algum aplicativo para as aulas de inglês online?",
@@ -529,11 +529,11 @@ export const landingCopy = {
         },
         {
           q: "Como as lições se adaptam ao meu nível de inglês?",
-          a: "No começo, nossa IA avalia seu nível com 3 perguntas rápidas. Depois, cada exercício e correção se adapta automaticamente aos seus pontos fortes e fracos, criando um curso de inglês realmente personalizado.",
+          a: "Ao começar, nossa IA avalia seu nível com 3 perguntas rápidas. Você recebe um plano de 7 dias adaptado aos seus objetivos e erros detectados, com correções personalizadas em cada exercício.",
         },
         {
           q: "Posso aprender inglês para trabalho ou viagem?",
-          a: "Sim. O SpeakEasily adapta vocabulário e exercícios ao seu objetivo: inglês profissional para trabalho, inglês prático para viagem ou conversação para o dia a dia.",
+          a: "Sim. O SpeakEasily inclui prática voltada ao seu objetivo: inglês profissional para trabalho, inglês prático para viagem ou conversação para o dia a dia.",
         },
         {
           q: "Em quais idiomas o SpeakEasily está disponível?",

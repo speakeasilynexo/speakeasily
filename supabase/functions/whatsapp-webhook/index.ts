@@ -120,6 +120,7 @@ interface LessonProgress {
   day_attempts: number;
   exercises_completed: number;
   total_lessons_completed: number;
+  detected_level?: EnglishLevel;
   goal?: LearningGoal;
   onboarding_complete?: boolean;
   trial?: TrialInfo;
@@ -144,6 +145,7 @@ interface TranslationPayload {
 interface StateData {
   placement?: PlacementState;
   progress?: LessonProgress;
+  generated_lesson_cache?: Record<string, DayLesson>;
   // Audio practice state: tracks the current target sentence for repetition
   audio_practice?: {
     target_sentence: string;
@@ -882,6 +884,18 @@ const LEVEL_TO_INTERNAL: Record<"A1" | "A2" | "B1" | "B2" | "C1", EnglishLevel> 
   "B2": "intermediate",
   "C1": "upper_intermediate"
 };
+
+function getStartingDayForLevel(level: EnglishLevel): number {
+  switch (level) {
+    case "beginner": return 1;
+    case "elementary": return 1;
+    case "pre_intermediate": return 3;
+    case "intermediate": return 5;
+    case "upper_intermediate": return 6;
+    case "advanced": return 7;
+    default: return 1;
+  }
+}
 
 const LEVEL_NAMES: Record<EnglishLevel, Record<Language, string>> = {
   beginner: { pt: "Iniciante (A1) 🌱", es: "Principiante (A1) 🌱", en: "Beginner (A1) 🌱" },
@@ -2564,6 +2578,242 @@ async function callAI(systemPrompt: string, userMessage: string): Promise<string
     console.error("[AI] Error:", error);
     return "";
   }
+}
+
+interface OpenAIChatResponse {
+  choices?: Array<{
+    message?: {
+      content?: unknown;
+    };
+  }>;
+}
+
+function getFallbackLesson(dayNumber: number): DayLesson {
+  const exactLesson = SEVEN_DAY_PLAN.find(lesson => lesson.day === dayNumber);
+  if (exactLesson) return exactLesson;
+
+  const fallbackLesson = SEVEN_DAY_PLAN[SEVEN_DAY_PLAN.length - 1];
+  return {
+    ...fallbackLesson,
+    day: dayNumber,
+    lesson_id: `fallback_day_${dayNumber}_${fallbackLesson.lesson_id}`,
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every(item => typeof item === "string");
+}
+
+function isExerciseType(value: unknown): value is ExerciseType {
+  return typeof value === "string" && [
+    "fill_in_blank",
+    "reorder_words",
+    "choose_correct",
+    "correct_the_mistake",
+    "translation",
+    "written_production",
+    "shadowing",
+  ].includes(value);
+}
+
+function isLanguageStringRecord(value: unknown): value is Record<Language, string> {
+  return isRecord(value)
+    && typeof value.pt === "string"
+    && typeof value.es === "string"
+    && typeof value.en === "string";
+}
+
+function isLanguageStringArrayRecord(value: unknown): value is Record<Language, string[]> {
+  return isRecord(value)
+    && isStringArray(value.pt)
+    && isStringArray(value.es)
+    && isStringArray(value.en);
+}
+
+function isPromptTranslation(value: unknown): value is Record<"pt" | "es", string> {
+  return isRecord(value)
+    && typeof value.pt === "string"
+    && typeof value.es === "string";
+}
+
+function isValidLessonExercise(value: unknown): value is LessonExercise {
+  if (!isRecord(value)) return false;
+
+  const hasRequiredFields =
+    typeof value.id === "string"
+    && isExerciseType(value.type)
+    && typeof value.prompt === "string"
+    && typeof value.correct_answer === "string"
+    && typeof value.mistake_tag === "string";
+
+  if (!hasRequiredFields) return false;
+  if (value.prompt_translation !== undefined && !isPromptTranslation(value.prompt_translation)) return false;
+  if (value.options !== undefined && !isStringArray(value.options)) return false;
+  if (value.hint !== undefined && !isLanguageStringRecord(value.hint)) return false;
+  if (value.feedback_correct !== undefined && !isLanguageStringRecord(value.feedback_correct)) return false;
+  if (value.feedback_wrong !== undefined && !isLanguageStringRecord(value.feedback_wrong)) return false;
+
+  return true;
+}
+
+function isValidDayLesson(value: unknown): value is DayLesson {
+  if (!isRecord(value)) return false;
+
+  return typeof value.day === "number"
+    && Number.isInteger(value.day)
+    && typeof value.lesson_id === "string"
+    && isLanguageStringRecord(value.title)
+    && isLanguageStringArrayRecord(value.objectives)
+    && Array.isArray(value.exercises)
+    && value.exercises.length === 5
+    && value.exercises.every(isValidLessonExercise)
+    && (value.production_type === "text" || value.production_type === "audio")
+    && isLanguageStringRecord(value.production_prompt);
+}
+
+function parseDynamicLessonJson(content: string): DayLesson | null {
+  try {
+    const parsed: unknown = JSON.parse(content);
+    return isValidDayLesson(parsed) ? parsed : null;
+  } catch (error) {
+    console.error("[AI] Dynamic lesson JSON parse failed:", error);
+    return null;
+  }
+}
+
+async function generateDynamicLesson(
+  openaiApiKey: string,
+  level: EnglishLevel,
+  dayNumber: number,
+  lang: Language,
+  mistakeTags: MistakeTag[],
+  goal: LearningGoal
+): Promise<DayLesson> {
+  const fallbackLesson = getFallbackLesson(dayNumber);
+  const topMistakes = [...mistakeTags]
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 3)
+    .map(mistake => `${mistake.tag} (${mistake.count})`);
+
+  const stage = dayNumber <= 7 ? "foundations" : dayNumber <= 14 ? "expansion" : "fluency";
+  const systemPrompt =
+    "You are an expert English curriculum designer for a WhatsApp-based learning bot. "
+    + "Generate ONLY valid JSON matching the DayLesson TypeScript interface exactly. "
+    + "Do not include markdown, comments, explanations, or extra keys. "
+    + "Generate exactly 5 exercises with varied types: choose_correct, fill_in_blank, reorder_words, correct_the_mistake, shadowing. "
+    + "Match vocabulary and grammar complexity to the provided CEFR-like internal level. "
+    + "Include prompt_translation for pt and es when the user's language is not en. "
+    + "Use the provided mistake tags to bias at least 2 exercises toward the user's known weak points.";
+
+  const userPrompt = JSON.stringify({
+    required_interface: {
+      day: "number",
+      lesson_id: "string",
+      title: { pt: "string", es: "string", en: "string" },
+      objectives: { pt: ["string"], es: ["string"], en: ["string"] },
+      exercises: "LessonExercise[5]",
+      production_type: "text | audio",
+      production_prompt: { pt: "string", es: "string", en: "string" },
+    },
+    lesson_exercise_shape: {
+      id: "string",
+      type: "choose_correct | fill_in_blank | reorder_words | correct_the_mistake | shadowing",
+      prompt: "string",
+      prompt_translation: { pt: "string", es: "string" },
+      options: ["string"],
+      correct_answer: "string",
+      hint: { pt: "string", es: "string", en: "string" },
+      mistake_tag: "string",
+      feedback_correct: { pt: "string", es: "string", en: "string" },
+      feedback_wrong: { pt: "string", es: "string", en: "string" },
+    },
+    context: {
+      level,
+      day_number: dayNumber,
+      language: lang,
+      goal,
+      stage,
+      top_mistake_tags: topMistakes.length > 0 ? topMistakes : ["none"],
+    },
+  });
+
+  try {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${openaiApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        response_format: { type: "json_object" },
+        max_tokens: 2200,
+        temperature: 0.4,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("[AI] Dynamic lesson generation failed:", response.status);
+      return fallbackLesson;
+    }
+
+    const data: unknown = await response.json();
+    const content = (data as OpenAIChatResponse).choices?.[0]?.message?.content;
+    if (typeof content !== "string") return fallbackLesson;
+
+    return parseDynamicLessonJson(content) ?? fallbackLesson;
+  } catch (error) {
+    console.error("[AI] Dynamic lesson generation error:", error);
+    return fallbackLesson;
+  }
+}
+
+function isDynamicLessonLevel(level: EnglishLevel): boolean {
+  return level === "intermediate" || level === "upper_intermediate" || level === "advanced";
+}
+
+async function getLessonForProgress(
+  state: { step: string; data: StateData },
+  lang: Language
+): Promise<DayLesson> {
+  const progress = state.data.progress;
+  const dayNumber = progress?.current_day ?? 1;
+  const fallbackLesson = getFallbackLesson(dayNumber);
+  const level = progress?.detected_level ?? "beginner";
+  const goal = progress?.goal ?? "general";
+
+  if (!isDynamicLessonLevel(level)) return fallbackLesson;
+
+  const openaiApiKey = Deno.env.get("OPENAI_API_KEY");
+  if (!openaiApiKey) return fallbackLesson;
+
+  const cacheKey = `${level}:${goal}:${dayNumber}:${lang}`;
+  const cachedLesson = state.data.generated_lesson_cache?.[cacheKey];
+  if (cachedLesson && isValidDayLesson(cachedLesson)) return cachedLesson;
+
+  const lesson = await generateDynamicLesson(
+    openaiApiKey,
+    level,
+    dayNumber,
+    lang,
+    progress?.mistake_tags ?? [],
+    goal
+  );
+
+  state.data.generated_lesson_cache = {
+    ...(state.data.generated_lesson_cache ?? {}),
+    [cacheKey]: lesson,
+  };
+
+  return lesson;
 }
 
 /**
@@ -4371,12 +4621,13 @@ async function finishPlacement(
 
   // Initialize progress for 7-day Plan
   const progress: LessonProgress = {
-    current_day: 1,
+    current_day: getStartingDayForLevel(internalLevel),
     current_exercise_index: 0,
     day_score: 0,
     day_attempts: 0,
     exercises_completed: 0,
     total_lessons_completed: 0,
+    detected_level: internalLevel,
     goal: "general" as LearningGoal,
     onboarding_complete: false,
     trial: initTrial(),
@@ -4426,12 +4677,7 @@ async function startDayLesson(
 ): Promise<void> {
   const progress = state.data.progress!;
   const day = progress.current_day;
-  const lesson = SEVEN_DAY_PLAN.find(l => l.day === day);
-
-  if (!lesson) {
-    await send(waId, t(lang, "plan_complete_notice"));
-    return;
-  }
+  const lesson = await getLessonForProgress(state, lang);
 
   progress.current_exercise_index = 0;
   progress.day_score = 0;
@@ -4467,7 +4713,7 @@ async function sendExercise(
   lang: Language
 ): Promise<void> {
   const progress = state.data.progress!;
-  const day = SEVEN_DAY_PLAN.find(l => l.day === progress.current_day)!;
+  const day = await getLessonForProgress(state, lang);
   const total = day.exercises.length;
   const current = progress.current_exercise_index + 1;
   const showTranslations = lang !== "en"; // Show translations for PT/ES
@@ -4575,7 +4821,7 @@ async function handleExerciseAnswer(
   isAdmin: boolean = false
 ): Promise<void> {
   const progress = state.data.progress!;
-  const day = SEVEN_DAY_PLAN.find(l => l.day === progress.current_day)!;
+  const day = await getLessonForProgress(state, lang);
   const exercise = day.exercises[progress.current_exercise_index];
 
   if (!exercise) {
@@ -4826,7 +5072,7 @@ async function startDayProduction(
   lang: Language
 ): Promise<void> {
   const progress = state.data.progress!;
-  const day = SEVEN_DAY_PLAN.find(l => l.day === progress.current_day)!;
+  const day = await getLessonForProgress(state, lang);
 
   // Extract model sentence from production prompt (text between _"..."_ or just clear the target)
   // Production is open-ended, so we clear the translation payload to avoid stale data.
@@ -4849,7 +5095,7 @@ async function handleDayProduction(
   audioId?: string
 ): Promise<void> {
   const progress = state.data.progress!;
-  const day = SEVEN_DAY_PLAN.find(l => l.day === progress.current_day)!;
+  const day = await getLessonForProgress(state, lang);
 
   let score = 3;
   let notes = lang === "pt" ? "Bom trabalho!" : lang === "es" ? "¡Buen trabajo!" : "Good job!";
@@ -4891,7 +5137,7 @@ async function finishDayLesson(
   lang: Language
 ): Promise<void> {
   const progress = state.data.progress!;
-  const day = SEVEN_DAY_PLAN.find(l => l.day === progress.current_day)!;
+  const day = await getLessonForProgress(state, lang);
   
   const accuracy = progress.day_attempts > 0 
     ? progress.day_score / progress.day_attempts 
@@ -4919,12 +5165,15 @@ async function finishDayLesson(
 
   if (passed) {
     progress.current_day++;
-    await updateState(supabase, waId, "day_complete", { ...state.data, progress });
+    const level = progress.detected_level ?? user.level ?? "beginner";
+    const canContinueDynamically = isDynamicLessonLevel(level) && user.is_subscribed;
 
-    const subscribeLink = getSubscribeLink(waId, "day7_complete", lang);
+    await updateState(supabase, waId, "day_complete", { ...state.data, progress });
     
     // Check if Day 7 was just completed (current_day is now 8)
-    if (day.day === 7) {
+    if (day.day === 7 && !canContinueDynamically) {
+      const subscribeLink = getSubscribeLink(waId, "day7_complete", lang);
+
       // Mark trial as completed
       await markTrialCompleted(supabase, waId, user, progress);
       
@@ -5232,7 +5481,7 @@ async function handleDayProductionWithTranscription(
   isAdmin: boolean = false
 ): Promise<void> {
   const progress = state.data.progress!;
-  const day = SEVEN_DAY_PLAN.find(l => l.day === progress.current_day)!;
+  const day = await getLessonForProgress(state, lang);
 
   // Transcribe audio
   const transcriptionResult = await processAudioMessage(

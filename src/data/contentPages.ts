@@ -30,7 +30,7 @@ const esPages: ContentPage[] = [
       "Aprende inglés por WhatsApp con lecciones cortas, práctica real e inteligencia artificial. Empieza gratis y mejora tu inglés cada día.",
     h1: "Aprender inglés por WhatsApp es más fácil de lo que parece",
     intro:
-      "Si ya usas WhatsApp todos los días, también puedes usarlo para mejorar tu inglés sin complicarte la vida. En lugar de abrir otra app, memorizar listas eternas o perder tiempo con clases que no se adaptan a ti, puedes practicar desde una conversación real y simple. SpeakEasily combina WhatsApp con inteligencia artificial para enviarte ejercicios breves, correcciones claras y práctica útil según tu nivel. Es una forma cómoda de avanzar poco a poco, con constancia, sin sentir que estás empezando de cero cada semana.",
+      "Si ya usas WhatsApp todos los días, también puedes usarlo para mejorar tu inglés sin complicarte la vida. En lugar de abrir otra app, memorizar listas eternas o perder tiempo con clases difíciles de mantener, puedes practicar desde una conversación real y simple. SpeakEasily combina WhatsApp con inteligencia artificial para enviarte ejercicios breves, correcciones claras y una estructura guiada de 7 días. Es una forma cómoda de avanzar poco a poco, con constancia, sin sentir que estás empezando de cero cada semana.",
     benefits: [
       {
         icon: "message-circle",
@@ -40,7 +40,7 @@ const esPages: ContentPage[] = [
       },
       {
         icon: "brain",
-        title: "IA que se adapta a ti",
+        title: "IA que refuerza tus fallos",
         description:
           "La inteligencia artificial detecta tus errores más comunes y ajusta las explicaciones para que entiendas mejor cada punto.",
       },
@@ -60,7 +60,7 @@ const esPages: ContentPage[] = [
       {
         question: "¿Qué hace la inteligencia artificial en SpeakEasily?",
         answer:
-          "La inteligencia artificial analiza tus respuestas, corrige errores, adapta ejercicios y te da explicaciones según tu nivel y objetivo.",
+          "La inteligencia artificial analiza tus respuestas, corrige errores y activa repasos inteligentes basados en tus fallos reales.",
       },
       {
         question: "¿Sirve si tengo poco tiempo?",
@@ -78,7 +78,7 @@ const esPages: ContentPage[] = [
     slug: "clases-de-ingles-online",
     metaTitle: "Clases de inglés online con IA y WhatsApp",
     metaDescription:
-      "Descubre clases de inglés online por WhatsApp con inteligencia artificial, práctica personalizada y una experiencia flexible para tu ritmo.",
+      "Descubre clases de inglés online por WhatsApp con inteligencia artificial, práctica guiada y una experiencia flexible para tu ritmo.",
     h1: "Clases de inglés online que sí encajan en tu vida",
     intro:
       "Muchas personas abandonan las clases de inglés online porque les piden demasiado tiempo, demasiada organización o demasiada energía al final del día. La idea de SpeakEasily es justo la contraria: llevar el aprendizaje a un formato simple, directo y fácil de mantener. A través de WhatsApp y con apoyo de inteligencia artificial, recibes actividades breves, correcciones y práctica enfocada en situaciones reales. Así no dependes de horarios rígidos ni de videollamadas eternas. Aprendes cuando puedes, pero con una estructura clara para seguir avanzando.",
@@ -91,9 +91,9 @@ const esPages: ContentPage[] = [
       },
       {
         icon: "sparkles",
-        title: "Contenido personalizado",
+        title: "Contenido guiado",
         description:
-          "La inteligencia artificial adapta ejemplos, correcciones y ejercicios a tu nivel actual para evitar que pierdas tiempo con contenido genérico.",
+          "El curso combina una estructura de 7 días con correcciones y repaso inteligente basado en tus errores reales.",
       },
       {
         icon: "target",
@@ -116,7 +116,7 @@ const esPages: ContentPage[] = [
       {
         question: "¿Es útil para principiantes y niveles intermedios?",
         answer:
-          "Sí. SpeakEasily puede adaptarse tanto si estás empezando como si quieres recuperar fluidez y corregir errores frecuentes.",
+          "Sí. La evaluación inicial detecta tu nivel, y el recorrido guiado actual se centra en una base A1 con repaso inteligente de tus errores.",
       },
     ],
     internalLinks: [
@@ -162,7 +162,7 @@ const esPages: ContentPage[] = [
       {
         question: "¿Qué método usa SpeakEasily?",
         answer:
-          "Combina microlecciones, práctica por WhatsApp, correcciones inmediatas e inteligencia artificial para mantener una progresión constante y personalizada.",
+          "Combina microlecciones, práctica por WhatsApp, correcciones inmediatas e inteligencia artificial para mantener una progresión constante con repaso inteligente.",
       },
       {
         question: "¿Cuánto tiempo necesito al día?",
@@ -213,7 +213,7 @@ const esPages: ContentPage[] = [
       {
         question: "¿Es solo para principiantes?",
         answer:
-          "No. También puede servir si ya estudiaste antes y quieres retomar el inglés con un formato más práctico y menos pesado.",
+          "La evaluación inicial identifica tu nivel, pero el curso guiado actual trabaja una base A1 de 7 días con correcciones y repaso inteligente.",
       },
       {
         question: "¿Luego tengo que continuar obligatoriamente?",
@@ -234,7 +234,7 @@ const esPages: ContentPage[] = [
       "Mejora tu inglés para el trabajo con práctica por WhatsApp, inteligencia artificial y lecciones enfocadas en situaciones profesionales.",
     h1: "Inglés para el trabajo sin perder tiempo con contenido irrelevante",
     intro:
-      "Cuando necesitas inglés para el trabajo, no buscas un curso lleno de temas genéricos que tardan meses en llegar a lo útil. Lo que necesitas es practicar vocabulario, respuestas y estructuras que realmente aparecen en reuniones, correos, entrevistas o conversaciones con clientes. SpeakEasily te ayuda a hacerlo desde WhatsApp, con una experiencia más ligera y constante. La inteligencia artificial adapta las correcciones y te propone ejercicios más alineados con objetivos profesionales. Así puedes mejorar paso a paso sin desconectarte de tu rutina laboral ni depender de clases largas difíciles de mantener.",
+      "Cuando necesitas inglés para el trabajo, no buscas un curso lleno de temas genéricos que tardan meses en llegar a lo útil. Lo que necesitas es practicar vocabulario, respuestas y estructuras que realmente aparecen en reuniones, correos, entrevistas o conversaciones con clientes. SpeakEasily te ayuda a hacerlo desde WhatsApp, con una experiencia más ligera y constante. La inteligencia artificial corrige tus respuestas y te ayuda a reforzar errores frecuentes con repaso inteligente. Así puedes mejorar paso a paso sin desconectarte de tu rutina laboral ni depender de clases largas difíciles de mantener.",
     benefits: [
       {
         icon: "briefcase-business",
@@ -269,7 +269,7 @@ const esPages: ContentPage[] = [
       {
         question: "¿Qué aporta la inteligencia artificial aquí?",
         answer:
-          "Aporta correcciones rápidas, adaptación del contenido y una práctica más alineada con tus necesidades reales de trabajo.",
+          "Aporta correcciones rápidas, repaso inteligente de tus errores y práctica útil para situaciones reales de trabajo.",
       },
     ],
     internalLinks: [
