@@ -12,6 +12,7 @@ function prerenderSEOPlugin() {
     name: "prerender-seo",
     apply: "build" as const,
     async closeBundle() {
+      // @ts-expect-error - .mjs script has no type declaration; pure side effects
       await import("./scripts/prerender-seo.mjs");
     },
   };
