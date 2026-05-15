@@ -121,17 +121,32 @@ function rewriteHtml(template, route) {
     `<meta name="description" content="${route.description}" />`,
   );
 
-  // <link rel="canonical">
-  html = html.replace(
-    /<link\s+rel="canonical"[^>]*\/?>/,
-    `<link rel="canonical" href="${canonicalUrl}" />`,
-  );
+  // <link rel="canonical"> (insert if the SPA fallback template has none)
+  if (/<link\s+rel="canonical"[^>]*\/?>/.test(html)) {
+    html = html.replace(
+      /<link\s+rel="canonical"[^>]*\/?>/,
+      `<link rel="canonical" href="${canonicalUrl}" />`,
+    );
+  } else {
+    html = html.replace(
+      /(<meta\s+name="author"\s+content="[^"]*"\s*\/?>)/,
+      `$1\n    <link rel="canonical" href="${canonicalUrl}" />`,
+    );
+  }
 
-  // hreflang block: replace the 4 hreflang lines (es-ES, pt-BR, en-US, x-default)
-  html = html.replace(
-    /(\s*<link\s+rel="alternate"\s+hreflang="(?:es-ES|pt-BR|en-US|x-default)"[^>]*\/?>\s*){2,5}/,
-    "\n" + buildHreflangBlock(route.path) + "\n",
-  );
+  // hreflang block: replace if present, otherwise insert after canonical
+  const hreflangBlock = buildHreflangBlock(route.path);
+  if (/<link\s+rel="alternate"\s+hreflang="(?:es-ES|pt-BR|en-US|x-default)"[^>]*\/?>/.test(html)) {
+    html = html.replace(
+      /(\s*<link\s+rel="alternate"\s+hreflang="(?:es-ES|pt-BR|en-US|x-default)"[^>]*\/?>\s*){2,5}/,
+      "\n" + hreflangBlock + "\n",
+    );
+  } else {
+    html = html.replace(
+      /(<link\s+rel="canonical"[^>]*\/?>)/,
+      `$1\n\n    <!-- Hreflang -->\n${hreflangBlock}`,
+    );
+  }
 
   // og:url, og:title, og:description
   html = html.replace(
