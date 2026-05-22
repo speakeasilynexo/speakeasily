@@ -82,7 +82,10 @@ const ContentPage = () => {
   const { lang } = useLanguage();
   const copy = contentUICopy[lang];
   const pages = getContentPages(lang);
-  const page = pages.find((item) => item.slug === slug);
+  
+  // Normalizar o slug removendo barras extras no final para garantir o match
+  const normalizedSlug = slug?.replace(/\/$/, "");
+  const page = pages.find((item) => item.slug === normalizedSlug);
 
   useSEO({
     title: page?.metaTitle ?? "SpeakEasily",

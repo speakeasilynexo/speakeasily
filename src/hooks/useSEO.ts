@@ -25,7 +25,9 @@ interface SEOProps {
 }
 
 function getCanonicalUrl(path: string, lang?: SupportedLang): string {
-  const base = `${BASE_URL}${path}`;
+  // Remover barra final do path se não for apenas "/"
+  const normalizedPath = path === "/" ? "/" : path.replace(/\/$/, "");
+  const base = `${BASE_URL}${normalizedPath}`;
   if (!lang || lang === "es") return base;
   const separator = base.includes("?") ? "&" : "?";
   return `${base}${separator}lang=${lang}`;

@@ -2,7 +2,7 @@
 // with correct <title>, <meta description>, canonical, hreflang and og:* tags.
 // Fixes Google Search Console "Error de redirección" caused by the SPA's
 // shared index.html declaring canonical = "/" for every route.
-//
+
 // Pure Node ESM, no external dependencies.
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
@@ -13,9 +13,6 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const DIST = resolve(__dirname, "..", "dist");
 const BASE_URL = "https://speakeasily.nexo-digital.app";
 
-// Mirror of Spanish (default) metadata from src/data/contentPages.ts and
-// src/data/newContentPages.ts. Keep in sync if those metaTitle/metaDescription
-// values change. Default HTML serves Spanish; ?lang=en|pt switches client-side.
 const ROUTES = [
   {
     path: "/aprender-ingles-por-whatsapp",
@@ -91,75 +88,97 @@ const ROUTES = [
   },
 ];
 
+function normalizePath(path) {
+  return path === "/" ? "/" : path.replace(/\/$/, "");
+}
+
+function buildPageUrl(path) {
+  const normalized = normalizePath(path);
+  return `${BASE_URL}${normalized}`;
+}
+
 function buildHreflangBlock(path) {
-  const url = (lang) => {
-    const base = `${BASE_URL}${path}`;
-    if (!lang || lang === "es") return base;
-    return `${base}${base.includes("?") ? "&" : "?"}lang=${lang}`;
-  };
+  const baseUrl = buildPageUrl(path);
   return [
-    `    <link rel="alternate" hreflang="es-ES" href="${url("es")}" />`,
-    `    <link rel="alternate" hreflang="pt-BR" href="${url("pt")}" />`,
-    `    <link rel="alternate" hreflang="en-US" href="${url("en")}" />`,
-    `    <link rel="alternate" hreflang="x-default" href="${url("es")}" />`,
+    `    <link rel="alternate" hreflang="es-ES" href="${baseUrl}" />`,
+    `    <link rel="alternate" hreflang="pt-BR" href="${baseUrl}?lang=pt" />`,
+    `    <link rel="alternate" hreflang="en-US" href="${baseUrl}?lang=en" />`,
+    `    <link rel="alternate" hreflang="x-default" href="${baseUrl}" />`,
   ].join("\n");
 }
 
+function replaceMeta(html, regex, replacement, fallbackPattern) {
+  if (regex.test(html)) {
+    return html.replace(regex, replacement);
+  }
+  return html.replace(fallbackPattern, `$1${replacement}$2`);
+}
+
 function rewriteHtml(template, route) {
-  const canonicalUrl = `${BASE_URL}${route.path}`;
+  const canonicalUrl = buildPageUrl(route.path);
   let html = template;
 
-  // <title>
-  html = html.replace(
+  html = replaceMeta(
+    html,
     /<title>[\s\S]*?<\/title>/,
     `<title>${route.title}</title>`,
+    /(<head[^>]*>)/,
   );
 
-  // <meta name="description">
-  html = html.replace(
-    /<meta\s+name="description"\s+content="[^"]*"\s*\/?>/,
+  html = replaceMeta(
+    html,
+    /<meta\s+name="description"\s+content="[^"]*"\s*\/>/,
     `<meta name="description" content="${route.description}" />`,
+    /(<meta\s+name="viewport"[^>]*>)/,
   );
 
-  // <link rel="canonical"> (insert if the SPA fallback template has none)
-  if (/<link\s+rel="canonical"[^>]*\/?>/.test(html)) {
-    html = html.replace(
-      /<link\s+rel="canonical"[^>]*\/?>/,
-      `<link rel="canonical" href="${canonicalUrl}" />`,
-    );
-  } else {
-    html = html.replace(
-      /(<meta\s+name="author"\s+content="[^"]*"\s*\/?>)/,
-      `$1\n    <link rel="canonical" href="${canonicalUrl}" />`,
-    );
-  }
+  html = replaceMeta(
+    html,
+    /<link\s+rel="canonical"[^>]*\/>/,
+    `<link rel="canonical" href="${canonicalUrl}" />`,
+    /(<meta\s+name="author"\s+content="[^"]*"\s*\/>)(\r?\n)?/,
+  );
 
-  // hreflang block: replace if present, otherwise insert after canonical
+  html = html.replace(/\s*<link\s+rel="alternate"[^>]*\/>\s*\n?/g, "");
+
   const hreflangBlock = buildHreflangBlock(route.path);
-  if (/<link\s+rel="alternate"\s+hreflang="(?:es-ES|pt-BR|en-US|x-default)"[^>]*\/?>/.test(html)) {
+  if (/<link\s+rel="canonical"[^>]*\/>/.test(html)) {
     html = html.replace(
-      /(\s*<link\s+rel="alternate"\s+hreflang="(?:es-ES|pt-BR|en-US|x-default)"[^>]*\/?>\s*){2,5}/,
-      "\n" + hreflangBlock + "\n",
+      /(<link\s+rel="canonical"[^>]*\/>)(\r?\n)?/,
+      `$1$2
+    <!-- Hreflang -->
+${hreflangBlock}$2`,
     );
   } else {
-    html = html.replace(
-      /(<link\s+rel="canonical"[^>]*\/?>)/,
-      `$1\n\n    <!-- Hreflang -->\n${hreflangBlock}`,
-    );
+    html = html.replace(/<\/head>/, `    <!-- Hreflang -->\n${hreflangBlock}\n</head>`);
   }
 
-  // og:url, og:title, og:description
-  html = html.replace(
-    /<meta\s+property="og:url"\s+content="[^"]*"\s*\/?>/,
+  html = replaceMeta(
+    html,
+    /<meta\s+property="og:url"\s+content="[^"]*"\s*\/>/,
     `<meta property="og:url" content="${canonicalUrl}" />`,
+    /(<meta\s+property="og:type"[^>]*\/>)/,
   );
-  html = html.replace(
-    /<meta\s+property="og:title"\s+content="[^"]*"\s*\/?>/,
+
+  html = replaceMeta(
+    html,
+    /<meta\s+property="og:title"\s+content="[^"]*"\s*\/>/,
     `<meta property="og:title" content="${route.title}" />`,
+    /(<meta\s+property="og:type"[^>]*\/>)/,
   );
-  html = html.replace(
-    /<meta\s+property="og:description"\s+content="[^"]*"\s*\/?>/,
+
+  html = replaceMeta(
+    html,
+    /<meta\s+property="og:description"\s+content="[^"]*"\s*\/>/,
     `<meta property="og:description" content="${route.description}" />`,
+    /(<meta\s+property="og:type"[^>]*\/>)/,
+  );
+
+  html = replaceMeta(
+    html,
+    /<meta\s+property="og:locale"\s+content="[^"]*"\s*\/>/,
+    `<meta property="og:locale" content="es_ES" />`,
+    /(<meta\s+property="og:site_name"[^>]*\/>)/,
   );
 
   return html;
@@ -167,13 +186,15 @@ function rewriteHtml(template, route) {
 
 function main() {
   const indexPath = resolve(DIST, "index.html");
+
   if (!existsSync(indexPath)) {
     console.warn(`[prerender-seo] dist/index.html not found at ${indexPath}; skipping.`);
     return;
   }
-  const template = readFileSync(indexPath, "utf8");
 
+  const template = readFileSync(indexPath, "utf8");
   let written = 0;
+
   for (const route of ROUTES) {
     const html = rewriteHtml(template, route);
     const outDir = resolve(DIST, route.path.replace(/^\//, ""));

@@ -47,7 +47,9 @@ const routes: SitemapRoute[] = [
 ];
 
 function buildUrl(path: string, language?: Language): string {
-  const base = `${BASE_URL}${path}`;
+  // Remover barra final do path se não for apenas "/"
+  const normalizedPath = path === "/" ? "/" : path.replace(/\/$/, "");
+  const base = `${BASE_URL}${normalizedPath}`;
 
   if (!language || language === "es") {
     return base;
