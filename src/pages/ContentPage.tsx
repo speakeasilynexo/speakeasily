@@ -76,7 +76,11 @@ function getIcon(icon: string) {
   }
 }
 
-const ContentPage = () => {
+type ContentPageProps = {
+  staticSlug?: string;
+};
+
+const ContentPage = ({ staticSlug }: ContentPageProps) => {
   const { slug } = useParams<{ slug: string }>();
   const location = useLocation();
   const { lang } = useLanguage();
@@ -84,7 +88,7 @@ const ContentPage = () => {
   const pages = getContentPages(lang);
   
   // Normalizar o slug removendo barras extras no final para garantir o match
-  const normalizedSlug = slug?.replace(/\/$/, "");
+  const normalizedSlug = (staticSlug ?? slug)?.replace(/\/\/$/, "");
   const page = pages.find((item) => item.slug === normalizedSlug);
 
   useSEO({
