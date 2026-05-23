@@ -280,12 +280,18 @@ async function ttsToAudioUrl(_text: string): Promise<string> {
  */
 async function verifyMetaSignature(request: Request, rawBody: string): Promise<boolean> {
   const signature = request.headers.get("x-hub-signature-256");
+  console.log(
+    `[SIGNATURE] POST signature header=${signature ? "present" : "missing"} body_bytes=${new TextEncoder().encode(rawBody).length}`
+  );
   if (!signature) {
     console.log("[SIGNATURE] Missing x-hub-signature-256 header");
     return false;
   }
 
   const appSecret = Deno.env.get("APP_SECRET");
+  console.log(
+    `[SIGNATURE] APP_SECRET configured=${appSecret ? "yes" : "no"} length=${appSecret?.length ?? 0}`
+  );
   if (!appSecret) {
     console.error("[SIGNATURE] APP_SECRET not configured");
     return false;
@@ -298,6 +304,7 @@ async function verifyMetaSignature(request: Request, rawBody: string): Promise<b
   }
 
   const expectedHex = signature.slice(7); // Remove "sha256=" prefix
+  console.log(`[SIGNATURE] Expected hex length=${expectedHex.length}`);
 
   try {
     // Create HMAC SHA-256 key from APP_SECRET
@@ -320,6 +327,7 @@ async function verifyMetaSignature(request: Request, rawBody: string): Promise<b
     const calculatedHex = Array.from(signatureArray)
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("");
+    console.log(`[SIGNATURE] Calculated hex length=${calculatedHex.length}`);
 
     // Timing-safe comparison (constant time)
     if (calculatedHex.length !== expectedHex.length) {
