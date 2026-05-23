@@ -1,6 +1,7 @@
 {
   "trailingSlash": false,
   "rewrites": [
+    { "source": "/favicon.ico", "destination": "/favicon.png" },
     { "source": "/aprender-ingles-por-whatsapp", "destination": "/aprender-ingles-por-whatsapp.html" },
     { "source": "/aprender-ingles-por-whatsapp/", "destination": "/aprender-ingles-por-whatsapp.html" },
     { "source": "/clases-de-ingles-online", "destination": "/clases-de-ingles-online.html" },
