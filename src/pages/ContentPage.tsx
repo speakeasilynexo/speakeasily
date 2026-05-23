@@ -88,7 +88,7 @@ const ContentPage = ({ staticSlug }: ContentPageProps) => {
   const pages = getContentPages(lang);
   
   // Normalizar o slug removendo barras extras no final para garantir o match
-  const normalizedSlug = (staticSlug ?? slug)?.replace(/\/\/$/, "");
+  const normalizedSlug = (staticSlug ?? slug)?.replace(/\/+$/, "");
   const page = pages.find((item) => item.slug === normalizedSlug);
 
   useSEO({
@@ -163,7 +163,7 @@ const ContentPage = ({ staticSlug }: ContentPageProps) => {
   }
 
   return (
-    <ContentLayout breadcrumb={page.h1} currentSlug={slug ?? ""} copy={copy} pages={pages}>
+    <ContentLayout breadcrumb={page.h1} currentSlug={normalizedSlug ?? ""} copy={copy} pages={pages}>
       <ContentHero badge={copy.heroBadge} h1={page.h1} intro={page.intro} copy={copy} />
 
       <section className="mx-auto max-w-6xl px-5 py-6 sm:px-6 sm:py-8">

@@ -7,8 +7,16 @@ const WHATSAPP_LINK = "https://wa.me/34657100100?text=Hello";
 const CONTENT_LINKS = [
   { href: "/aprender-ingles-por-whatsapp", label: "WhatsApp" },
   { href: "/clases-de-ingles-online", label: "Clases online" },
+  { href: "/aprender-ingles-rapido", label: "Inglés rápido" },
+  { href: "/curso-de-ingles-gratis", label: "Curso gratis" },
   { href: "/ingles-para-el-trabajo", label: "Trabajo" },
   { href: "/ingles-para-viajar", label: "Viajes" },
+  { href: "/como-funciona", label: "Cómo funciona" },
+  { href: "/metodologia", label: "Metodología" },
+  { href: "/pronunciacion", label: "Pronunciación" },
+  { href: "/correccion-en-tiempo-real", label: "Corrección" },
+  { href: "/preguntas-frecuentes", label: "FAQ" },
+  { href: "/ingles-para-principiantes", label: "Principiantes" },
 ] as const;
 
 interface HeaderProps {
@@ -43,7 +51,8 @@ const Header = ({ lang, onLanguageChange }: HeaderProps) => {
             <button type="button" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
               Recursos
             </button>
-            <div className="invisible absolute right-0 top-full z-10 mt-3 w-64 rounded-2xl border border-border/60 bg-background/95 p-2 opacity-0 shadow-elevated backdrop-blur transition-all duration-200 group-hover:visible group-hover:opacity-100">
+            <div className="invisible absolute right-0 top-full z-10 mt-3 w-[34rem] rounded-2xl border border-border/60 bg-background/95 p-2 opacity-0 shadow-elevated backdrop-blur transition-all duration-200 group-hover:visible group-hover:opacity-100">
+              <div className="grid grid-cols-2 gap-1">
               {CONTENT_LINKS.map((link) => (
                 <a
                   key={link.href}
@@ -53,6 +62,7 @@ const Header = ({ lang, onLanguageChange }: HeaderProps) => {
                   {link.label}
                 </a>
               ))}
+              </div>
             </div>
           </div>
         </nav>

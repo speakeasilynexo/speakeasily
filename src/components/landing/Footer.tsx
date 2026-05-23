@@ -12,6 +12,12 @@ const CONTENT_LINKS = [
   { href: "/curso-de-ingles-gratis", label: "Curso de inglés gratis" },
   { href: "/ingles-para-el-trabajo", label: "Inglés para el trabajo" },
   { href: "/ingles-para-viajar", label: "Inglés para viajar" },
+  { href: "/como-funciona", label: "Cómo funciona" },
+  { href: "/metodologia", label: "Metodología" },
+  { href: "/pronunciacion", label: "Pronunciación" },
+  { href: "/correccion-en-tiempo-real", label: "Corrección en tiempo real" },
+  { href: "/preguntas-frecuentes", label: "Preguntas frecuentes" },
+  { href: "/ingles-para-principiantes", label: "Inglés para principiantes" },
 ] as const;
 
 const Footer = ({ lang }: FooterProps) => {

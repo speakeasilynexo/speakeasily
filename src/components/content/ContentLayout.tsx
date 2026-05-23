@@ -63,16 +63,15 @@ const ContentLayout = ({ children, breadcrumb, currentSlug, copy, pages }: Conte
             <p className="font-semibold text-slate-900">SpeakEasily</p>
             <p className="text-sm text-slate-600">{copy.footerDescription}</p>
           </div>
-          <div className="flex flex-wrap gap-4 text-sm text-slate-600">
+          <div className="flex flex-wrap gap-4 text-sm text-slate-600 md:justify-end">
             <a href="/" className="transition-colors hover:text-green-700">
               {copy.footerHome}
             </a>
-            <a href="/aprender-ingles-por-whatsapp" className="transition-colors hover:text-green-700">
-              {copy.footerWhatsApp}
-            </a>
-            <a href="/clases-de-ingles-online" className="transition-colors hover:text-green-700">
-              {copy.footerClasses}
-            </a>
+            {pages.map((page) => (
+              <a key={page.slug} href={`/${page.slug}`} className="transition-colors hover:text-green-700">
+                {copy.navLabels[page.slug] ?? page.h1}
+              </a>
+            ))}
           </div>
         </div>
       </footer>

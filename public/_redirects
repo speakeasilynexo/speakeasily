@@ -1,14 +1,25 @@
 # Serve prerendered SEO HTML for clean content URLs before the SPA fallback.
 /aprender-ingles-por-whatsapp /aprender-ingles-por-whatsapp/index.html 200
+/aprender-ingles-por-whatsapp/ /aprender-ingles-por-whatsapp/index.html 200
 /clases-de-ingles-online /clases-de-ingles-online/index.html 200
+/clases-de-ingles-online/ /clases-de-ingles-online/index.html 200
 /aprender-ingles-rapido /aprender-ingles-rapido/index.html 200
+/aprender-ingles-rapido/ /aprender-ingles-rapido/index.html 200
 /curso-de-ingles-gratis /curso-de-ingles-gratis/index.html 200
+/curso-de-ingles-gratis/ /curso-de-ingles-gratis/index.html 200
 /ingles-para-el-trabajo /ingles-para-el-trabajo/index.html 200
+/ingles-para-el-trabajo/ /ingles-para-el-trabajo/index.html 200
 /ingles-para-viajar /ingles-para-viajar/index.html 200
+/ingles-para-viajar/ /ingles-para-viajar/index.html 200
 /como-funciona /como-funciona/index.html 200
+/como-funciona/ /como-funciona/index.html 200
 /metodologia /metodologia/index.html 200
+/metodologia/ /metodologia/index.html 200
 /pronunciacion /pronunciacion/index.html 200
+/pronunciacion/ /pronunciacion/index.html 200
 /correccion-en-tiempo-real /correccion-en-tiempo-real/index.html 200
+/correccion-en-tiempo-real/ /correccion-en-tiempo-real/index.html 200
 /preguntas-frecuentes /preguntas-frecuentes/index.html 200
+/preguntas-frecuentes/ /preguntas-frecuentes/index.html 200
 /ingles-para-principiantes /ingles-para-principiantes/index.html 200
-
+/ingles-para-principiantes/ /ingles-para-principiantes/index.html 200

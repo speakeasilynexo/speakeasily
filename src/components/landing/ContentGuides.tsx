@@ -1,4 +1,18 @@
-import { ArrowRight, BookOpen, BriefcaseBusiness, Globe, GraduationCap, MessageCircle, Plane, Zap } from "lucide-react";
+import {
+  ArrowRight,
+  BookOpen,
+  BriefcaseBusiness,
+  CircleHelp,
+  ClipboardCheck,
+  Globe,
+  GraduationCap,
+  MessageCircle,
+  Mic,
+  Plane,
+  Route,
+  Sparkles,
+  Zap,
+} from "lucide-react";
 
 const guides = [
   {
@@ -43,11 +57,55 @@ const guides = [
     icon: Plane,
     accent: "from-teal-500/20 to-green-500/5",
   },
+  {
+    href: "/como-funciona",
+    title: "Cómo funciona",
+    description: "Conoce el flujo de aprendizaje, desde el primer mensaje hasta la práctica diaria con correcciones útiles.",
+    icon: Route,
+    accent: "from-lime-500/20 to-green-500/5",
+  },
+  {
+    href: "/metodologia",
+    title: "Metodología",
+    description: "Entiende cómo combinamos repetición, contexto real y feedback para ayudarte a sostener el hábito.",
+    icon: ClipboardCheck,
+    accent: "from-indigo-500/20 to-sky-500/5",
+  },
+  {
+    href: "/pronunciacion",
+    title: "Pronunciación",
+    description: "Practica sonidos, ritmo y confianza al hablar con ejercicios pensados para el día a día.",
+    icon: Mic,
+    accent: "from-rose-500/20 to-pink-500/5",
+  },
+  {
+    href: "/correccion-en-tiempo-real",
+    title: "Corrección en tiempo real",
+    description: "Descubre cómo recibir feedback claro mientras practicas, sin esperar a una próxima clase.",
+    icon: Sparkles,
+    accent: "from-cyan-500/20 to-blue-500/5",
+  },
+  {
+    href: "/preguntas-frecuentes",
+    title: "Preguntas frecuentes",
+    description: "Resuelve dudas sobre niveles, precios, WhatsApp, prueba gratis y funcionamiento general.",
+    icon: CircleHelp,
+    accent: "from-stone-500/20 to-neutral-500/5",
+  },
+  {
+    href: "/ingles-para-principiantes",
+    title: "Inglés para principiantes",
+    description: "Empieza desde cero con una ruta sencilla y práctica, sin sentirte perdido entre demasiadas opciones.",
+    icon: GraduationCap,
+    accent: "from-emerald-500/20 to-lime-500/5",
+  },
 ] as const;
 
 const featuredLinks = [
   { href: "/aprender-ingles-por-whatsapp", label: "WhatsApp" },
   { href: "/clases-de-ingles-online", label: "Clases online" },
+  { href: "/como-funciona", label: "Cómo funciona" },
+  { href: "/ingles-para-principiantes", label: "Principiantes" },
   { href: "/ingles-para-el-trabajo", label: "Trabajo" },
   { href: "/ingles-para-viajar", label: "Viajes" },
 ] as const;
