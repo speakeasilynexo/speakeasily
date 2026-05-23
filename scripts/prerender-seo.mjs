@@ -205,6 +205,9 @@ function main() {
     const html = rewriteHtml(template, route);
     const outPath = resolve(DIST, route.path === "/" ? "index.html" : route.path.replace(/^\//, ""));
     writeFileSync(outPath, html, "utf8");
+    if (route.path !== "/") {
+      writeFileSync(resolve(DIST, `${route.path.replace(/^\//, "")}.html`), html, "utf8");
+    }
     written += 1;
   }
 

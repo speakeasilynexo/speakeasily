@@ -1,0 +1,30 @@
+{
+  "trailingSlash": false,
+  "rewrites": [
+    { "source": "/aprender-ingles-por-whatsapp", "destination": "/aprender-ingles-por-whatsapp.html" },
+    { "source": "/aprender-ingles-por-whatsapp/", "destination": "/aprender-ingles-por-whatsapp.html" },
+    { "source": "/clases-de-ingles-online", "destination": "/clases-de-ingles-online.html" },
+    { "source": "/clases-de-ingles-online/", "destination": "/clases-de-ingles-online.html" },
+    { "source": "/aprender-ingles-rapido", "destination": "/aprender-ingles-rapido.html" },
+    { "source": "/aprender-ingles-rapido/", "destination": "/aprender-ingles-rapido.html" },
+    { "source": "/curso-de-ingles-gratis", "destination": "/curso-de-ingles-gratis.html" },
+    { "source": "/curso-de-ingles-gratis/", "destination": "/curso-de-ingles-gratis.html" },
+    { "source": "/ingles-para-el-trabajo", "destination": "/ingles-para-el-trabajo.html" },
+    { "source": "/ingles-para-el-trabajo/", "destination": "/ingles-para-el-trabajo.html" },
+    { "source": "/ingles-para-viajar", "destination": "/ingles-para-viajar.html" },
+    { "source": "/ingles-para-viajar/", "destination": "/ingles-para-viajar.html" },
+    { "source": "/como-funciona", "destination": "/como-funciona.html" },
+    { "source": "/como-funciona/", "destination": "/como-funciona.html" },
+    { "source": "/metodologia", "destination": "/metodologia.html" },
+    { "source": "/metodologia/", "destination": "/metodologia.html" },
+    { "source": "/pronunciacion", "destination": "/pronunciacion.html" },
+    { "source": "/pronunciacion/", "destination": "/pronunciacion.html" },
+    { "source": "/correccion-en-tiempo-real", "destination": "/correccion-en-tiempo-real.html" },
+    { "source": "/correccion-en-tiempo-real/", "destination": "/correccion-en-tiempo-real.html" },
+    { "source": "/preguntas-frecuentes", "destination": "/preguntas-frecuentes.html" },
+    { "source": "/preguntas-frecuentes/", "destination": "/preguntas-frecuentes.html" },
+    { "source": "/ingles-para-principiantes", "destination": "/ingles-para-principiantes.html" },
+    { "source": "/ingles-para-principiantes/", "destination": "/ingles-para-principiantes.html" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
