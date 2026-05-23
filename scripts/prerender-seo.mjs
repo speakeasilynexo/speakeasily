@@ -1,11 +1,11 @@
-// Post-build SEO prerender: generates per-route index.html files in dist/
+// Post-build SEO prerender: generates per-route HTML files in dist/
 // with correct <title>, <meta description>, canonical, hreflang and og:* tags.
 // Fixes Google Search Console "Error de redirección" caused by the SPA's
 // shared index.html declaring canonical = "/" for every route.
 
 // Pure Node ESM, no external dependencies.
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -203,13 +203,12 @@ function main() {
 
   for (const route of ROUTES) {
     const html = rewriteHtml(template, route);
-    const outDir = resolve(DIST, route.path === "/" ? "." : route.path.replace(/^\//, ""));
-    mkdirSync(outDir, { recursive: true });
-    writeFileSync(resolve(outDir, "index.html"), html, "utf8");
+    const outPath = resolve(DIST, route.path === "/" ? "index.html" : route.path.replace(/^\//, ""));
+    writeFileSync(outPath, html, "utf8");
     written += 1;
   }
 
-  console.log(`[prerender-seo] wrote ${written} per-route index.html files in dist/`);
+  console.log(`[prerender-seo] wrote ${written} route HTML files in dist/`);
 }
 
 main();
