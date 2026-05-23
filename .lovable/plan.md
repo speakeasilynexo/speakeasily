@@ -1,76 +1,28 @@
+## Situação
 
-## Diagnóstico
+O `curl` em produção confirma que `/aprender-ingles-por-whatsapp` ainda devolve o `index.html` antigo, com `canonical` e `og:url` apontando para `/`. O código no `main` (commit `557c267`) e o `scripts/prerender-seo.mjs` já estão corretos no repositório — o problema é exclusivamente de **deploy**: a build com o prerender plugin nunca chegou ao hosting do `speakeasily.nexo-digital.app`.
 
-O Google Search Console reporta **"Error de redirección"** nas páginas de conteúdo (`/aprender-ingles-por-whatsapp`, `/clases-de-ingles-online`, etc.). Após inspecionar o HTML servido em produção, encontrei a causa real:
+## O que precisa ser feito
 
-**O `index.html` é servido para TODAS as rotas (comportamento normal de SPA), e ele tem hardcoded:**
+1. **Você clica em Publish → Update** no editor do Lovable (canto superior direito). Isso é o único gatilho que executa `vite build` no ambiente do Lovable, e é nesse build que o `prerenderSEOPlugin` em `vite.config.ts` roda o `scripts/prerender-seo.mjs` no `closeBundle`, gerando os 13 `index.html` por rota dentro de `dist/`.
 
-```html
-<link rel="canonical" href="https://speakeasily.nexo-digital.app/" />
-<link rel="alternate" hreflang="es-ES" href="https://speakeasily.nexo-digital.app/" />
-<link rel="alternate" hreflang="pt-BR" href="https://speakeasily.nexo-digital.app/?lang=pt" />
-<link rel="alternate" hreflang="en-US" href="https://speakeasily.nexo-digital.app/?lang=en" />
-```
+2. **Após o publish concluir**, eu rodo de novo:
+   ```bash
+   curl -sL "https://speakeasily.nexo-digital.app/aprender-ingles-por-whatsapp" | grep -E "canonical|og:url"
+   ```
+   Esperado:
+   - `<link rel="canonical" href="https://speakeasily.nexo-digital.app/aprender-ingles-por-whatsapp" />`
+   - `<meta property="og:url" content="https://speakeasily.nexo-digital.app/aprender-ingles-por-whatsapp" />`
 
-Quando o Googlebot busca `/aprender-ingles-por-whatsapp`, recebe HTML cuja **canonical aponta para `/`**. O Google interpreta isso como **"esta URL deve ser canonicalizada para outra"** → marca como erro de redirecionamento/canonical e não indexa.
+3. **Se ainda falhar** após o publish, eu investigo:
+   - se o build do Lovable está usando o `vite.config.ts` correto (plugin aplicado em `mode !== "development"`);
+   - se o hosting está servindo `dist/aprender-ingles-por-whatsapp/index.html` em vez do fallback SPA `dist/index.html`;
+   - se existe cache de CDN segurando a versão antiga (nesse caso peço para você forçar um novo Publish).
 
-O `useSEO` corrige a canonical depois via JS, mas:
-1. O Googlebot usa primeiro o HTML estático (canonical signal).
-2. Mesmo após renderizar o JS, o sinal conflitante já gera o aviso.
+## Observação importante
 
-Isto afeta TODAS as 12 páginas de conteúdo no sitemap.
+Sobre o ponto 3 do seu pedido original ("rota `/es` retorne `og:url` e `canonical` para a própria rota"): o projeto **não usa prefixo de idioma** (`/es`, `/pt`, `/en`). O idioma vem por querystring (`?lang=pt`, `?lang=en`) e o espanhol é o default sem parâmetro. Por isso o `prerender-seo.mjs` gera 13 rotas em espanhol como base, e o `useSEO.ts` ajusta `canonical`/`hreflang` no client conforme o `?lang=`. Se você realmente quer rotas físicas `/es/...`, `/pt/...`, `/en/...`, isso é uma mudança maior (refator de router + i18n + sitemap + prerender) — me confirma se quer que eu planeje isso separadamente.
 
-## Problema secundário: `www`
+## Próximo passo imediato
 
-`https://www.speakeasily.nexo-digital.app/` não responde (timeout). Isto **não** causa o erro do Search Console (a propriedade é o domínio raiz), mas impede usuários que digitam "www" de chegar ao site. **Solução é DNS, não código** — adicionar registro `A www → 185.158.133.1` no registrador.
-
-## Solução proposta (código)
-
-Gerar **um `index.html` por rota** no build, com `<title>`, `<meta description>`, `canonical`, `hreflang` e `og:*` corretos por rota e idioma. Lovable hosting serve `dist/<rota>/index.html` quando existe, e cai no fallback SPA caso contrário — então Googlebot recebe o HTML correto na primeira requisição, e o React continua hidratando normalmente.
-
-### Arquivos
-
-1. **`scripts/generate-static-html.ts`** (novo)
-   - Lê `index.html` como template.
-   - Importa metadados das 12 páginas de `src/data/contentPages.ts` (lang `es` para HTML inicial, já que é o default; outras línguas resolvem via `?lang=`).
-   - Para cada rota (`/aprender-ingles-por-whatsapp`, etc.), substitui no template:
-     - `<title>` → `page.metaTitle`
-     - `<meta name="description">` → `page.metaDescription`
-     - `<link rel="canonical">` → URL da rota
-     - 3 `<link rel="alternate" hreflang>` + `x-default` → URLs da rota com `?lang=`
-     - `og:url`, `og:title`, `og:description` → idem
-   - Escreve `dist/<slug>/index.html`.
-   - Também regenera `dist/index.html` para garantir que canonical da home permanece `/`.
-
-2. **`package.json`**
-   - Adicionar `"postbuild": "bunx tsx scripts/generate-static-html.ts"`.
-   - Sem novas dependências (`tsx` já é usado por `predev`/`prebuild` em projetos similares — se não estiver, usar `node --import tsx/esm` ou converter para `.mjs` puro com `fs`/`path` nativo). **Confirmação: vou usar `.mjs` com APIs nativas Node para zero dependências, respeitando a regra do projeto.**
-
-3. **`index.html`**
-   - Manter como está (template). O script injeta valores corretos por rota no build. A home continua apontando canonical para `/`.
-
-### Por que funciona
-
-- Lovable hosting (Cloudflare) serve arquivos estáticos do `dist/` quando o caminho corresponde a um arquivo. `dist/aprender-ingles-por-whatsapp/index.html` será servido em vez do fallback SPA.
-- O HTML servido tem canonical correta → Google deixa de reportar "Error de redirección".
-- React Router continua funcionando: o JS roda, identifica a rota, renderiza o componente.
-- `useSEO` continua atualizando meta tags em mudanças de idioma client-side (sem conflito, pois apenas reforça o que já está no HTML).
-
-### Validação após deploy
-
-1. `curl -s https://speakeasily.nexo-digital.app/aprender-ingles-por-whatsapp | grep canonical` → deve mostrar a própria URL.
-2. Search Console → "Inspecionar URL" → "Probar URL publicada" em 2-3 páginas afetadas. Solicitar reindexação.
-3. Aguardar 7-14 dias para Google reprocessar; o erro deve desaparecer.
-
-### Fora de escopo (mas recomendo separadamente)
-
-- **DNS www**: adicionar registro `A` para `www` apontando para `185.158.133.1` no painel do registrador do domínio. Sem isto, `www.speakeasily.nexo-digital.app` continua não respondendo.
-- Se quiseres, posso também opcionalmente injetar JSON-LD `BreadcrumbList` por rota no mesmo script (melhora rich results).
-
-## Pergunta antes de implementar
-
-Confirmas que queres que eu:
-- (a) Aplique apenas a correção de canonical/hreflang via script de build (resolve o erro do Search Console); ou
-- (b) (a) + também injete JSON-LD `BreadcrumbList` por rota?
-
-E queres que eu inclua também as URLs com `?lang=en` e `?lang=pt` como rotas pré-renderizadas separadas, ou basta a versão `es` (default) do HTML inicial?
+Clica em **Publish → Update** e me avisa quando concluir. Eu rodo o `curl` na hora e devolvo `CORRETO` ou `INCORRETO` com a saída.
