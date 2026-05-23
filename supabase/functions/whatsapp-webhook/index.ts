@@ -2542,22 +2542,23 @@ async function markTrialCompleted(
 // ============== AI FUNCTIONS ==============
 
 async function callAI(systemPrompt: string, userMessage: string): Promise<string> {
-  const apiKey = Deno.env.get("LOVABLE_API_KEY");
+  const apiKey = Deno.env.get("OPENAI_API_KEY");
+  const model = Deno.env.get("OPENAI_CHAT_MODEL") || "gpt-4o-mini";
 
   if (!apiKey) {
-    console.error("[AI] Missing LOVABLE_API_KEY");
+    console.error("[AI] Missing OPENAI_API_KEY");
     return "";
   }
 
   try {
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userMessage },
@@ -2568,11 +2569,11 @@ async function callAI(systemPrompt: string, userMessage: string): Promise<string
     });
 
     if (!response.ok) {
-      console.error("[AI] Gateway error:", response.status);
+      console.error("[AI] OpenAI error:", response.status, await response.text());
       return "";
     }
 
-    const data = await response.json();
+    const data = await response.json() as OpenAIChatResponse;
     return data.choices?.[0]?.message?.content || "";
   } catch (error) {
     console.error("[AI] Error:", error);
