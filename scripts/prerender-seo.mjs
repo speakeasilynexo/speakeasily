@@ -15,6 +15,12 @@ const BASE_URL = "https://speakeasily.nexo-digital.app";
 
 const ROUTES = [
   {
+    path: "/",
+    title: "SpeakEasily - Aprende inglés por WhatsApp | Clases de inglés online gratis",
+    description:
+      "Aprende inglés por WhatsApp con lecciones personalizadas de IA. Curso de inglés online gratis: 5 min/día, sin descargar apps. Prueba 7 días gratis.",
+  },
+  {
     path: "/aprender-ingles-por-whatsapp",
     title: "Aprender inglés por WhatsApp con IA | SpeakEasily",
     description:
@@ -197,7 +203,7 @@ function main() {
 
   for (const route of ROUTES) {
     const html = rewriteHtml(template, route);
-    const outDir = resolve(DIST, route.path.replace(/^\//, ""));
+    const outDir = resolve(DIST, route.path === "/" ? "." : route.path.replace(/^\//, ""));
     mkdirSync(outDir, { recursive: true });
     writeFileSync(resolve(outDir, "index.html"), html, "utf8");
     written += 1;
